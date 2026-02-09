@@ -1,7 +1,8 @@
 <script lang="ts">
 	/**
 	 * RichTextRenderer — converts AT Protocol rich text (text + facet byte spans)
-	 * into properly linked HTML. Supports mention and link facet types.
+	 * into properly rendered HTML. Supports mention, link, bold, italic,
+	 * underline, and strikethrough facet types.
 	 *
 	 * AT Protocol facets use byte indices, not character indices, so we must convert
 	 * between UTF-8 byte offsets and JS string offsets.
@@ -23,11 +24,18 @@
 		text: string;
 		link?: string;
 		mention?: string;
+		bold?: boolean;
+		italic?: boolean;
+		underline?: boolean;
+		strikethrough?: boolean;
 	}
 
 	/**
-	 * Convert a JS string offset to a UTF-8 byte offset, and vice versa.
-	 * We encode the full text once and build a byte→char mapping.
+	 * Build rendered segments from text and facets.
+	 *
+	 * For overlapping facets (e.g. bold span partially overlapping an italic span),
+	 * we split into non-overlapping character intervals, each carrying the union of
+	 * all features active at that position.
 	 */
 	function buildSegments(text: string, facets?: Facet[]): Segment[] {
 		if (!facets || facets.length === 0) {
@@ -55,43 +63,91 @@
 			}
 		}
 
-		// Sort facets by byte start position
-		const sorted = [...facets].sort((a, b) => a.index.byteStart - b.index.byteStart);
+		// Convert facets to character-index intervals with resolved features
+		interface CharFacet {
+			start: number;
+			end: number;
+			link?: string;
+			mention?: string;
+			bold?: boolean;
+			italic?: boolean;
+			underline?: boolean;
+			strikethrough?: boolean;
+		}
+
+		const charFacets: CharFacet[] = [];
+		for (const facet of facets) {
+			const s = byteToChar[facet.index.byteStart];
+			const e = byteToChar[facet.index.byteEnd];
+			if (s === undefined || e === undefined || s >= e) continue;
+
+			const cf: CharFacet = { start: s, end: e };
+			for (const feat of facet.features) {
+				if (feat.$type === 'app.bsky.richtext.facet#link' && feat.uri) cf.link = feat.uri;
+				else if (feat.$type === 'app.bsky.richtext.facet#mention' && feat.did) cf.mention = feat.did;
+				else if (feat.$type === 'blue.backyard.richtext.facet#bold') cf.bold = true;
+				else if (feat.$type === 'blue.backyard.richtext.facet#italic') cf.italic = true;
+				else if (feat.$type === 'blue.backyard.richtext.facet#underline') cf.underline = true;
+				else if (feat.$type === 'blue.backyard.richtext.facet#strikethrough') cf.strikethrough = true;
+			}
+			charFacets.push(cf);
+		}
+
+		if (charFacets.length === 0) return [{ text }];
+
+		// Collect all boundary points to split into non-overlapping intervals
+		const boundaries = new Set<number>();
+		boundaries.add(0);
+		boundaries.add(text.length);
+		for (const cf of charFacets) {
+			boundaries.add(cf.start);
+			boundaries.add(cf.end);
+		}
+		const sorted = [...boundaries].sort((a, b) => a - b);
 
 		const segments: Segment[] = [];
-		let lastCharIdx = 0;
+		for (let i = 0; i < sorted.length - 1; i++) {
+			const segStart = sorted[i];
+			const segEnd = sorted[i + 1];
+			if (segStart >= segEnd) continue;
 
-		for (const facet of sorted) {
-			const charStart = byteToChar[facet.index.byteStart];
-			const charEnd = byteToChar[facet.index.byteEnd];
+			const seg: Segment = { text: text.slice(segStart, segEnd) };
 
-			if (charStart === undefined || charEnd === undefined) continue;
-			if (charStart < lastCharIdx) continue; // overlapping facet, skip
-
-			// Add plain text before this facet
-			if (charStart > lastCharIdx) {
-				segments.push({ text: text.slice(lastCharIdx, charStart) });
-			}
-
-			// Determine facet type
-			const segment: Segment = { text: text.slice(charStart, charEnd) };
-			for (const feature of facet.features) {
-				if (feature.$type === 'app.bsky.richtext.facet#link' && feature.uri) {
-					segment.link = feature.uri;
-				} else if (feature.$type === 'app.bsky.richtext.facet#mention' && feature.did) {
-					segment.mention = feature.did;
+			// Merge all facets that cover this interval
+			for (const cf of charFacets) {
+				if (cf.start <= segStart && cf.end >= segEnd) {
+					if (cf.link) seg.link = cf.link;
+					if (cf.mention) seg.mention = cf.mention;
+					if (cf.bold) seg.bold = true;
+					if (cf.italic) seg.italic = true;
+					if (cf.underline) seg.underline = true;
+					if (cf.strikethrough) seg.strikethrough = true;
 				}
 			}
-			segments.push(segment);
-			lastCharIdx = charEnd;
+
+			segments.push(seg);
 		}
 
-		// Add remaining plain text
-		if (lastCharIdx < text.length) {
-			segments.push({ text: text.slice(lastCharIdx) });
+		// Merge adjacent segments with identical formatting to reduce DOM nodes
+		const merged: Segment[] = [];
+		for (const seg of segments) {
+			const prev = merged[merged.length - 1];
+			if (
+				prev &&
+				prev.link === seg.link &&
+				prev.mention === seg.mention &&
+				prev.bold === seg.bold &&
+				prev.italic === seg.italic &&
+				prev.underline === seg.underline &&
+				prev.strikethrough === seg.strikethrough
+			) {
+				prev.text += seg.text;
+			} else {
+				merged.push({ ...seg });
+			}
 		}
 
-		return segments;
+		return merged;
 	}
 
 	let segments = $derived(buildSegments(text, facets));
@@ -99,12 +155,34 @@
 
 {#each segments as seg}
 	{#if seg.link}
-		<a href={seg.link} target="_blank" rel="noopener noreferrer" class="rt-link">{seg.text}</a>
+		<a
+			href={seg.link}
+			target="_blank"
+			rel="noopener noreferrer"
+			class="rt-link"
+			class:rt-bold={seg.bold}
+			class:rt-italic={seg.italic}
+			class:rt-underline={seg.underline}
+			class:rt-strike={seg.strikethrough}
+		>{seg.text}</a>
 	{:else if seg.mention}
-		<a href="/profile/{seg.text.replace(/^@/, '')}" class="rt-mention">{seg.text}</a>
-	{:else}
-		{seg.text}
-	{/if}
+		<a
+			href="/profile/{seg.text.replace(/^@/, '')}"
+			class="rt-mention"
+			class:rt-bold={seg.bold}
+			class:rt-italic={seg.italic}
+			class:rt-underline={seg.underline}
+			class:rt-strike={seg.strikethrough}
+		>{seg.text}</a>
+	{:else if seg.bold || seg.italic || seg.underline || seg.strikethrough}
+		<span
+			class="rt-formatted"
+			class:rt-bold={seg.bold}
+			class:rt-italic={seg.italic}
+			class:rt-underline={seg.underline}
+			class:rt-strike={seg.strikethrough}
+		>{seg.text}</span>
+	{:else}{seg.text}{/if}
 {/each}
 
 <style>
@@ -125,5 +203,26 @@
 
 	.rt-mention:hover {
 		text-decoration: underline;
+	}
+
+	.rt-bold {
+		font-weight: 700;
+	}
+
+	.rt-italic {
+		font-style: italic;
+	}
+
+	.rt-underline {
+		text-decoration: underline;
+	}
+
+	.rt-strike {
+		text-decoration: line-through;
+	}
+
+	/* Combine underline + strikethrough when both present */
+	.rt-underline.rt-strike {
+		text-decoration: underline line-through;
 	}
 </style>

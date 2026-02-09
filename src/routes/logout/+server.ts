@@ -1,5 +1,4 @@
-import { redirect } from '@sveltejs/kit';
-import type { RequestHandler } from './$types.js';
+import { redirect, type RequestHandler } from '@sveltejs/kit';
 import { clearSession } from '$lib/server/session.js';
 
 export const POST: RequestHandler = async ({ cookies }) => {

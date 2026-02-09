@@ -171,6 +171,7 @@ select {
 
 .btn-primary:hover {
 	background-color: var(--accent-hover);
+	color: var(--accent-text);
 	text-decoration: none;
 }
 

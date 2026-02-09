@@ -1,7 +1,11 @@
 <script lang="ts">
 	import { ChevronLeft } from 'lucide-svelte';
+	import RichTextEditor from '$lib/components/RichTextEditor.svelte';
+	import TagInput from '$lib/components/TagInput.svelte';
 
 	let text = $state('');
+	let formatFacets: { index: { byteStart: number; byteEnd: number }; features: { $type: string }[] }[] = $state([]);
+	let tags: string[] = $state([]);
 	let submitting = $state(false);
 	let error = $state('');
 	const MAX_CHARS = 3000;
@@ -18,7 +22,11 @@
 			const res = await fetch('/api/post', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ text: text.trim() })
+				body: JSON.stringify({
+					text: text.trim(),
+					tags: tags.length > 0 ? tags : undefined,
+					formatFacets: formatFacets.length > 0 ? formatFacets : undefined
+				})
 			});
 
 			if (res.ok) {
@@ -55,15 +63,16 @@
 			</div>
 		{/if}
 
-		<textarea
-			class="compose-textarea"
-			placeholder="what's on your mind?"
-			bind:value={text}
-			maxlength={MAX_CHARS}
-			rows="6"
+		<RichTextEditor
+			bind:text
+			bind:facets={formatFacets}
+			maxLength={MAX_CHARS}
 			disabled={submitting}
-			autofocus
-		></textarea>
+		/>
+
+		<div class="compose-tags">
+			<TagInput bind:tags disabled={submitting} />
+		</div>
 
 		<div class="compose-footer">
 			<span class="char-count" class:warning={charCount > MAX_CHARS * 0.9} class:over={charCount >= MAX_CHARS}>
@@ -121,32 +130,8 @@
 		margin-bottom: 1rem;
 	}
 
-	.compose-textarea {
-		width: 100%;
-		padding: 0.75rem;
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-sm);
-		background-color: var(--bg-primary);
-		color: var(--text-primary);
-		font-size: 1rem;
-		line-height: 1.5;
-		resize: vertical;
-		min-height: 150px;
-		outline: none;
-		transition: border-color 0.15s ease;
-	}
-
-	.compose-textarea:focus {
-		border-color: var(--accent);
-		box-shadow: 0 0 0 3px var(--accent-light);
-	}
-
-	.compose-textarea::placeholder {
-		color: var(--text-tertiary);
-	}
-
-	.compose-textarea:disabled {
-		opacity: 0.5;
+	.compose-tags {
+		margin-top: 0.75rem;
 	}
 
 	.compose-footer {

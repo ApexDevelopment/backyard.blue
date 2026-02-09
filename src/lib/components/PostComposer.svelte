@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { BackyardProfile, BackyardChainEntry } from '$lib/types.js';
 	import { X } from 'lucide-svelte';
+	import RichTextEditor from './RichTextEditor.svelte';
+	import TagInput from './TagInput.svelte';
 
 	interface Props {
 		user: BackyardProfile;
@@ -27,7 +29,8 @@
 	}: Props = $props();
 
 	let text = $state('');
-	let tags = $state('');
+	let formatFacets: { index: { byteStart: number; byteEnd: number }; features: { $type: string }[] }[] = $state([]);
+	let tags: string[] = $state([]);
 	let submitting = $state(false);
 	let error = $state('');
 	let charCount = $derived(text.length);
@@ -61,12 +64,11 @@
 		error = '';
 
 		try {
+			const tagList = tags.length > 0 ? tags : undefined;
+			const facetList = formatFacets.length > 0 ? formatFacets : undefined;
+
 			if (isReblog) {
 				// Reblog mode: call /api/repost
-				const parsedTags = tags.trim()
-					? tags.split(',').map((t) => t.trim()).filter(Boolean)
-					: undefined;
-
 				const res = await fetch('/api/repost', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
@@ -74,13 +76,15 @@
 						uri: reblogUri,
 						cid: reblogCid,
 						text: text.trim() || undefined,
-						tags: parsedTags
+						tags: tagList,
+						formatFacets: facetList
 					})
 				});
 
 				if (res.ok) {
 					text = '';
-					tags = '';
+					formatFacets = [];
+					tags = [];
 					onClose();
 					window.location.reload();
 				} else {
@@ -92,11 +96,17 @@
 				const res = await fetch('/api/post', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ text: text.trim() })
+					body: JSON.stringify({
+						text: text.trim(),
+						tags: tagList,
+						formatFacets: facetList
+					})
 				});
 
 				if (res.ok) {
 					text = '';
+					formatFacets = [];
+					tags = [];
 					onClose();
 					window.location.reload();
 				} else {
@@ -161,23 +171,14 @@
 					{/if}
 				</div>
 				<div class="composer-fields">
-					<textarea
-						class="composer-textarea"
-						{placeholder}
-						bind:value={text}
-						maxlength={MAX_CHARS}
-						rows={isReblog ? 3 : 5}
+					<RichTextEditor
+						bind:text
+						bind:facets={formatFacets}
+						maxLength={MAX_CHARS}
 						disabled={submitting}
-					></textarea>
-					{#if isReblog}
-						<input
-							class="composer-tags-input"
-							type="text"
-							placeholder="tags (comma-separated)"
-							bind:value={tags}
-							disabled={submitting}
-						/>
-					{/if}
+						{placeholder}
+					/>
+					<TagInput bind:tags disabled={submitting} />
 				</div>
 			</div>
 
@@ -344,48 +345,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
-	}
-
-	.composer-textarea {
-		flex: 1;
-		min-width: 0;
-		padding: 0.5rem;
-		border: none;
-		background: transparent;
-		color: var(--text-primary);
-		font-family: var(--font-sans);
-		font-size: 1rem;
-		line-height: 1.5;
-		resize: none;
-		outline: none;
-		min-height: 80px;
-	}
-
-	.composer-textarea::placeholder {
-		color: var(--text-tertiary);
-	}
-
-	.composer-textarea:disabled {
-		opacity: 0.5;
-	}
-
-	.composer-tags-input {
-		padding: 0.375rem 0.5rem;
-		border: 1px solid var(--border-color);
-		border-radius: var(--radius-sm);
-		background: transparent;
-		color: var(--text-primary);
-		font-family: var(--font-sans);
-		font-size: 0.875rem;
-		outline: none;
-	}
-
-	.composer-tags-input::placeholder {
-		color: var(--text-tertiary);
-	}
-
-	.composer-tags-input:focus {
-		border-color: var(--accent);
 	}
 
 	.composer-error {
