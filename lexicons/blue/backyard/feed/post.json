@@ -1,0 +1,103 @@
+{
+  "lexicon": 1,
+  "id": "blue.backyard.feed.post",
+  "description": "An original post in a user's Backyard feed.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "An original post in a user's Backyard feed.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["text", "createdAt"],
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 30000,
+            "maxGraphemes": 3000,
+            "description": "The primary text content of the post."
+          },
+          "facets": {
+            "type": "array",
+            "description": "Annotations of text (mentions, URLs, hashtags).",
+            "items": {
+              "type": "ref",
+              "ref": "blue.backyard.richtext.facet"
+            }
+          },
+          "media": {
+            "type": "array",
+            "description": "Images or videos attached to the post.",
+            "maxLength": 4,
+            "items": {
+              "type": "ref",
+              "ref": "#mediaEmbed"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "description": "Additional non-inline tags for categorization.",
+            "maxLength": 8,
+            "items": {
+              "type": "string",
+              "maxLength": 640,
+              "maxGraphemes": 64
+            }
+          },
+          "langs": {
+            "type": "array",
+            "description": "BCP-47 language tags of the post text.",
+            "maxLength": 3,
+            "items": {
+              "type": "string",
+              "format": "language"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "mediaEmbed": {
+      "type": "object",
+      "description": "An embedded media item (image or video).",
+      "required": ["blob", "mimeType"],
+      "properties": {
+        "blob": {
+          "type": "blob",
+          "accept": ["image/png", "image/jpeg", "image/gif", "image/webp", "video/mp4"],
+          "maxSize": 50000000
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "alt": {
+          "type": "string",
+          "maxGraphemes": 1000,
+          "maxLength": 10000,
+          "description": "Alt text description for accessibility."
+        },
+        "aspectRatio": {
+          "type": "ref",
+          "ref": "#aspectRatio"
+        }
+      }
+    },
+    "aspectRatio": {
+      "type": "object",
+      "required": ["width", "height"],
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

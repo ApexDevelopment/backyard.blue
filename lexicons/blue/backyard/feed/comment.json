@@ -1,0 +1,51 @@
+{
+  "lexicon": 1,
+  "id": "blue.backyard.feed.comment",
+  "description": "A comment on a post, reblog, or another comment. Equivalent to a Tumblr 'note' — a lightweight text response that does not appear in the commenter's own feed.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A comment (note) on a Backyard post or reblog.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["text", "subject", "root", "createdAt"],
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 10000,
+            "maxGraphemes": 1000,
+            "description": "The text content of the comment."
+          },
+          "facets": {
+            "type": "array",
+            "description": "Annotations of text (mentions, URLs, hashtags).",
+            "items": {
+              "type": "ref",
+              "ref": "blue.backyard.richtext.facet"
+            }
+          },
+          "subject": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "The direct parent record being commented on (a post, reblog, or another comment)."
+          },
+          "root": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "The root post of the thread. Always a blue.backyard.feed.post."
+          },
+          "parent": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "If replying to another comment, the parent comment. If absent, subject is the direct parent."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

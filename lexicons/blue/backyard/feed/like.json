@@ -1,0 +1,27 @@
+{
+  "lexicon": 1,
+  "id": "blue.backyard.feed.like",
+  "description": "A like on a Backyard post, reblog, or comment.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Record declaring a 'like' of a subject record.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["subject", "createdAt"],
+        "properties": {
+          "subject": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "The record being liked (post, reblog, or comment)."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

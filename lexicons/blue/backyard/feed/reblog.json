@@ -1,0 +1,60 @@
+{
+  "lexicon": 1,
+  "id": "blue.backyard.feed.reblog",
+  "description": "A reblog of a post to the user's own feed, optionally with additional commentary and tags. Equivalent to a Tumblr reblog — the reblog appears in the reblogger's feed and carries the original post forward.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A reblog of a Backyard post with optional additions.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["subject", "createdAt"],
+        "properties": {
+          "subject": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "The post or reblog being reblogged."
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 30000,
+            "maxGraphemes": 3000,
+            "description": "Optional addition / commentary added by the reblogger."
+          },
+          "facets": {
+            "type": "array",
+            "description": "Annotations of text (mentions, URLs, hashtags).",
+            "items": {
+              "type": "ref",
+              "ref": "blue.backyard.richtext.facet"
+            }
+          },
+          "media": {
+            "type": "array",
+            "description": "Optional media added by the reblogger.",
+            "maxLength": 4,
+            "items": {
+              "type": "ref",
+              "ref": "blue.backyard.feed.post#mediaEmbed"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "description": "Tags added by the reblogger for categorization.",
+            "maxLength": 8,
+            "items": {
+              "type": "string",
+              "maxLength": 640,
+              "maxGraphemes": 64
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

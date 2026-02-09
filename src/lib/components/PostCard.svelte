@@ -1,0 +1,460 @@
+<script lang="ts">
+	import type { BackyardPost, BackyardChainEntry } from '$lib/types.js';
+	import { MessageCircle, Repeat2, Heart, ChevronDown } from 'lucide-svelte';
+	import { openReblogComposer } from '$lib/stores/composer.js';
+	import RichTextRenderer from './RichTextRenderer.svelte';
+
+	interface Props {
+		post: BackyardPost;
+		/** Reblog chain: original post first, each addition after. When present, renders Tumblr-style stacked entries. */
+		chain?: BackyardChainEntry[];
+		showActions?: boolean;
+		compact?: boolean;
+	}
+
+	let { post, chain, showActions = true, compact = false }: Props = $props();
+
+	/** Max chain entries visible before clipping */
+	const MAX_VISIBLE = 3;
+	let expanded = $state(false);
+
+	/** Chain entries that actually have content (text or media) */
+	let contentChain = $derived(
+		chain?.filter((e) => e.text?.trim() || (e.media && e.media.length > 0)) ?? []
+	);
+	let needsClipping = $derived(contentChain.length > MAX_VISIBLE && !expanded);
+	let visibleEntries = $derived(
+		needsClipping
+			? [contentChain[0], ...contentChain.slice(-2)]
+			: contentChain
+	);
+	let hiddenCount = $derived(contentChain.length - MAX_VISIBLE);
+
+	function formatDate(dateStr: string): string {
+		const date = new Date(dateStr);
+		const now = new Date();
+		const diffMs = now.getTime() - date.getTime();
+		const diffMins = Math.floor(diffMs / 60000);
+		const diffHours = Math.floor(diffMs / 3600000);
+		const diffDays = Math.floor(diffMs / 86400000);
+
+		if (diffMins < 1) return 'just now';
+		if (diffMins < 60) return `${diffMins}m`;
+		if (diffHours < 24) return `${diffHours}h`;
+		if (diffDays < 7) return `${diffDays}d`;
+		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+	}
+
+	function formatCount(n: number): string {
+		if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+		if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+		return n.toString();
+	}
+
+	let viewerLike = $state(post.viewerLike);
+	let likeCount = $state(post.likeCount);
+	let liked = $derived(!!viewerLike);
+	let likeLoading = $state(false);
+
+	async function handleLike() {
+		if (likeLoading) return;
+		likeLoading = true;
+		try {
+			const res = await fetch('/api/like', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ uri: post.uri, cid: post.cid, liked: viewerLike || '' })
+			});
+			if (res.ok) {
+				const data = await res.json();
+				if (viewerLike) {
+					viewerLike = undefined;
+					likeCount = Math.max(0, likeCount - 1);
+				} else {
+					viewerLike = data.uri;
+					likeCount += 1;
+				}
+			}
+		} finally {
+			likeLoading = false;
+		}
+	}
+
+	async function handleReblog() {
+		// Always open reblog composer — subject is the latest entry in the chain (or the post itself)
+			const lastChainEntry = chain && chain.length > 0 ? chain[chain.length - 1] : null;
+			const subjectUri = lastChainEntry?.uri || post.uri;
+			const subjectCid = lastChainEntry?.cid || post.cid;
+
+			// Build the chain that the composer will show as context.
+			// If we have a chain, pass it as-is. If not, create a single-entry chain from the post.
+			const composerChain: BackyardChainEntry[] = chain && chain.length > 0
+				? chain
+				: [{
+					uri: post.uri,
+					cid: post.cid,
+					author: post.author,
+					text: post.text,
+					facets: post.facets,
+					media: post.media,
+					tags: post.tags,
+					createdAt: post.createdAt,
+					isRoot: true
+				}];
+
+			openReblogComposer(subjectUri, subjectCid, composerChain);
+	}
+</script>
+
+<article class="post-card card" class:compact>
+	{#if contentChain.length > 1}
+		<!-- CHAIN VIEW: Tumblr-style stacked entries -->
+		<div class="chain">
+			{#each visibleEntries as entry, i (entry.uri)}
+				{#if needsClipping && i === 1}
+					<!-- Expand button between first and last entries -->
+					<button class="chain-expand" onclick={() => (expanded = true)}>
+						<ChevronDown size={14} />
+						{hiddenCount} more addition{hiddenCount === 1 ? '' : 's'}
+					</button>
+				{/if}
+				<div class="chain-entry" class:chain-entry-last={i === visibleEntries.length - 1}>
+					<div class="chain-entry-header">
+						<a href="/profile/{entry.author.handle}" class="author-link">
+							{#if entry.author.avatar}
+								<img src={entry.author.avatar} alt="" class="avatar avatar-sm" />
+							{:else}
+								<div class="avatar avatar-sm avatar-placeholder">
+									{(entry.author.displayName || entry.author.handle).charAt(0).toUpperCase()}
+								</div>
+							{/if}
+							<span class="chain-author-name">{entry.author.displayName || entry.author.handle}</span>
+						</a>
+						<time class="post-time" datetime={entry.createdAt} title={new Date(entry.createdAt).toLocaleString()}>
+							{formatDate(entry.createdAt)}
+						</time>
+					</div>
+					{#if entry.text}
+						<div class="chain-entry-content">
+							<p><RichTextRenderer text={entry.text} facets={entry.facets} /></p>
+						</div>
+					{/if}
+					{#if entry.media && entry.media.length > 0}
+						<div class="post-embed">
+							<div class="embed-images" class:single={entry.media.length === 1} class:grid={entry.media.length > 1}>
+								{#each entry.media as media}
+									<img src={media.url} alt={media.alt || ''} class="embed-image" loading="lazy" />
+								{/each}
+							</div>
+						</div>
+					{/if}
+					{#if entry.tags && entry.tags.length > 0 && i === visibleEntries.length - 1}
+						<div class="post-tags">
+							{#each entry.tags as tag}
+								<span class="tag">#{tag}</span>
+							{/each}
+						</div>
+					{/if}
+				</div>
+			{/each}
+		</div>
+	{:else}
+		<!-- SINGLE POST VIEW (no chain or chain has only one entry) -->
+		<div class="post-header">
+			<a href="/profile/{post.author.handle}" class="author-link">
+				{#if post.author.avatar}
+					<img src={post.author.avatar} alt="" class="avatar" class:avatar-sm={compact} />
+				{:else}
+					<div class="avatar avatar-placeholder" class:avatar-sm={compact}>
+						{(post.author.displayName || post.author.handle).charAt(0).toUpperCase()}
+					</div>
+				{/if}
+				<div class="author-info">
+					<span class="author-name">{post.author.displayName || post.author.handle}</span>
+					<span class="author-handle">@{post.author.handle}</span>
+				</div>
+			</a>
+			<time class="post-time" datetime={post.createdAt} title={new Date(post.createdAt).toLocaleString()}>
+				{formatDate(post.createdAt)}
+			</time>
+		</div>
+
+		<div class="post-content">
+			<p><RichTextRenderer text={post.text} facets={post.facets} /></p>
+		</div>
+
+		{#if post.tags && post.tags.length > 0}
+			<div class="post-tags">
+				{#each post.tags as tag}
+					<span class="tag">#{tag}</span>
+				{/each}
+			</div>
+		{/if}
+
+		{#if post.media && post.media.length > 0}
+			<div class="post-embed">
+				<div class="embed-images" class:single={post.media.length === 1} class:grid={post.media.length > 1}>
+					{#each post.media as media}
+						<img src={media.url} alt={media.alt || ''} class="embed-image" loading="lazy" />
+					{/each}
+				</div>
+			</div>
+		{/if}
+	{/if}
+
+	{#if showActions}
+		<div class="post-actions">
+			<a href="/post/{post.uri.split('/').slice(-3).join('/')}" class="action-btn" title="comment">
+				<MessageCircle size={16} />
+				{#if post.commentCount > 0}
+					<span>{formatCount(post.commentCount)}</span>
+				{/if}
+			</a>
+
+			<button class="action-btn" class:active={!!post.viewerReblog} onclick={handleReblog} title="reblog">
+				<Repeat2 size={16} />
+				{#if post.reblogCount > 0}
+					<span>{formatCount(post.reblogCount)}</span>
+				{/if}
+			</button>
+
+			<button class="action-btn like-btn" class:active={liked} onclick={handleLike} title="like" disabled={likeLoading}>
+				<Heart size={16} fill={liked ? 'currentColor' : 'none'} />
+				{#if likeCount > 0}
+					<span>{formatCount(likeCount)}</span>
+				{/if}
+			</button>
+		</div>
+	{/if}
+</article>
+
+<style>
+	.post-card {
+		padding: 1rem;
+		transition: background-color 0.15s ease;
+	}
+
+	.post-card.compact {
+		padding: 0.75rem;
+	}
+
+	/* ── Chain view ───────────────────────────────────────── */
+
+	.chain {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.chain-entry {
+		padding-bottom: 0.625rem;
+		margin-bottom: 0.625rem;
+		border-bottom: 1px solid var(--border-light);
+	}
+
+	.chain-entry-last {
+		border-bottom: none;
+		margin-bottom: 0;
+		padding-bottom: 0;
+	}
+
+	.chain-entry-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 0.375rem;
+	}
+
+	.chain-author-name {
+		font-weight: 600;
+		font-size: 0.875rem;
+		color: var(--text-primary);
+	}
+
+	.chain-entry-content {
+		margin-bottom: 0.375rem;
+		font-size: 0.9375rem;
+		line-height: 1.5;
+		white-space: pre-wrap;
+		word-wrap: break-word;
+	}
+
+	.chain-expand {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.375rem;
+		width: 100%;
+		padding: 0.375rem;
+		margin-bottom: 0.625rem;
+		border: 1px dashed var(--border-color);
+		border-radius: var(--radius-sm);
+		background: none;
+		color: var(--text-tertiary);
+		font-size: 0.8125rem;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.chain-expand:hover {
+		color: var(--text-secondary);
+		background-color: var(--bg-hover);
+		border-color: var(--text-tertiary);
+	}
+
+	/* ── Single post view ────────────────────────────────── */
+
+	.post-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 0.5rem;
+	}
+
+	.author-link {
+		display: flex;
+		align-items: center;
+		gap: 0.625rem;
+		color: var(--text-primary);
+		text-decoration: none;
+		min-width: 0;
+	}
+
+	.author-link:hover {
+		text-decoration: none;
+	}
+
+	.author-link:hover .author-name,
+	.author-link:hover .chain-author-name {
+		text-decoration: underline;
+	}
+
+	.author-info {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+	}
+
+	.author-name {
+		font-weight: 600;
+		font-size: 0.9375rem;
+		line-height: 1.3;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.author-handle {
+		font-size: 0.8125rem;
+		color: var(--text-tertiary);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.post-time {
+		font-size: 0.8125rem;
+		color: var(--text-tertiary);
+		white-space: nowrap;
+		flex-shrink: 0;
+	}
+
+	.post-content {
+		margin-bottom: 0.5rem;
+		font-size: 0.9375rem;
+		line-height: 1.5;
+		white-space: pre-wrap;
+		word-wrap: break-word;
+	}
+
+	.post-embed {
+		margin-bottom: 0.5rem;
+	}
+
+	.post-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.375rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.tag {
+		font-size: 0.8125rem;
+		color: var(--text-link);
+		background-color: color-mix(in srgb, var(--accent) 10%, transparent);
+		padding: 0.125rem 0.5rem;
+		border-radius: var(--radius-full);
+	}
+
+	.embed-images {
+		border-radius: var(--radius-md);
+		overflow: hidden;
+	}
+
+	.embed-images.grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 2px;
+	}
+
+	.embed-image {
+		width: 100%;
+		max-height: 400px;
+		object-fit: cover;
+	}
+
+	/* ── Action bar ──────────────────────────────────────── */
+
+	.post-actions {
+		display: grid;
+		grid-template-columns: repeat(3, 4.5rem);
+		align-items: center;
+		justify-items: start;
+		margin-top: 0.25rem;
+		min-height: 2rem;
+	}
+
+	.action-btn {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.375rem 0.625rem;
+		border-radius: var(--radius-full);
+		font-size: 0.8125rem;
+		line-height: 1;
+		color: var(--text-tertiary);
+		transition: all 0.15s ease;
+		text-decoration: none;
+		cursor: pointer;
+		background: none;
+		border: none;
+	}
+
+	.action-btn:hover {
+		background-color: var(--bg-hover);
+		color: var(--text-secondary);
+		text-decoration: none;
+	}
+
+	.action-btn.active {
+		color: var(--accent);
+	}
+
+	.action-btn.like-btn.active {
+		color: var(--danger);
+	}
+
+	.action-btn:disabled {
+		opacity: 0.5;
+		cursor: default;
+	}
+
+	.avatar-placeholder {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background-color: var(--accent);
+		color: white;
+		font-weight: 600;
+		font-size: 0.875rem;
+	}
+</style>

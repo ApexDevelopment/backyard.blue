@@ -1,0 +1,179 @@
+import { Pool } from 'pg';
+import { env } from '$env/dynamic/private';
+
+const pool = new Pool({
+	connectionString: env.DATABASE_URL || 'postgresql://backyard:backyard@localhost:5432/backyard',
+	max: 20,
+	idleTimeoutMillis: 30_000,
+	connectionTimeoutMillis: 5_000
+});
+
+pool.on('error', (err) => {
+	console.error('Unexpected database pool error:', err);
+});
+
+export default pool;
+
+/**
+ * Initialize the database schema. Called once at app startup.
+ */
+export async function initializeDatabase(): Promise<void> {
+	const client = await pool.connect();
+	try {
+		await client.query(`
+			-- OAuth flow state (short-lived, ~1 hour)
+			CREATE TABLE IF NOT EXISTS oauth_state (
+				key TEXT PRIMARY KEY,
+				state JSONB NOT NULL,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+
+			-- OAuth authenticated sessions (long-lived)
+			CREATE TABLE IF NOT EXISTS oauth_session (
+				did TEXT PRIMARY KEY,
+				session JSONB NOT NULL,
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+
+			-- Cached user profiles (resolved from DID documents + PDS records)
+			CREATE TABLE IF NOT EXISTS profiles (
+				did TEXT PRIMARY KEY,
+				handle TEXT NOT NULL,
+				display_name TEXT,
+				pronouns TEXT,
+				description TEXT,
+				avatar TEXT,
+				banner TEXT,
+				pds_url TEXT,
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+
+			-- Migration: add pronouns column if missing
+			DO $$ BEGIN
+				ALTER TABLE profiles ADD COLUMN pronouns TEXT;
+			EXCEPTION
+				WHEN duplicate_column THEN NULL;
+			END $$;
+
+			CREATE INDEX IF NOT EXISTS idx_profiles_handle ON profiles(handle);
+
+			-- Posts (blue.backyard.feed.post)
+			CREATE TABLE IF NOT EXISTS posts (
+				uri TEXT PRIMARY KEY,
+				cid TEXT NOT NULL,
+				author_did TEXT NOT NULL,
+				text TEXT NOT NULL,
+				facets JSONB,
+				media JSONB,
+				tags TEXT[],
+				created_at TIMESTAMPTZ NOT NULL,
+				indexed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_posts_author ON posts(author_did);
+			CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC);
+
+			-- Comments (blue.backyard.feed.comment) — "notes" in Tumblr terms
+			CREATE TABLE IF NOT EXISTS comments (
+				uri TEXT PRIMARY KEY,
+				cid TEXT NOT NULL,
+				author_did TEXT NOT NULL,
+				text TEXT NOT NULL,
+				facets JSONB,
+				subject_uri TEXT NOT NULL,
+				root_uri TEXT NOT NULL,
+				parent_uri TEXT,
+				created_at TIMESTAMPTZ NOT NULL,
+				indexed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_comments_subject ON comments(subject_uri);
+			CREATE INDEX IF NOT EXISTS idx_comments_root ON comments(root_uri);
+			CREATE INDEX IF NOT EXISTS idx_comments_author ON comments(author_did);
+
+			-- Reblogs (blue.backyard.feed.reblog) — Tumblr-style reblogs with optional additions
+			CREATE TABLE IF NOT EXISTS reblogs (
+				uri TEXT PRIMARY KEY,
+				cid TEXT NOT NULL,
+				author_did TEXT NOT NULL,
+				subject_uri TEXT NOT NULL,
+				root_post_uri TEXT,
+				text TEXT,
+				facets JSONB,
+				media JSONB,
+				tags TEXT[],
+				created_at TIMESTAMPTZ NOT NULL,
+				indexed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+
+			-- Migration: add root_post_uri if missing (for existing installs)
+			DO $$ BEGIN
+				ALTER TABLE reblogs ADD COLUMN root_post_uri TEXT;
+			EXCEPTION
+				WHEN duplicate_column THEN NULL;
+			END $$;
+			-- Backfill root_post_uri for direct reblogs of posts
+			UPDATE reblogs SET root_post_uri = subject_uri
+				WHERE root_post_uri IS NULL
+				AND subject_uri IN (SELECT uri FROM posts);
+
+			CREATE INDEX IF NOT EXISTS idx_reblogs_author ON reblogs(author_did);
+			CREATE INDEX IF NOT EXISTS idx_reblogs_subject ON reblogs(subject_uri);
+			CREATE INDEX IF NOT EXISTS idx_reblogs_created ON reblogs(created_at DESC);
+			CREATE INDEX IF NOT EXISTS idx_reblogs_root_post ON reblogs(root_post_uri);
+
+			-- Likes (blue.backyard.feed.like)
+			CREATE TABLE IF NOT EXISTS likes (
+				uri TEXT PRIMARY KEY,
+				cid TEXT NOT NULL,
+				author_did TEXT NOT NULL,
+				subject_uri TEXT NOT NULL,
+				created_at TIMESTAMPTZ NOT NULL
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_likes_subject ON likes(subject_uri);
+			CREATE INDEX IF NOT EXISTS idx_likes_author_subject ON likes(author_did, subject_uri);
+
+			-- Follows (blue.backyard.graph.follow)
+			CREATE TABLE IF NOT EXISTS follows (
+				uri TEXT PRIMARY KEY,
+				author_did TEXT NOT NULL,
+				subject_did TEXT NOT NULL,
+				created_at TIMESTAMPTZ NOT NULL
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_follows_author ON follows(author_did);
+			CREATE INDEX IF NOT EXISTS idx_follows_subject ON follows(subject_did);
+			CREATE UNIQUE INDEX IF NOT EXISTS idx_follows_unique ON follows(author_did, subject_did);
+
+			-- Firehose cursor persistence (Jetstream consumer position)
+			CREATE TABLE IF NOT EXISTS firehose_cursor (
+				id TEXT PRIMARY KEY,
+				cursor_us BIGINT NOT NULL,
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+
+			-- Housekeeping: clean up expired OAuth state
+			DELETE FROM oauth_state WHERE created_at < NOW() - INTERVAL '1 hour';
+		`);
+	} finally {
+		client.release();
+	}
+}
+
+/**
+ * Start periodic cleanup of expired OAuth state entries.
+ * Runs every hour.
+ */
+let cleanupTimer: ReturnType<typeof setInterval> | null = null;
+
+export function startOAuthStateCleanup(): void {
+	if (cleanupTimer) return;
+	cleanupTimer = setInterval(async () => {
+		try {
+			await pool.query("DELETE FROM oauth_state WHERE created_at < NOW() - INTERVAL '1 hour'");
+		} catch (err) {
+			console.error('OAuth state cleanup error:', err);
+		}
+	}, 60 * 60 * 1000); // every hour
+}

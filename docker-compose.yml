@@ -1,0 +1,38 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - PUBLIC_URL=http://localhost:3000
+      - DATABASE_URL=postgresql://backyard:backyard@db:5432/backyard
+      - SESSION_SECRET=${SESSION_SECRET:-change-me-to-a-random-secret-at-least-32-characters-long!!}
+      - OAUTH_PRIVATE_KEY_1=${OAUTH_PRIVATE_KEY_1:-}
+      - OAUTH_PRIVATE_KEY_2=${OAUTH_PRIVATE_KEY_2:-}
+      - OAUTH_PRIVATE_KEY_3=${OAUTH_PRIVATE_KEY_3:-}
+      - JETSTREAM_URL=${JETSTREAM_URL:-}
+      - FIREHOSE_DISABLED=${FIREHOSE_DISABLED:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:18.1-alpine
+    environment:
+      POSTGRES_USER: backyard
+      POSTGRES_PASSWORD: backyard
+      POSTGRES_DB: backyard
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U backyard"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:
