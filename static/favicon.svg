@@ -1,4 +1,34 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#2c5f2d"/>
-  <text x="16" y="23" font-family="system-ui, sans-serif" font-size="20" font-weight="bold" fill="#fff" text-anchor="middle">B</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="256" height="256" role="img" aria-label="House cutout logo mark">
+	<rect x="0" y="0" width="200" height="200" fill="white"/>
+
+	<defs>
+		<mask id="cutout">
+			<rect x="0" y="0" width="200" height="200" fill="black"/>
+
+			<ellipse
+				cx="100"
+				cy="110"
+				rx="92"
+				ry="72"
+				fill="white"
+				transform="rotate(-22 100 110)"
+			/>
+
+			<path
+				d="M50 89
+				   L100 49
+				   L150 89
+				   L150 169
+				   L115 169
+				   L115 119
+				   L85 119
+				   L85 169
+				   L50 169
+				   Z"
+				fill="black"
+			/>
+		</mask>
+	</defs>
+
+	<rect x="0" y="0" width="200" height="200" fill="#8b3a4a" mask="url(#cutout)"/>
 </svg>
