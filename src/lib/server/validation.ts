@@ -106,3 +106,42 @@ export async function resolveRootPostUri(subjectUri: string): Promise<string> {
 export function escapeLike(input: string): string {
 	return input.replace(/[%_\\]/g, '\\$&');
 }
+
+/** Allowed client-side rich text formatting feature types. */
+const ALLOWED_FORMAT_TYPES = new Set([
+	'blue.backyard.richtext.facet#bold',
+	'blue.backyard.richtext.facet#italic',
+	'blue.backyard.richtext.facet#underline',
+	'blue.backyard.richtext.facet#strikethrough'
+]);
+
+/**
+ * Sanitise client-supplied formatting facets.
+ * Returns an array of validated facets (may be empty).
+ */
+export function sanitizeFormatFacets(raw: unknown): Array<{
+	index: { byteStart: number; byteEnd: number };
+	features: Array<{ $type: string }>;
+}> {
+	if (!Array.isArray(raw)) return [];
+	const out: Array<{ index: { byteStart: number; byteEnd: number }; features: Array<{ $type: string }> }> = [];
+	for (const ff of raw) {
+		if (
+			!ff ||
+			!ff.index ||
+			typeof ff.index.byteStart !== 'number' ||
+			typeof ff.index.byteEnd !== 'number' ||
+			!Array.isArray(ff.features)
+		) continue;
+		const safeFeatures = ff.features.filter(
+			(f: any) => typeof f?.$type === 'string' && ALLOWED_FORMAT_TYPES.has(f.$type)
+		);
+		if (safeFeatures.length > 0) {
+			out.push({
+				index: { byteStart: ff.index.byteStart, byteEnd: ff.index.byteEnd },
+				features: safeFeatures
+			});
+		}
+	}
+	return out;
+}

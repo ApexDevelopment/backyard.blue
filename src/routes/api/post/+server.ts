@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types.js';
 import { getAgent } from '$lib/server/oauth.js';
 import { RichText } from '@atproto/api';
 import { createPost } from '$lib/server/repo.js';
+import { MAX_TEXT_LENGTH, clampTags, sanitizeFormatFacets } from '$lib/server/validation.js';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.did) {
@@ -26,8 +27,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({ error: 'Post text is required' }, { status: 400 });
 	}
 
-	if (text.length > 3000) {
-		return json({ error: 'Post text must be 3000 characters or fewer' }, { status: 400 });
+	if (text.length > MAX_TEXT_LENGTH) {
+		return json({ error: `Post text must be ${MAX_TEXT_LENGTH} characters or fewer` }, { status: 400 });
 	}
 
 	try {
@@ -37,38 +38,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// Merge auto-detected facets with client-supplied formatting facets
 		let allFacets = rt.facets ? [...rt.facets] : [];
-		if (Array.isArray(formatFacets)) {
-			for (const ff of formatFacets) {
-				if (
-					ff &&
-					ff.index &&
-					typeof ff.index.byteStart === 'number' &&
-					typeof ff.index.byteEnd === 'number' &&
-					Array.isArray(ff.features)
-				) {
-					// Only allow known formatting feature types from the client
-					const safeFeatures = ff.features.filter((f: any) =>
-						typeof f?.$type === 'string' && [
-							'blue.backyard.richtext.facet#bold',
-							'blue.backyard.richtext.facet#italic',
-							'blue.backyard.richtext.facet#underline',
-							'blue.backyard.richtext.facet#strikethrough'
-						].includes(f.$type)
-					);
-					if (safeFeatures.length > 0) {
-						allFacets.push({
-							index: { byteStart: ff.index.byteStart, byteEnd: ff.index.byteEnd },
-							features: safeFeatures
-						});
-					}
-				}
-			}
-		}
+		const formatFacetsSafe = sanitizeFormatFacets(formatFacets);
+		allFacets.push(...formatFacetsSafe);
+
+		const safeTags = clampTags(tags);
 
 		const res = await createPost(agent, locals.did, {
 			text: rt.text,
 			facets: allFacets.length > 0 ? allFacets : undefined,
-			tags: tags && Array.isArray(tags) ? tags.slice(0, 30) : undefined
+			tags: safeTags || undefined
 		});
 
 		return json({ uri: res.uri, cid: res.cid });

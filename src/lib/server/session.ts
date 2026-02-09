@@ -18,9 +18,9 @@ function getKey(): Buffer {
 	if (!keyWarningLogged && (!env.SESSION_SECRET || DEFAULT_SECRETS.includes(secret))) {
 		keyWarningLogged = true;
 		if (env.NODE_ENV === 'production') {
-			console.error(
-				'🔴 CRITICAL: SESSION_SECRET is unset or uses a known default. ' +
-				'Sessions are NOT secure. Set a random SESSION_SECRET of at least 32 characters.'
+			throw new Error(
+				'SESSION_SECRET is unset or uses a known default. ' +
+				'Refusing to start in production. Set a random SESSION_SECRET of at least 32 characters.'
 			);
 		} else {
 			console.warn('⚠️  Using default SESSION_SECRET — not suitable for production.');
@@ -71,7 +71,9 @@ export function getSessionData(cookies: Cookies): SessionData {
 
 export function setSessionData(cookies: Cookies, data: SessionData): void {
 	const publicUrl = env.PUBLIC_URL || 'http://localhost:3000';
-	const secure = publicUrl.startsWith('https://');
+	// Set secure flag if PUBLIC_URL uses HTTPS or if explicitly in production
+	// (behind TLS termination, PUBLIC_URL may be https even if the app sees http)
+	const secure = publicUrl.startsWith('https://') || env.NODE_ENV === 'production';
 
 	cookies.set(COOKIE_NAME, encrypt(JSON.stringify(data)), {
 		path: '/',

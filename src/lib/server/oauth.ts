@@ -140,6 +140,13 @@ async function createOAuthClient(): Promise<NodeOAuthClient> {
 
 	// If no keys are configured, generate an ephemeral one (development only)
 	if (keys.length === 0) {
+		if (env.NODE_ENV === 'production') {
+			throw new Error(
+				'FATAL: No OAuth private keys configured (OAUTH_PRIVATE_KEY_1/2/3). ' +
+				'Ephemeral keys are not allowed in production — sessions would be ' +
+				'invalidated on every restart. Generate a key pair and set the env var.'
+			);
+		}
 		console.warn(
 			'⚠️  No OAuth private keys configured. Generating ephemeral key (development only).'
 		);

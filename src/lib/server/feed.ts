@@ -237,52 +237,80 @@ export async function getTimeline(
 	limit = 30,
 	cursor?: string
 ): Promise<{ items: BackyardFeedItem[]; cursor: string | null }> {
-	const cursorClause = cursor ? `AND feed.created_at < $3` : '';
 	const params: any[] = [viewerDid, limit];
-	if (cursor) params.push(cursor);
+	const cursorIdx = cursor ? (params.push(cursor), params.length) : 0;
+	const cursorClausePost = cursorIdx ? `AND p.created_at < $${cursorIdx}` : '';
+	const cursorClauseReblog = cursorIdx ? `AND r.created_at < $${cursorIdx}` : '';
 
+	// Use a CTE to gather the page of feed items first, then join counts
+	// to avoid running correlated subqueries across the entire table.
 	const query = `
 		WITH followed AS (
 			SELECT subject_did FROM follows WHERE author_did = $1
+		),
+		feed AS (
+			SELECT
+				'post' as item_type,
+				p.uri, p.cid, p.author_did, p.text, p.facets, p.media, p.tags,
+				p.created_at, p.indexed_at,
+				NULL::text as reblog_uri, NULL::text as reblog_cid,
+				NULL::text as reblog_author_did, NULL::text as reblog_text,
+				NULL::jsonb as reblog_facets, NULL::jsonb as reblog_media, NULL::text[] as reblog_tags,
+				p.uri as post_uri
+			FROM posts p
+			WHERE (p.author_did = $1 OR p.author_did IN (SELECT subject_did FROM followed))
+				${cursorClausePost}
+
+			UNION ALL
+
+			SELECT
+				'reblog' as item_type,
+				p.uri, p.cid, p.author_did, p.text, p.facets, p.media, p.tags,
+				r.created_at, r.indexed_at,
+				r.uri as reblog_uri, r.cid as reblog_cid,
+				r.author_did as reblog_author_did, r.text as reblog_text,
+				r.facets as reblog_facets, r.media as reblog_media, r.tags as reblog_tags,
+				p.uri as post_uri
+			FROM reblogs r
+			JOIN posts p ON p.uri = COALESCE(r.root_post_uri, r.subject_uri)
+			WHERE (r.author_did = $1 OR r.author_did IN (SELECT subject_did FROM followed))
+				AND NOT (r.author_did = $1 AND p.author_did = $1 AND (r.text IS NULL OR r.text = '') AND (r.tags IS NULL OR array_length(r.tags, 1) IS NULL))
+				${cursorClauseReblog}
+
+			ORDER BY created_at DESC
+			LIMIT $2
+		),
+		post_uris AS (
+			SELECT DISTINCT post_uri FROM feed
+		),
+		lc AS (
+			SELECT subject_uri, COUNT(*) as cnt FROM likes WHERE subject_uri IN (SELECT post_uri FROM post_uris) GROUP BY subject_uri
+		),
+		cc AS (
+			SELECT root_uri, COUNT(*) as cnt FROM comments WHERE root_uri IN (SELECT post_uri FROM post_uris) GROUP BY root_uri
+		),
+		rc AS (
+			SELECT subject_uri, COUNT(*) as cnt FROM reblogs WHERE subject_uri IN (SELECT post_uri FROM post_uris) GROUP BY subject_uri
+		),
+		vl AS (
+			SELECT subject_uri, uri FROM likes WHERE author_did = $1 AND subject_uri IN (SELECT post_uri FROM post_uris)
+		),
+		vr AS (
+			SELECT subject_uri, uri FROM reblogs WHERE author_did = $1 AND subject_uri IN (SELECT post_uri FROM post_uris)
 		)
-		SELECT
-			'post' as item_type,
-			p.uri, p.cid, p.author_did, p.text, p.facets, p.media, p.tags,
-			p.created_at, p.indexed_at,
-			NULL::text as reblog_uri, NULL::text as reblog_cid,
-			NULL::text as reblog_author_did, NULL::text as reblog_text,
-			NULL::jsonb as reblog_facets, NULL::jsonb as reblog_media, NULL::text[] as reblog_tags,
-			(SELECT COUNT(*) FROM likes WHERE subject_uri = p.uri) as like_count,
-			(SELECT COUNT(*) FROM comments WHERE subject_uri = p.uri OR root_uri = p.uri) as comment_count,
-			(SELECT COUNT(*) FROM reblogs WHERE subject_uri = p.uri) as reblog_count,
-			(SELECT uri FROM likes WHERE author_did = $1 AND subject_uri = p.uri LIMIT 1) as viewer_like,
-			(SELECT uri FROM reblogs WHERE author_did = $1 AND subject_uri = p.uri LIMIT 1) as viewer_reblog
-		FROM posts p
-		WHERE (p.author_did = $1 OR p.author_did IN (SELECT subject_did FROM followed))
-			${cursorClause.replace('feed.created_at', 'p.created_at')}
-
-		UNION ALL
-
-		SELECT
-			'reblog' as item_type,
-			p.uri, p.cid, p.author_did, p.text, p.facets, p.media, p.tags,
-			r.created_at, r.indexed_at,
-			r.uri as reblog_uri, r.cid as reblog_cid,
-			r.author_did as reblog_author_did, r.text as reblog_text,
-			r.facets as reblog_facets, r.media as reblog_media, r.tags as reblog_tags,
-			(SELECT COUNT(*) FROM likes WHERE subject_uri = p.uri) as like_count,
-			(SELECT COUNT(*) FROM comments WHERE subject_uri = p.uri OR root_uri = p.uri) as comment_count,
-			(SELECT COUNT(*) FROM reblogs WHERE subject_uri = p.uri) as reblog_count,
-			(SELECT uri FROM likes WHERE author_did = $1 AND subject_uri = p.uri LIMIT 1) as viewer_like,
-			(SELECT uri FROM reblogs WHERE author_did = $1 AND subject_uri = p.uri LIMIT 1) as viewer_reblog
-		FROM reblogs r
-		JOIN posts p ON p.uri = COALESCE(r.root_post_uri, r.subject_uri)
-		WHERE (r.author_did = $1 OR r.author_did IN (SELECT subject_did FROM followed))
-			AND NOT (r.author_did = $1 AND p.author_did = $1 AND (r.text IS NULL OR r.text = '') AND (r.tags IS NULL OR array_length(r.tags, 1) IS NULL))
-			${cursorClause.replace('feed.created_at', 'r.created_at')}
-
-		ORDER BY created_at DESC
-		LIMIT $2
+		SELECT f.*,
+			COALESCE(lc.cnt, 0) as like_count,
+			COALESCE(cc.cnt, 0) as comment_count,
+			COALESCE(rc.cnt, 0) as reblog_count,
+			vl.uri as viewer_like,
+			vr.uri as viewer_reblog
+		FROM feed f
+		LEFT JOIN lc ON lc.subject_uri = f.post_uri
+		LEFT JOIN cc ON cc.root_uri = f.post_uri
+		LEFT JOIN rc ON rc.subject_uri = f.post_uri
+		LEFT JOIN vl ON vl.subject_uri = f.post_uri
+		LEFT JOIN vr ON vr.subject_uri = f.post_uri
+		ORDER BY f.created_at DESC
 	`;
 
 	const result = await pool.query(query, params);
@@ -312,43 +340,68 @@ export async function getAuthorFeed(
 	const cursorClauseReblog = cursorIdx ? `AND r.created_at < $${cursorIdx}` : '';
 
 	const query = `
-		SELECT
-			'post' as item_type,
-			p.uri, p.cid, p.author_did, p.text, p.facets, p.media, p.tags,
-			p.created_at, p.indexed_at,
-			NULL::text as reblog_uri, NULL::text as reblog_cid,
-			NULL::text as reblog_author_did, NULL::text as reblog_text,
-			NULL::jsonb as reblog_facets, NULL::jsonb as reblog_media, NULL::text[] as reblog_tags,
-			(SELECT COUNT(*) FROM likes WHERE subject_uri = p.uri) as like_count,
-			(SELECT COUNT(*) FROM comments WHERE subject_uri = p.uri OR root_uri = p.uri) as comment_count,
-			(SELECT COUNT(*) FROM reblogs WHERE subject_uri = p.uri) as reblog_count,
-			(SELECT uri FROM likes WHERE author_did = $3 AND subject_uri = p.uri LIMIT 1) as viewer_like,
-			(SELECT uri FROM reblogs WHERE author_did = $3 AND subject_uri = p.uri LIMIT 1) as viewer_reblog
-		FROM posts p
-		WHERE p.author_did = $1
-			${cursorClausePost}
+		WITH feed AS (
+			SELECT
+				'post' as item_type,
+				p.uri, p.cid, p.author_did, p.text, p.facets, p.media, p.tags,
+				p.created_at, p.indexed_at,
+				NULL::text as reblog_uri, NULL::text as reblog_cid,
+				NULL::text as reblog_author_did, NULL::text as reblog_text,
+				NULL::jsonb as reblog_facets, NULL::jsonb as reblog_media, NULL::text[] as reblog_tags,
+				p.uri as post_uri
+			FROM posts p
+			WHERE p.author_did = $1
+				${cursorClausePost}
 
-		UNION ALL
+			UNION ALL
 
-		SELECT
-			'reblog' as item_type,
-			p.uri, p.cid, p.author_did, p.text, p.facets, p.media, p.tags,
-			r.created_at, r.indexed_at,
-			r.uri as reblog_uri, r.cid as reblog_cid,
-			r.author_did as reblog_author_did, r.text as reblog_text,
-			r.facets as reblog_facets, r.media as reblog_media, r.tags as reblog_tags,
-			(SELECT COUNT(*) FROM likes WHERE subject_uri = p.uri) as like_count,
-			(SELECT COUNT(*) FROM comments WHERE subject_uri = p.uri OR root_uri = p.uri) as comment_count,
-			(SELECT COUNT(*) FROM reblogs WHERE subject_uri = p.uri) as reblog_count,
-			(SELECT uri FROM likes WHERE author_did = $3 AND subject_uri = p.uri LIMIT 1) as viewer_like,
-			(SELECT uri FROM reblogs WHERE author_did = $3 AND subject_uri = p.uri LIMIT 1) as viewer_reblog
-		FROM reblogs r
-		JOIN posts p ON p.uri = COALESCE(r.root_post_uri, r.subject_uri)
-		WHERE r.author_did = $1
-			${cursorClauseReblog}
+			SELECT
+				'reblog' as item_type,
+				p.uri, p.cid, p.author_did, p.text, p.facets, p.media, p.tags,
+				r.created_at, r.indexed_at,
+				r.uri as reblog_uri, r.cid as reblog_cid,
+				r.author_did as reblog_author_did, r.text as reblog_text,
+				r.facets as reblog_facets, r.media as reblog_media, r.tags as reblog_tags,
+				p.uri as post_uri
+			FROM reblogs r
+			JOIN posts p ON p.uri = COALESCE(r.root_post_uri, r.subject_uri)
+			WHERE r.author_did = $1
+				${cursorClauseReblog}
 
-		ORDER BY created_at DESC
-		LIMIT $2
+			ORDER BY created_at DESC
+			LIMIT $2
+		),
+		post_uris AS (
+			SELECT DISTINCT post_uri FROM feed
+		),
+		lc AS (
+			SELECT subject_uri, COUNT(*) as cnt FROM likes WHERE subject_uri IN (SELECT post_uri FROM post_uris) GROUP BY subject_uri
+		),
+		cc AS (
+			SELECT root_uri, COUNT(*) as cnt FROM comments WHERE root_uri IN (SELECT post_uri FROM post_uris) GROUP BY root_uri
+		),
+		rc AS (
+			SELECT subject_uri, COUNT(*) as cnt FROM reblogs WHERE subject_uri IN (SELECT post_uri FROM post_uris) GROUP BY subject_uri
+		),
+		vl AS (
+			SELECT subject_uri, uri FROM likes WHERE author_did = $3 AND subject_uri IN (SELECT post_uri FROM post_uris)
+		),
+		vr AS (
+			SELECT subject_uri, uri FROM reblogs WHERE author_did = $3 AND subject_uri IN (SELECT post_uri FROM post_uris)
+		)
+		SELECT f.*,
+			COALESCE(lc.cnt, 0) as like_count,
+			COALESCE(cc.cnt, 0) as comment_count,
+			COALESCE(rc.cnt, 0) as reblog_count,
+			vl.uri as viewer_like,
+			vr.uri as viewer_reblog
+		FROM feed f
+		LEFT JOIN lc ON lc.subject_uri = f.post_uri
+		LEFT JOIN cc ON cc.root_uri = f.post_uri
+		LEFT JOIN rc ON rc.subject_uri = f.post_uri
+		LEFT JOIN vl ON vl.subject_uri = f.post_uri
+		LEFT JOIN vr ON vr.subject_uri = f.post_uri
+		ORDER BY f.created_at DESC
 	`;
 
 	const result = await pool.query(query, params);
@@ -369,12 +422,18 @@ export async function getPost(
 	const vd = viewerDid || '';
 	const result = await pool.query(
 		`SELECT p.*,
-			(SELECT COUNT(*) FROM likes WHERE subject_uri = p.uri) as like_count,
-			(SELECT COUNT(*) FROM comments WHERE subject_uri = p.uri OR root_uri = p.uri) as comment_count,
-			(SELECT COUNT(*) FROM reblogs WHERE subject_uri = p.uri) as reblog_count,
-			(SELECT uri FROM likes WHERE author_did = $2 AND subject_uri = p.uri LIMIT 1) as viewer_like,
-			(SELECT uri FROM reblogs WHERE author_did = $2 AND subject_uri = p.uri LIMIT 1) as viewer_reblog
-		 FROM posts p WHERE p.uri = $1`,
+			COALESCE(lc.cnt, 0) as like_count,
+			COALESCE(cc.cnt, 0) as comment_count,
+			COALESCE(rc.cnt, 0) as reblog_count,
+			vl.uri as viewer_like,
+			vr.uri as viewer_reblog
+		 FROM posts p
+		 LEFT JOIN (SELECT subject_uri, COUNT(*) as cnt FROM likes WHERE subject_uri = $1 GROUP BY subject_uri) lc ON lc.subject_uri = p.uri
+		 LEFT JOIN (SELECT root_uri, COUNT(*) as cnt FROM comments WHERE root_uri = $1 GROUP BY root_uri) cc ON cc.root_uri = p.uri
+		 LEFT JOIN (SELECT subject_uri, COUNT(*) as cnt FROM reblogs WHERE subject_uri = $1 GROUP BY subject_uri) rc ON rc.subject_uri = p.uri
+		 LEFT JOIN (SELECT subject_uri, uri FROM likes WHERE author_did = $2 AND subject_uri = $1) vl ON vl.subject_uri = p.uri
+		 LEFT JOIN (SELECT subject_uri, uri FROM reblogs WHERE author_did = $2 AND subject_uri = $1) vr ON vr.subject_uri = p.uri
+		 WHERE p.uri = $1`,
 		[uri, vd]
 	);
 

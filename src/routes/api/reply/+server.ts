@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types.js';
 import { getAgent } from '$lib/server/oauth.js';
 import { RichText } from '@atproto/api';
 import { createComment } from '$lib/server/repo.js';
-import { isValidAtUri } from '$lib/server/validation.js';
+import { isValidAtUri, MAX_TEXT_LENGTH } from '$lib/server/validation.js';
 
 /**
  * Create a comment on a post (Tumblr-style "note").
@@ -31,8 +31,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({ error: 'Comment text is required' }, { status: 400 });
 	}
 
-	if (text.length > 3000) {
-		return json({ error: 'Comment text must be 3000 characters or fewer' }, { status: 400 });
+	if (text.length > MAX_TEXT_LENGTH) {
+		return json({ error: `Comment text must be ${MAX_TEXT_LENGTH} characters or fewer` }, { status: 400 });
 	}
 
 	if (!subjectUri || typeof subjectUri !== 'string' || !isValidAtUri(subjectUri)) {

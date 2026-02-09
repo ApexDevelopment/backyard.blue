@@ -20,7 +20,9 @@ COPY --from=builder /app/package-lock.json .
 
 RUN npm ci --omit=dev
 
-ENV NODE_ENV=production
+# NODE_ENV defaults to production but can be overridden at runtime
+# (e.g. via docker-compose environment or docker run -e)
+ENV NODE_ENV=${NODE_ENV:-production}
 ENV PORT=3000
 
 EXPOSE 3000

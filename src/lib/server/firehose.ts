@@ -28,8 +28,11 @@ import {
 } from './validation.js';
 
 const DEFAULT_JETSTREAM_URL = 'wss://jetstream2.us-east.bsky.network/subscribe';
-const RECONNECT_DELAY_MS = 5_000;
+const RECONNECT_BASE_MS = 1_000;
+const RECONNECT_MAX_MS = 60_000;
 const CURSOR_PERSIST_INTERVAL_MS = 10_000;
+
+let reconnectAttempt = 0;
 
 interface JetstreamCommit {
 	rev: string;
@@ -264,6 +267,7 @@ function connect(): void {
 
 	ws.addEventListener('open', () => {
 		console.info('🔥 Firehose connected');
+		reconnectAttempt = 0; // reset backoff on successful connection
 	});
 
 	ws.addEventListener('message', (msgEvent) => {
@@ -279,12 +283,18 @@ function connect(): void {
 	});
 
 	ws.addEventListener('close', (event) => {
-		console.warn(
-			`🔥 Firehose disconnected (code: ${event.code}). Reconnecting in ${RECONNECT_DELAY_MS / 1000}s…`
-		);
 		ws = null;
 		if (running) {
-			setTimeout(connect, RECONNECT_DELAY_MS);
+			reconnectAttempt++;
+			// Exponential backoff with jitter: base * 2^attempt + random jitter, capped at max
+			const delay = Math.min(
+				RECONNECT_BASE_MS * Math.pow(2, reconnectAttempt - 1) + Math.random() * 1000,
+				RECONNECT_MAX_MS
+			);
+			console.warn(
+				`🔥 Firehose disconnected (code: ${event.code}). Reconnecting in ${(delay / 1000).toFixed(1)}s (attempt ${reconnectAttempt})…`
+			);
+			setTimeout(connect, delay);
 		}
 	});
 

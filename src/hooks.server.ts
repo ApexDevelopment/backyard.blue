@@ -22,6 +22,11 @@ function doInit(): Promise<void> {
 /**
  * Simple in-memory rate limiter per IP.
  * Tracks request counts in a sliding window.
+ *
+ * LIMITATION: This is per-process only and does not work across multiple
+ * instances. For horizontal scaling, use a shared store (e.g. Redis) or
+ * enforce rate limiting at the reverse proxy / edge layer (e.g. Nginx,
+ * Cloudflare, Caddy rate_limit).
  */
 const RATE_WINDOW_MS = 60_000;
 const RATE_MAX_WRITE = 60;   // write endpoints per window
@@ -115,6 +120,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 	response.headers.set('X-Frame-Options', 'DENY');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+	// CSP is handled by SvelteKit's built-in csp config in svelte.config.js,
+	// which automatically generates nonces for inline hydration scripts.
+
+	// HSTS — only set in production to avoid issues with local dev
+	if (event.url.protocol === 'https:') {
+		response.headers.set(
+			'Strict-Transport-Security',
+			'max-age=63072000; includeSubDomains; preload'
+		);
+	}
 
 	return response;
 };

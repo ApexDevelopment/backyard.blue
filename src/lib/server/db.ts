@@ -21,6 +21,9 @@ export async function initializeDatabase(): Promise<void> {
 	const client = await pool.connect();
 	try {
 		await client.query(`
+			-- Enable pg_trgm for efficient ILIKE / trigram search on text columns
+			CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 			-- OAuth flow state (short-lived, ~1 hour)
 			CREATE TABLE IF NOT EXISTS oauth_state (
 				key TEXT PRIMARY KEY,
@@ -56,6 +59,8 @@ export async function initializeDatabase(): Promise<void> {
 			END $$;
 
 			CREATE INDEX IF NOT EXISTS idx_profiles_handle ON profiles(handle);
+			CREATE INDEX IF NOT EXISTS idx_profiles_handle_trgm ON profiles USING gin (handle gin_trgm_ops);
+			CREATE INDEX IF NOT EXISTS idx_profiles_display_name_trgm ON profiles USING gin (display_name gin_trgm_ops);
 
 			-- Posts (blue.backyard.feed.post)
 			CREATE TABLE IF NOT EXISTS posts (
@@ -72,6 +77,7 @@ export async function initializeDatabase(): Promise<void> {
 
 			CREATE INDEX IF NOT EXISTS idx_posts_author ON posts(author_did);
 			CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC);
+			CREATE INDEX IF NOT EXISTS idx_posts_author_created ON posts(author_did, created_at DESC);
 
 			-- Comments (blue.backyard.feed.comment) — "notes" in Tumblr terms
 			CREATE TABLE IF NOT EXISTS comments (
@@ -121,6 +127,7 @@ export async function initializeDatabase(): Promise<void> {
 			CREATE INDEX IF NOT EXISTS idx_reblogs_subject ON reblogs(subject_uri);
 			CREATE INDEX IF NOT EXISTS idx_reblogs_created ON reblogs(created_at DESC);
 			CREATE INDEX IF NOT EXISTS idx_reblogs_root_post ON reblogs(root_post_uri);
+			CREATE INDEX IF NOT EXISTS idx_reblogs_author_created ON reblogs(author_did, created_at DESC);
 
 			-- Likes (blue.backyard.feed.like)
 			CREATE TABLE IF NOT EXISTS likes (
