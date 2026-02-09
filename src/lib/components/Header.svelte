@@ -14,7 +14,7 @@
 <header class="header">
 	<div class="header-inner container">
 		<a href="/" class="logo">
-			<House size={24} strokeWidth={2.25} />
+			<img src="/backyard-logo.svg" alt="backyard logo" width="24" height="24" />
 			<span class="logo-text">backyard</span>
 		</a>
 

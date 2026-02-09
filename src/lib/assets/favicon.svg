@@ -1,7 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="256" height="256" role="img" aria-label="House cutout logo mark">
-	<rect x="0" y="0" width="200" height="200" fill="white"/>
 
 	<defs>
+		<clipPath id="rounded">
+			<rect x="0" y="0" width="200" height="200" rx="24" ry="24"/>
+		</clipPath>
+
 		<mask id="cutout">
 			<rect x="0" y="0" width="200" height="200" fill="black"/>
 
@@ -30,5 +33,9 @@
 		</mask>
 	</defs>
 
-	<rect x="0" y="0" width="200" height="200" fill="#8b3a4a" mask="url(#cutout)"/>
+	<g clip-path="url(#rounded)">
+		<rect x="0" y="0" width="200" height="200" fill="white"/>
+		<rect x="0" y="0" width="200" height="200" fill="#8b3a4a" mask="url(#cutout)"/>
+	</g>
+
 </svg>
