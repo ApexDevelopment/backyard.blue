@@ -58,7 +58,7 @@
 	</div>
 
 	<!-- Main post -->
-	<div class="main-post card">
+	<div class="main-post">
 		<PostCard post={data.post} />
 	</div>
 

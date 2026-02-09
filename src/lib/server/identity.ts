@@ -251,6 +251,23 @@ export async function getProfileByHandle(handle: string): Promise<BackyardProfil
 }
 
 /**
+ * Resolve a handle to a DID via the AT Protocol's resolveHandle XRPC.
+ * Returns null if the handle cannot be resolved.
+ */
+export async function resolveHandleToDid(handle: string): Promise<string | null> {
+	try {
+		const res = await fetch(
+			`https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`
+		);
+		if (!res.ok) return null;
+		const data = await res.json();
+		return data.did || null;
+	} catch {
+		return null;
+	}
+}
+
+/**
  * Search profiles by handle or display name (simple text search).
  */
 export async function searchProfiles(query: string, limit = 25): Promise<BackyardProfile[]> {

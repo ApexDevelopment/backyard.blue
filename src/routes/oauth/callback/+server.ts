@@ -2,6 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types.js';
 import { getOAuthClient } from '$lib/server/oauth.js';
 import { setSessionData } from '$lib/server/session.js';
+import { backfillUser } from '$lib/server/backfill.js';
 
 /**
  * OAuth callback handler.
@@ -16,6 +17,11 @@ export const GET: RequestHandler = async (event) => {
 
 		// Store the user's DID in the encrypted cookie session
 		setSessionData(event.cookies, { did: oauthSession.did });
+
+		// Backfill the user's records from their PDS in the background
+		backfillUser(oauthSession.did).catch((err) => {
+			console.error('Post-login backfill error:', err);
+		});
 	} catch (err) {
 		console.error('OAuth callback error:', err);
 		throw redirect(303, '/login?error=auth_failed');

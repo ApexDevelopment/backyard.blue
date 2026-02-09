@@ -2,6 +2,7 @@ import type { PageServerLoad } from './$types.js';
 import { error } from '@sveltejs/kit';
 import { getProfileByHandle, ensureProfile } from '$lib/server/identity.js';
 import { getAuthorFeed, isFollowing, getProfileStats } from '$lib/server/feed.js';
+import { backfillIfNeeded } from '$lib/server/backfill.js';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const handle = params.handle;
@@ -16,6 +17,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		if (!profile) {
 			throw error(404, { message: `User @${handle} not found` });
 		}
+
+		// Trigger background backfill if we have no posts for this user
+		backfillIfNeeded(profile.did).catch(() => {});
 
 		const isOwnProfile = locals.did === profile.did;
 
