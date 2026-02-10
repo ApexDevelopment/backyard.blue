@@ -51,13 +51,6 @@ export async function initializeDatabase(): Promise<void> {
 				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 
-			-- Migration: add pronouns column if missing
-			DO $$ BEGIN
-				ALTER TABLE profiles ADD COLUMN pronouns TEXT;
-			EXCEPTION
-				WHEN duplicate_column THEN NULL;
-			END $$;
-
 			CREATE INDEX IF NOT EXISTS idx_profiles_handle ON profiles(handle);
 			CREATE INDEX IF NOT EXISTS idx_profiles_handle_trgm ON profiles USING gin (handle gin_trgm_ops);
 			CREATE INDEX IF NOT EXISTS idx_profiles_display_name_trgm ON profiles USING gin (display_name gin_trgm_ops);
