@@ -72,7 +72,6 @@ export async function initializeDatabase(): Promise<void> {
 			CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC);
 			CREATE INDEX IF NOT EXISTS idx_posts_author_created ON posts(author_did, created_at DESC);
 			CREATE INDEX IF NOT EXISTS idx_posts_tags ON posts USING gin (tags);
-			CREATE INDEX IF NOT EXISTS idx_reblogs_tags ON reblogs USING gin (tags);
 
 			-- Comments (blue.backyard.feed.comment) — "notes" in Tumblr terms
 			CREATE TABLE IF NOT EXISTS comments (
@@ -117,6 +116,7 @@ export async function initializeDatabase(): Promise<void> {
 			CREATE INDEX IF NOT EXISTS idx_reblogs_created ON reblogs(created_at DESC);
 			CREATE INDEX IF NOT EXISTS idx_reblogs_root_post ON reblogs(root_post_uri);
 			CREATE INDEX IF NOT EXISTS idx_reblogs_author_created ON reblogs(author_did, created_at DESC);
+			CREATE INDEX IF NOT EXISTS idx_reblogs_tags ON reblogs USING gin (tags);
 
 			-- Likes (blue.backyard.feed.like)
 			CREATE TABLE IF NOT EXISTS likes (
