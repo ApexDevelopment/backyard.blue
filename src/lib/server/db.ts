@@ -107,12 +107,6 @@ export async function initializeDatabase(): Promise<void> {
 				indexed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 
-			-- Migration: add root_post_uri if missing (for existing installs)
-			DO $$ BEGIN
-				ALTER TABLE reblogs ADD COLUMN root_post_uri TEXT;
-			EXCEPTION
-				WHEN duplicate_column THEN NULL;
-			END $$;
 			-- Backfill root_post_uri for direct reblogs of posts
 			UPDATE reblogs SET root_post_uri = subject_uri
 				WHERE root_post_uri IS NULL
