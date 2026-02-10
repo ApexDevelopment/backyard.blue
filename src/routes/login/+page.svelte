@@ -59,21 +59,27 @@
 
 		{#if signupsDisabled}
 			<div class="signup-notice">
-				<Info size={16} />
+				<div class="icon-wrapper">
+					<Info size={20} />
+				</div>
 				<span>this instance is not accepting new accounts at this time.</span>
 			</div>
 		{:else}
 			<form onsubmit={handleSubmit} class="login-form">
 				{#if errorMsg}
 					<div class="login-error">
-						<XCircle size={16} />
-						{errorMsg}
+						<div class="icon-wrapper">
+							<XCircle size={20} />
+						</div>
+						<span>{errorMsg}</span>
 					</div>
 				{/if}
 
 				{#if data.signupMode === 'allowlist'}
 					<div class="signup-notice info">
-						<Info size={16} />
+						<div class="icon-wrapper">
+							<Info size={20} />
+						</div>
 						<span>only allowlisted accounts can sign up. existing users can sign in normally.</span>
 					</div>
 				{/if}
@@ -147,12 +153,13 @@
 	.login-error {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: 0.75rem;
 		padding: 0.75rem;
 		background-color: color-mix(in srgb, var(--danger) 10%, transparent);
 		color: var(--danger);
 		border-radius: var(--radius-sm);
 		font-size: 0.875rem;
+		line-height: 1.4;
 	}
 
 	.form-group {
@@ -169,7 +176,6 @@
 
 	.login-btn {
 		width: 100%;
-		padding: 0.625rem;
 	}
 
 	.signup-notice {
@@ -187,5 +193,10 @@
 	.signup-notice.info {
 		background-color: color-mix(in srgb, var(--accent) 8%, transparent);
 		color: var(--text-secondary);
+	}
+
+	.icon-wrapper {
+		display: flex;
+		flex-shrink: 0;
 	}
 </style>

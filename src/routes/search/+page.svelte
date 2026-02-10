@@ -33,8 +33,7 @@
 	<div class="mode-toggle">
 		<a
 			href="/search?q={encodeURIComponent(searchQuery)}&mode=profiles"
-			class="mode-btn"
-			class:active={mode === 'profiles'}
+			class="btn {mode === 'profiles' ? 'btn-primary' : 'btn-secondary'}"
 			onclick={(e) => { mode = 'profiles'; }}
 		>
 			<User size={15} />
@@ -42,8 +41,7 @@
 		</a>
 		<a
 			href="/search?q={encodeURIComponent(searchQuery)}&mode=tags"
-			class="mode-btn"
-			class:active={mode === 'tags'}
+			class="btn {mode === 'tags' ? 'btn-primary' : 'btn-secondary'}"
 			onclick={(e) => { mode = 'tags'; }}
 		>
 			<Hash size={15} />
@@ -147,35 +145,6 @@
 	.mode-toggle {
 		display: flex;
 		gap: 0.5rem;
-	}
-
-	.mode-btn {
-		display: flex;
-		align-items: center;
-		gap: 0.375rem;
-		padding: 0.5rem 1rem;
-		border-radius: var(--radius-full);
-		font-size: 0.875rem;
-		font-weight: 500;
-		text-decoration: none;
-		color: var(--text-secondary);
-		background-color: var(--bg-tertiary);
-		transition: all 0.15s ease;
-	}
-
-	.mode-btn:hover {
-		background-color: var(--bg-hover);
-		color: var(--text-primary);
-		text-decoration: none;
-	}
-
-	.mode-btn.active {
-		background-color: var(--accent);
-		color: var(--accent-text);
-	}
-
-	.mode-btn.active:hover {
-		background-color: var(--accent-hover);
 	}
 
 	.results-header {

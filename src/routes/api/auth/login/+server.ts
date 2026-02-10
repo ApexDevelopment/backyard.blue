@@ -12,12 +12,12 @@ export const POST: RequestHandler = async ({ request }) => {
 	try {
 		body = await request.json();
 	} catch {
-		return json({ error: 'Invalid JSON body' }, { status: 400 });
+		return json({ error: 'invalid json body' }, { status: 400 });
 	}
 	const { handle } = body;
 
 	if (!handle || typeof handle !== 'string') {
-		return json({ error: 'Handle is required' }, { status: 400 });
+		return json({ error: 'handle is required' }, { status: 400 });
 	}
 
 	try {
@@ -29,6 +29,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		return json({ url: url.toString() });
 	} catch (err) {
 		console.error('OAuth authorize error:', err);
-		return json({ error: 'Failed to initiate login. Please check your handle.' }, { status: 500 });
+		return json({ error: 'failed to initiate login. please check your handle.' }, { status: 500 });
 	}
 };
