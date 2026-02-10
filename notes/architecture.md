@@ -72,7 +72,7 @@ Sessions use AES-256-GCM symmetric encryption (via `src/lib/server/session.ts`):
 
 - The encryption key is derived from `SESSION_SECRET` using `scrypt`
 - Cookie name: `backyard_session`
-- Cookie settings: `httpOnly`, `sameSite: lax`, `secure` (when PUBLIC_URL is HTTPS), 30-day max age
+- Cookie settings: `httpOnly`, `sameSite: lax`, `secure` (when INSTANCE_URL is HTTPS), 30-day max age
 - The cookie stores only the user's DID — the actual OAuth tokens are in the PostgreSQL `oauth_session` table
 
 ## Type System

@@ -27,10 +27,10 @@ function getKey(): Buffer {
 		}
 	}
 
-	// Derive salt from PUBLIC_URL so different deployments produce different keys
+	// Derive salt from INSTANCE_URL so different deployments produce different keys
 	// even if they happen to share a secret (e.g. the default in development).
-	const publicUrl = env.PUBLIC_URL || 'http://localhost:3000';
-	const salt = `backyard-${publicUrl}`;
+	const instanceUrl = env.INSTANCE_URL || 'http://localhost:3000';
+	const salt = `backyard-${instanceUrl}`;
 	return crypto.scryptSync(secret, salt, 32);
 }
 
@@ -71,10 +71,10 @@ export function getSessionData(cookies: Cookies): SessionData {
 }
 
 export function setSessionData(cookies: Cookies, data: SessionData): void {
-	const publicUrl = env.PUBLIC_URL || 'http://localhost:3000';
-	// Set secure flag if PUBLIC_URL uses HTTPS or if explicitly in production
-	// (behind TLS termination, PUBLIC_URL may be https even if the app sees http)
-	const secure = publicUrl.startsWith('https://') || env.NODE_ENV === 'production';
+	const instanceUrl = env.INSTANCE_URL || 'http://localhost:3000';
+	// Set secure flag if INSTANCE_URL uses HTTPS or if explicitly in production
+	// (behind TLS termination, INSTANCE_URL may be https even if the app sees http)
+	const secure = instanceUrl.startsWith('https://') || env.NODE_ENV === 'production';
 
 	cookies.set(COOKIE_NAME, encrypt(JSON.stringify(data)), {
 		path: '/',

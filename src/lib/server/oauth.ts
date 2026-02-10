@@ -91,18 +91,18 @@ export function getOAuthClient(): Promise<NodeOAuthClient> {
 }
 
 async function createOAuthClient(): Promise<NodeOAuthClient> {
-	const rawPublicUrl = env.PUBLIC_URL as string | undefined;
+	const rawPublicUrl = env.INSTANCE_URL;
 	const publicUrl = rawPublicUrl?.replace(/\/+$/, '') || '';
 
 	if (!publicUrl) {
 		if (env.NODE_ENV === 'production') {
 			throw new Error(
-				'FATAL: PUBLIC_URL environment variable is required in production. ' +
+				'FATAL: INSTANCE_URL environment variable is required in production. ' +
 				'Set it to the public-facing URL of your Backyard instance ' +
 				'(e.g. https://backyard.example.com).'
 			);
 		}
-		console.warn('⚠️  PUBLIC_URL not set — defaulting to http://localhost:3000 (development only).');
+		console.warn('⚠️  INSTANCE_URL not set — defaulting to http://localhost:3000 (development only).');
 	}
 
 	const url = publicUrl || 'http://localhost:3000';

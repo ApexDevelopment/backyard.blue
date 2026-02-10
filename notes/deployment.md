@@ -28,7 +28,7 @@ Configured via `.env` (copy from `.env.example`):
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `PUBLIC_URL` | The public URL where the app is hosted | `http://localhost:3000` |
+| `INSTANCE_URL` | The public URL where the app is hosted | `http://localhost:3000` |
 | `SESSION_SECRET` | Secret for AES-256-GCM session cookie encryption (32+ chars) | Development fallback (insecure) |
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://backyard:backyard@localhost:5432/backyard` |
 | `OAUTH_PRIVATE_KEY_1` | RS256 JWK private key for OAuth client auth | Empty (ephemeral key generated in dev) |
@@ -53,4 +53,4 @@ For local development without Docker:
 2. Copy `.env.example` to `.env`
 3. Run `npm install` and `npm run dev`
 
-When `PUBLIC_URL` resolves to a loopback address (`localhost`, `127.0.0.1`, or `[::1]`), the OAuth client automatically uses the AT Protocol's **loopback client development flow** — no OAuth keys or publicly accessible metadata endpoint are required. See [atproto-oauth.md](atproto-oauth.md) for details.
+When `INSTANCE_URL` resolves to a loopback address (`localhost`, `127.0.0.1`, or `[::1]`), the OAuth client automatically uses the AT Protocol's **loopback client development flow** — no OAuth keys or publicly accessible metadata endpoint are required. See [atproto-oauth.md](atproto-oauth.md) for details.

@@ -34,7 +34,7 @@ Copy `.env.example` to `.env` and set the required values:
 
 | Variable | Required | Description |
 |---|---|---|
-| `PUBLIC_URL` | Yes | The public HTTPS URL of your instance (e.g. `https://backyard.example.com`) |
+| `INSTANCE_URL` | Yes | The public HTTPS URL of your instance (e.g. `https://backyard.example.com`) |
 | `SESSION_SECRET` | Yes | Random string, 32+ characters. Used to encrypt session cookies. |
 | `DATABASE_URL` | No | PostgreSQL connection string. Defaults to the bundled Compose database. |
 | `OAUTH_PRIVATE_KEY_1` | Yes | RS256 private key in JWK format (see step 1). |
@@ -57,7 +57,7 @@ The app listens on port 3000. Place it behind a reverse proxy (Nginx, Caddy, etc
 
 ### 4. Verify
 
-Visit `https://<your-domain>/oauth/client-metadata.json`. You should see the OAuth client metadata document with your `PUBLIC_URL` and redirect URIs.
+Visit `https://<your-domain>/oauth/client-metadata.json`. You should see the OAuth client metadata document with your `INSTANCE_URL` and redirect URIs.
 
 ## Manual Setup (without Docker)
 

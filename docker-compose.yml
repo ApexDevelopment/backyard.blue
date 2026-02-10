@@ -5,7 +5,7 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=${NODE_ENV:-development}
-      - PUBLIC_URL=${PUBLIC_URL:-http://localhost:3000}
+      - INSTANCE_URL=${INSTANCE_URL:-http://localhost:3000}
       - DATABASE_URL=postgresql://backyard:backyard@db:5432/backyard
       - SESSION_SECRET=${SESSION_SECRET:-change-me-to-a-random-secret-at-least-32-characters-long!!}
       - OAUTH_PRIVATE_KEY_1=${OAUTH_PRIVATE_KEY_1:-}

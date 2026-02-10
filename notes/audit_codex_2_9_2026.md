@@ -26,9 +26,9 @@ Scope: full codebase review covering security, correctness, and architectural ri
 
   **✅ REMEDIATED:** `firehose.ts` now uses exponential backoff with jitter (1s base, 60s max). Reconnect attempt counter resets on successful connection.
 
-- Cookie `secure` flag derived from `PUBLIC_URL` string: `src/lib/server/session.ts` sets `secure` based on `PUBLIC_URL.startsWith('https://')`. Behind TLS termination this is easy to misconfigure and ship non-secure cookies. Either force `secure` in prod or infer from the request via trust-proxy.
+- Cookie `secure` flag derived from `INSTANCE_URL` string: `src/lib/server/session.ts` sets `secure` based on `INSTANCE_URL.startsWith('https://')`. Behind TLS termination this is easy to misconfigure and ship non-secure cookies. Either force `secure` in prod or infer from the request via trust-proxy.
 
-  **✅ REMEDIATED:** Cookie `secure` flag now also set when `NODE_ENV=production`, independent of `PUBLIC_URL` check.
+  **✅ REMEDIATED:** Cookie `secure` flag now also set when `NODE_ENV=production`, independent of `INSTANCE_URL` check.
 
 - Feed query cost: `src/lib/server/feed.ts` unions posts + reblogs and runs multiple correlated subqueries per row (counts + viewer state). This will not scale. Replace with derived tables and LEFT JOINs or pre-aggregations/materialized views.
 

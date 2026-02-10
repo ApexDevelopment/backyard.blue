@@ -59,7 +59,7 @@ The `client_id` must be a publicly accessible URL returning JSON client metadata
 
 The AT Protocol OAuth spec defines a **Localhost Client Development** exception for development on loopback addresses (`localhost`, `127.0.0.1`, `[::1]`).
 
-When `PUBLIC_URL` points to a loopback address, Backyard automatically uses this flow:
+When `INSTANCE_URL` points to a loopback address, Backyard automatically uses this flow:
 
 - **`client_id`** is `http://localhost?scope=...&redirect_uri=http://127.0.0.1:{port}/oauth/callback`
   - The scope and redirect_uri are encoded as query parameters on the `http://localhost` origin
@@ -70,7 +70,7 @@ When `PUBLIC_URL` points to a loopback address, Backyard automatically uses this
 
 This means no OAuth private keys or publicly accessible metadata endpoint are needed for local development. The dual-path logic is in `getOAuthClient()` in `src/lib/server/oauth.ts`.
 
-In production (non-loopback `PUBLIC_URL`), the standard confidential client flow is used with `private_key_jwt` authentication and a JWKS endpoint.
+In production (non-loopback `INSTANCE_URL`), the standard confidential client flow is used with `private_key_jwt` authentication and a JWKS endpoint.
 
 ## State & Session Stores
 `NodeOAuthClient` requires:
