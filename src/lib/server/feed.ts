@@ -528,3 +528,214 @@ export async function getProfileStats(
 		followingCount: parseInt(following.rows[0].count, 10) || 0
 	};
 }
+
+/**
+ * Get posts (and reblogs) that carry a given tag, globally.
+ * Returns feed items (posts + reblogs) sorted chronologically, most recent first.
+ */
+export async function getPostsByTag(
+	tag: string,
+	viewerDid: string | null,
+	limit = 30,
+	cursor?: string
+): Promise<{ items: BackyardFeedItem[]; cursor: string | null }> {
+	const vd = viewerDid || '';
+	const params: any[] = [tag, limit, vd];
+	const cursorIdx = cursor ? (params.push(cursor), params.length) : 0;
+	const cursorClausePost = cursorIdx ? `AND p.created_at < $${cursorIdx}` : '';
+	const cursorClauseReblog = cursorIdx ? `AND r.created_at < $${cursorIdx}` : '';
+
+	const query = `
+		WITH feed AS (
+			SELECT
+				'post' as item_type,
+				p.uri, p.cid, p.author_did, p.text, p.facets, p.media, p.tags,
+				p.created_at, p.indexed_at,
+				NULL::text as reblog_uri, NULL::text as reblog_cid,
+				NULL::text as reblog_author_did, NULL::text as reblog_text,
+				NULL::jsonb as reblog_facets, NULL::jsonb as reblog_media, NULL::text[] as reblog_tags,
+				p.uri as post_uri
+			FROM posts p
+			WHERE $1 = ANY(p.tags)
+				${cursorClausePost}
+
+			UNION ALL
+
+			SELECT
+				'reblog' as item_type,
+				p.uri, p.cid, p.author_did, p.text, p.facets, p.media, p.tags,
+				r.created_at, r.indexed_at,
+				r.uri as reblog_uri, r.cid as reblog_cid,
+				r.author_did as reblog_author_did, r.text as reblog_text,
+				r.facets as reblog_facets, r.media as reblog_media, r.tags as reblog_tags,
+				p.uri as post_uri
+			FROM reblogs r
+			JOIN posts p ON p.uri = COALESCE(r.root_post_uri, r.subject_uri)
+			WHERE $1 = ANY(r.tags)
+				${cursorClauseReblog}
+
+			ORDER BY created_at DESC
+			LIMIT $2
+		),
+		post_uris AS (
+			SELECT DISTINCT post_uri FROM feed
+		),
+		lc AS (
+			SELECT subject_uri, COUNT(*) as cnt FROM likes WHERE subject_uri IN (SELECT post_uri FROM post_uris) GROUP BY subject_uri
+		),
+		cc AS (
+			SELECT root_uri, COUNT(*) as cnt FROM comments WHERE root_uri IN (SELECT post_uri FROM post_uris) GROUP BY root_uri
+		),
+		rc AS (
+			SELECT subject_uri, COUNT(*) as cnt FROM reblogs WHERE subject_uri IN (SELECT post_uri FROM post_uris) GROUP BY subject_uri
+		),
+		vl AS (
+			SELECT subject_uri, uri FROM likes WHERE author_did = $3 AND subject_uri IN (SELECT post_uri FROM post_uris)
+		),
+		vr AS (
+			SELECT subject_uri, uri FROM reblogs WHERE author_did = $3 AND subject_uri IN (SELECT post_uri FROM post_uris)
+		)
+		SELECT f.*,
+			COALESCE(lc.cnt, 0) as like_count,
+			COALESCE(cc.cnt, 0) as comment_count,
+			COALESCE(rc.cnt, 0) as reblog_count,
+			vl.uri as viewer_like,
+			vr.uri as viewer_reblog
+		FROM feed f
+		LEFT JOIN lc ON lc.subject_uri = f.post_uri
+		LEFT JOIN cc ON cc.root_uri = f.post_uri
+		LEFT JOIN rc ON rc.subject_uri = f.post_uri
+		LEFT JOIN vl ON vl.subject_uri = f.post_uri
+		LEFT JOIN vr ON vr.subject_uri = f.post_uri
+		ORDER BY f.created_at DESC
+	`;
+
+	const result = await pool.query(query, params);
+	const items = await enrichFeedItems(result.rows, viewerDid);
+
+	const nextCursor =
+		result.rows.length >= limit
+			? toIso(result.rows[result.rows.length - 1].created_at)
+			: null;
+
+	return { items, cursor: nextCursor };
+}
+
+/**
+ * Get posts (and reblogs) from a specific author that carry a given tag.
+ */
+export async function getPostsByTagAndAuthor(
+	tag: string,
+	authorDid: string,
+	viewerDid: string | null,
+	limit = 30,
+	cursor?: string
+): Promise<{ items: BackyardFeedItem[]; cursor: string | null }> {
+	const vd = viewerDid || '';
+	const params: any[] = [tag, authorDid, limit, vd];
+	const cursorIdx = cursor ? (params.push(cursor), params.length) : 0;
+	const cursorClausePost = cursorIdx ? `AND p.created_at < $${cursorIdx}` : '';
+	const cursorClauseReblog = cursorIdx ? `AND r.created_at < $${cursorIdx}` : '';
+
+	const query = `
+		WITH feed AS (
+			SELECT
+				'post' as item_type,
+				p.uri, p.cid, p.author_did, p.text, p.facets, p.media, p.tags,
+				p.created_at, p.indexed_at,
+				NULL::text as reblog_uri, NULL::text as reblog_cid,
+				NULL::text as reblog_author_did, NULL::text as reblog_text,
+				NULL::jsonb as reblog_facets, NULL::jsonb as reblog_media, NULL::text[] as reblog_tags,
+				p.uri as post_uri
+			FROM posts p
+			WHERE $1 = ANY(p.tags) AND p.author_did = $2
+				${cursorClausePost}
+
+			UNION ALL
+
+			SELECT
+				'reblog' as item_type,
+				p.uri, p.cid, p.author_did, p.text, p.facets, p.media, p.tags,
+				r.created_at, r.indexed_at,
+				r.uri as reblog_uri, r.cid as reblog_cid,
+				r.author_did as reblog_author_did, r.text as reblog_text,
+				r.facets as reblog_facets, r.media as reblog_media, r.tags as reblog_tags,
+				p.uri as post_uri
+			FROM reblogs r
+			JOIN posts p ON p.uri = COALESCE(r.root_post_uri, r.subject_uri)
+			WHERE $1 = ANY(r.tags) AND r.author_did = $2
+				${cursorClauseReblog}
+
+			ORDER BY created_at DESC
+			LIMIT $3
+		),
+		post_uris AS (
+			SELECT DISTINCT post_uri FROM feed
+		),
+		lc AS (
+			SELECT subject_uri, COUNT(*) as cnt FROM likes WHERE subject_uri IN (SELECT post_uri FROM post_uris) GROUP BY subject_uri
+		),
+		cc AS (
+			SELECT root_uri, COUNT(*) as cnt FROM comments WHERE root_uri IN (SELECT post_uri FROM post_uris) GROUP BY root_uri
+		),
+		rc AS (
+			SELECT subject_uri, COUNT(*) as cnt FROM reblogs WHERE subject_uri IN (SELECT post_uri FROM post_uris) GROUP BY subject_uri
+		),
+		vl AS (
+			SELECT subject_uri, uri FROM likes WHERE author_did = $4 AND subject_uri IN (SELECT post_uri FROM post_uris)
+		),
+		vr AS (
+			SELECT subject_uri, uri FROM reblogs WHERE author_did = $4 AND subject_uri IN (SELECT post_uri FROM post_uris)
+		)
+		SELECT f.*,
+			COALESCE(lc.cnt, 0) as like_count,
+			COALESCE(cc.cnt, 0) as comment_count,
+			COALESCE(rc.cnt, 0) as reblog_count,
+			vl.uri as viewer_like,
+			vr.uri as viewer_reblog
+		FROM feed f
+		LEFT JOIN lc ON lc.subject_uri = f.post_uri
+		LEFT JOIN cc ON cc.root_uri = f.post_uri
+		LEFT JOIN rc ON rc.subject_uri = f.post_uri
+		LEFT JOIN vl ON vl.subject_uri = f.post_uri
+		LEFT JOIN vr ON vr.subject_uri = f.post_uri
+		ORDER BY f.created_at DESC
+	`;
+
+	const result = await pool.query(query, params);
+	const items = await enrichFeedItems(result.rows, viewerDid);
+
+	const nextCursor =
+		result.rows.length >= limit
+			? toIso(result.rows[result.rows.length - 1].created_at)
+			: null;
+
+	return { items, cursor: nextCursor };
+}
+
+/**
+ * Search for distinct tags matching a substring. Returns tags with post counts.
+ */
+export async function searchTags(
+	query: string,
+	limit = 30
+): Promise<{ tag: string; count: number }[]> {
+	const result = await pool.query(
+		`SELECT tag, COUNT(*) as cnt
+		 FROM (
+			SELECT unnest(tags) as tag FROM posts WHERE tags IS NOT NULL
+			UNION ALL
+			SELECT unnest(tags) as tag FROM reblogs WHERE tags IS NOT NULL
+		 ) t
+		 WHERE tag ILIKE $1
+		 GROUP BY tag
+		 ORDER BY cnt DESC, tag ASC
+		 LIMIT $2`,
+		[`%${query}%`, limit]
+	);
+
+	return result.rows.map((r) => ({
+		tag: r.tag,
+		count: parseInt(r.cnt, 10) || 0
+	}));
+}

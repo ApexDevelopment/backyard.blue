@@ -10,9 +10,19 @@
 		chain?: BackyardChainEntry[];
 		showActions?: boolean;
 		compact?: boolean;
+		/** When set, tag links point to /profile/{profileHandle}/tags/{tag} instead of /tags/{tag} */
+		profileHandle?: string;
 	}
 
-	let { post, chain, showActions = true, compact = false }: Props = $props();
+	let { post, chain, showActions = true, compact = false, profileHandle }: Props = $props();
+
+	function tagHref(tag: string): string {
+		const encoded = encodeURIComponent(tag);
+		if (profileHandle) {
+			return `/profile/${encodeURIComponent(profileHandle)}/tags/${encoded}`;
+		}
+		return `/tags/${encoded}`;
+	}
 
 	/** Max chain entries visible before clipping */
 	const MAX_VISIBLE = 3;
@@ -186,7 +196,7 @@
 		{#if post.tags && post.tags.length > 0}
 			<div class="post-tags">
 				{#each post.tags as tag}
-					<span class="tag">#{tag}</span>
+					<a href={tagHref(tag)} class="tag">#{tag}</a>
 				{/each}
 			</div>
 		{/if}
@@ -383,6 +393,13 @@
 		background-color: color-mix(in srgb, var(--accent) 10%, transparent);
 		padding: 0.125rem 0.5rem;
 		border-radius: var(--radius-full);
+		text-decoration: none;
+		transition: background-color 0.15s ease;
+	}
+
+	.tag:hover {
+		background-color: color-mix(in srgb, var(--accent) 20%, transparent);
+		text-decoration: none;
 	}
 
 	.embed-images {

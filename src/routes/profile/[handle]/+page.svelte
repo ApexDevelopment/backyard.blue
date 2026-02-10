@@ -31,7 +31,7 @@
 							reblogged
 						</div>
 					{/if}
-					<PostCard post={item.post} chain={item.chain} />
+					<PostCard post={item.post} chain={item.chain} profileHandle={data.profile.handle} />
 				{/each}
 			{:else}
 				<div class="empty-state">

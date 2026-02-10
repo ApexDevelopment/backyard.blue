@@ -78,6 +78,8 @@ export async function initializeDatabase(): Promise<void> {
 			CREATE INDEX IF NOT EXISTS idx_posts_author ON posts(author_did);
 			CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC);
 			CREATE INDEX IF NOT EXISTS idx_posts_author_created ON posts(author_did, created_at DESC);
+			CREATE INDEX IF NOT EXISTS idx_posts_tags ON posts USING gin (tags);
+			CREATE INDEX IF NOT EXISTS idx_reblogs_tags ON reblogs USING gin (tags);
 
 			-- Comments (blue.backyard.feed.comment) — "notes" in Tumblr terms
 			CREATE TABLE IF NOT EXISTS comments (
@@ -158,6 +160,13 @@ export async function initializeDatabase(): Promise<void> {
 				id TEXT PRIMARY KEY,
 				cursor_us BIGINT NOT NULL,
 				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+
+			-- Signup allowlist for gated instances
+			CREATE TABLE IF NOT EXISTS signup_allowlist (
+				identifier TEXT PRIMARY KEY,
+				note TEXT,
+				added_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 
 			-- Housekeeping: clean up expired OAuth state

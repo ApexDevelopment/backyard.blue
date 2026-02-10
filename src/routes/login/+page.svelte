@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types.js';
-	import { House, XCircle } from 'lucide-svelte';
+	import { House, XCircle, Info } from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -8,9 +8,11 @@
 	let loading = $state(false);
 	let errorMsg = $state(data.error || '');
 
+	const signupsDisabled = data.signupMode === 'closed';
+
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
-		if (!handle.trim() || loading) return;
+		if (!handle.trim() || loading || signupsDisabled) return;
 
 		loading = true;
 		errorMsg = '';
@@ -46,40 +48,60 @@
 		<div class="login-header">
 			<span class="login-logo"><House size={40} color="var(--accent)" strokeWidth={2} /></span>
 			<h1>welcome to backyard</h1>
-			<p class="login-subtitle">sign in with your Bluesky/AT handle to get started.</p>
+			{#if signupsDisabled}
+				<p class="login-subtitle">signups are currently disabled.</p>
+			{:else if data.signupMode === 'allowlist'}
+				<p class="login-subtitle">this instance is invite-only. sign in if you're on the list.</p>
+			{:else}
+				<p class="login-subtitle">sign in with your Bluesky/AT handle to get started.</p>
+			{/if}
 		</div>
 
-		<form onsubmit={handleSubmit} class="login-form">
-			{#if errorMsg}
-				<div class="login-error">
-					<XCircle size={16} />
-					{errorMsg}
-				</div>
-			{/if}
-
-			<div class="form-group">
-				<label for="handle" class="form-label">your handle</label>
-				<input
-					id="handle"
-					type="text"
-					class="input"
-					placeholder="alice.bsky.social"
-					bind:value={handle}
-					disabled={loading}
-					autocomplete="username"
-					autofocus
-				/>
+		{#if signupsDisabled}
+			<div class="signup-notice">
+				<Info size={16} />
+				<span>this instance is not accepting new accounts at this time.</span>
 			</div>
-
-			<button type="submit" class="btn btn-primary login-btn" disabled={!handle.trim() || loading}>
-				{#if loading}
-					<span class="spinner" style="width:16px;height:16px;border-width:2px;"></span>
-					signing in...
-				{:else}
-					sign in
+		{:else}
+			<form onsubmit={handleSubmit} class="login-form">
+				{#if errorMsg}
+					<div class="login-error">
+						<XCircle size={16} />
+						{errorMsg}
+					</div>
 				{/if}
-			</button>
-		</form>
+
+				{#if data.signupMode === 'allowlist'}
+					<div class="signup-notice info">
+						<Info size={16} />
+						<span>only allowlisted accounts can sign up. existing users can sign in normally.</span>
+					</div>
+				{/if}
+
+				<div class="form-group">
+					<label for="handle" class="form-label">your handle</label>
+					<input
+						id="handle"
+						type="text"
+						class="input"
+						placeholder="alice.bsky.social"
+						bind:value={handle}
+						disabled={loading}
+						autocomplete="username"
+						autofocus
+					/>
+				</div>
+
+				<button type="submit" class="btn btn-primary login-btn" disabled={!handle.trim() || loading}>
+					{#if loading}
+						<span class="spinner" style="width:16px;height:16px;border-width:2px;"></span>
+						signing in...
+					{:else}
+						sign in
+					{/if}
+				</button>
+			</form>
+		{/if}
 	</div>
 </div>
 
@@ -148,5 +170,22 @@
 	.login-btn {
 		width: 100%;
 		padding: 0.625rem;
+	}
+
+	.signup-notice {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.75rem;
+		background-color: color-mix(in srgb, var(--warning) 10%, transparent);
+		color: var(--text-secondary);
+		border-radius: var(--radius-sm);
+		font-size: 0.875rem;
+		line-height: 1.4;
+	}
+
+	.signup-notice.info {
+		background-color: color-mix(in srgb, var(--accent) 8%, transparent);
+		color: var(--text-secondary);
 	}
 </style>

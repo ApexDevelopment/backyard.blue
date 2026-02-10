@@ -42,6 +42,8 @@ Copy `.env.example` to `.env` and set the required values:
 | `OAUTH_PRIVATE_KEY_3` | No | Additional key for rotation. |
 | `JETSTREAM_URL` | No | Custom Jetstream WebSocket URL. Defaults to `wss://jetstream2.us-east.bsky.network/subscribe`. |
 | `FIREHOSE_DISABLED` | No | Set to `true` to disable the Jetstream firehose consumer. |
+| `SIGNUP_MODE` | No | `open` (default), `allowlist`, or `closed`. Controls who can create new sessions. |
+| `ADMIN_DID` | No | DID of the instance admin. Required for `/api/admin/*` endpoints. |
 
 In production, the app will refuse to start if `SESSION_SECRET` uses a default value or if no OAuth private key is configured.
 
@@ -147,6 +149,37 @@ server {
 ### Rate Limiting
 
 The application includes a basic in-memory rate limiter (60 writes/min, 300 reads/min per IP). This is per-process only and does not persist across restarts or scale across multiple instances. For production, enforce rate limiting at the reverse proxy or edge layer.
+
+### Signup Gating
+
+Backyard supports three signup modes, controlled by the `SIGNUP_MODE` environment variable:
+
+- **`open`** (default) — anyone with an AT Protocol account can sign in.
+- **`allowlist`** — only DIDs or handles listed in the allowlist can create new sessions. Returning users (who have signed in before) are always allowed.
+- **`closed`** — no new signups. Only users with an existing session can sign in.
+
+The login page adapts its messaging automatically based on the current mode.
+
+#### Managing the allowlist
+
+Set `ADMIN_DID` to your DID, then use the admin API while signed in:
+
+```sh
+# List allowlisted identifiers
+curl -b cookies.txt https://backyard.example.com/api/admin/allowlist
+
+# Add a DID or handle
+curl -b cookies.txt -X POST https://backyard.example.com/api/admin/allowlist \
+  -H 'Content-Type: application/json' \
+  -d '{"identifier": "alice.bsky.social", "note": "Invited by admin"}'
+
+# Remove an identifier
+curl -b cookies.txt -X DELETE https://backyard.example.com/api/admin/allowlist \
+  -H 'Content-Type: application/json' \
+  -d '{"identifier": "alice.bsky.social"}'
+```
+
+You can add either a DID (`did:plc:...`) or a handle (`alice.bsky.social`). Both are checked during signup.
 
 ## License
 

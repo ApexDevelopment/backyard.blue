@@ -13,6 +13,8 @@ services:
       - OAUTH_PRIVATE_KEY_3=${OAUTH_PRIVATE_KEY_3:-}
       - JETSTREAM_URL=${JETSTREAM_URL:-}
       - FIREHOSE_DISABLED=${FIREHOSE_DISABLED:-}
+      - SIGNUP_MODE=${SIGNUP_MODE:-open}
+      - ADMIN_DID=${ADMIN_DID:-}
     depends_on:
       db:
         condition: service_healthy
