@@ -4,7 +4,7 @@
  */
 
 import pool from './db.js';
-import { mapRowToProfile } from './identity.js';
+import { mapRowToProfile, ensureProfile } from './identity.js';
 import type {
 	BackyardPost,
 	BackyardFeedItem,
@@ -13,6 +13,11 @@ import type {
 	BackyardChainEntry
 } from '$lib/types.js';
 
+/**
+ * Resolve a batch of DIDs to profiles.
+ * First checks the local cache, then eagerly resolves any missing profiles
+ * from the network via ensureProfile so we don't show raw DIDs.
+ */
 async function resolveProfiles(dids: string[]): Promise<Map<string, BackyardProfile>> {
 	if (dids.length === 0) return new Map();
 	const unique = [...new Set(dids)];
@@ -22,11 +27,22 @@ async function resolveProfiles(dids: string[]): Promise<Map<string, BackyardProf
 		const profile = mapRowToProfile(row);
 		map.set(profile.did, profile);
 	}
-	for (const did of unique) {
-		if (!map.has(did)) {
-			map.set(did, { did, handle: did });
+
+	// Eagerly resolve any uncached profiles from the network.
+	// Run them concurrently but don't let a single failure break the batch.
+	const missing = unique.filter((did) => !map.has(did));
+	if (missing.length > 0) {
+		const settled = await Promise.allSettled(missing.map((did) => ensureProfile(did)));
+		for (let i = 0; i < missing.length; i++) {
+			const result = settled[i];
+			if (result.status === 'fulfilled' && result.value) {
+				map.set(missing[i], result.value);
+			} else {
+				map.set(missing[i], { did: missing[i], handle: missing[i] });
+			}
 		}
 	}
+
 	return map;
 }
 

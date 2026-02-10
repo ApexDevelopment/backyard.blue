@@ -4,13 +4,16 @@ import { getOAuthClient } from '$lib/server/oauth.js';
 import { setSessionData } from '$lib/server/session.js';
 import { backfillUser } from '$lib/server/backfill.js';
 import { canSignIn, getSignupMode } from '$lib/server/signup.js';
+import { getBackyardProfileRecord } from '$lib/server/identity.js';
 
 /**
  * OAuth callback handler.
  * Completes the authorization flow, checks signup gating, and stores the session.
+ * New users (those without a Backyard profile) are redirected to /onboarding.
  */
 export const GET: RequestHandler = async (event) => {
 	const params = new URLSearchParams(event.url.search);
+	let redirectTo = '/';
 
 	try {
 		const client = await getOAuthClient();
@@ -26,8 +29,26 @@ export const GET: RequestHandler = async (event) => {
 			throw redirect(303, `/login?error=${errorParam}`);
 		}
 
+		// ── Onboarding check ────────────────────────────────────────────
+		// If the user doesn't have a Backyard profile, flag them for
+		// onboarding so they can import from Bluesky, start fresh, or skip.
+		let needsOnboarding = false;
+		try {
+			const backyardProfile = await getBackyardProfileRecord(oauthSession.did);
+			if (!backyardProfile) {
+				needsOnboarding = true;
+				redirectTo = '/onboarding';
+			}
+		} catch {
+			// If the check fails, don't block login — they can always set
+			// up their profile later.
+		}
+
 		// Store the user's DID in the encrypted cookie session
-		setSessionData(event.cookies, { did: oauthSession.did });
+		setSessionData(event.cookies, {
+			did: oauthSession.did,
+			...(needsOnboarding ? { needsOnboarding: true } : {})
+		});
 
 		// Backfill the user's records from their PDS in the background
 		backfillUser(oauthSession.did).catch((err) => {
@@ -41,5 +62,5 @@ export const GET: RequestHandler = async (event) => {
 		throw redirect(303, '/login?error=auth_failed');
 	}
 
-	throw redirect(303, '/');
+	throw redirect(303, redirectTo);
 };

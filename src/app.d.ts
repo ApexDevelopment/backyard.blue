@@ -5,6 +5,7 @@ declare global {
 		}
 		interface Locals {
 			did?: string;
+			needsOnboarding?: boolean;
 		}
 	}
 }

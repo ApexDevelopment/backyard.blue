@@ -69,6 +69,8 @@ const WRITE_PATHS = new Set([
 	'/api/follow',
 	'/api/reply',
 	'/api/repost',
+	'/api/profile',
+	'/api/onboarding',
 	'/api/admin/allowlist'
 ]);
 
@@ -105,6 +107,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		const session = getSessionData(event.cookies);
 		if (session.did) {
 			event.locals.did = session.did;
+			event.locals.needsOnboarding = session.needsOnboarding || false;
 		}
 	} catch {
 	}

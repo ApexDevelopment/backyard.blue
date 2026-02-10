@@ -56,6 +56,7 @@ function decrypt(data: string): string {
 
 interface SessionData {
 	did?: string;
+	needsOnboarding?: boolean;
 }
 
 export function getSessionData(cookies: Cookies): SessionData {

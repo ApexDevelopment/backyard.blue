@@ -13,7 +13,7 @@
 <div class="feed-page">
 	{#if !data.user}
 		<div class="welcome-card card">
-			<h2>welcome to backyard</h2>
+			<h2>welcome to the backyard</h2>
 			<p>a cozy corner of the atmosphere. sign in to start posting and connect with others.</p>
 			<a href="/login" class="btn btn-primary">sign in to get started</a>
 		</div>
@@ -35,10 +35,6 @@
 			<div class="empty-state">
 				<p>your feed is empty. follow some people to see their posts here!</p>
 				<a href="/search" class="btn btn-secondary">find people to follow</a>
-			</div>
-		{:else}
-			<div class="empty-state">
-				<p>sign in to see your feed.</p>
 			</div>
 		{/if}
 	</div>

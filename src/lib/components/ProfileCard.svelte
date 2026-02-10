@@ -72,6 +72,8 @@
 				>
 					{isFollowing ? 'following' : 'follow'}
 				</button>
+			{:else}
+				<a href="/settings/profile" class="btn btn-secondary">edit profile</a>
 			{/if}
 		</div>
 

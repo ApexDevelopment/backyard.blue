@@ -82,6 +82,88 @@ export function blobUrl(pdsUrl: string, did: string, cid: string): string {
 }
 
 /**
+ * Check whether a user has a blue.backyard.actor.profile record in their PDS.
+ * Returns the record value if found, or null.
+ */
+export async function getBackyardProfileRecord(did: string): Promise<Record<string, unknown> | null> {
+	try {
+		const didDoc = await resolveDidDocument(did);
+		const pdsUrl = getPdsUrl(didDoc);
+		if (!pdsUrl) return null;
+
+		const res = await fetch(
+			`${pdsUrl}/xrpc/com.atproto.repo.getRecord?` +
+				`repo=${encodeURIComponent(did)}&` +
+				`collection=blue.backyard.actor.profile&rkey=self`
+		);
+		if (res.ok) {
+			const data = await res.json();
+			return data.value || null;
+		}
+		return null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Fetch a user's Bluesky (app.bsky.actor.profile) from their PDS.
+ * Returns the profile data or null.
+ */
+export async function getBlueskyProfileRecord(did: string): Promise<{
+	displayName?: string;
+	pronouns?: string;
+	description?: string;
+	avatarCid?: string;
+	bannerCid?: string;
+	avatarUrl?: string;
+	bannerUrl?: string;
+} | null> {
+	try {
+		const didDoc = await resolveDidDocument(did);
+		const pdsUrl = getPdsUrl(didDoc);
+		if (!pdsUrl) return null;
+
+		const res = await fetch(
+			`${pdsUrl}/xrpc/com.atproto.repo.getRecord?` +
+				`repo=${encodeURIComponent(did)}&` +
+				`collection=app.bsky.actor.profile&rkey=self`
+		);
+		if (!res.ok) return null;
+
+		const data = await res.json();
+		const record = data.value;
+		if (!record) return null;
+
+		const result: {
+			displayName?: string;
+			pronouns?: string;
+			description?: string;
+			avatarCid?: string;
+			bannerCid?: string;
+			avatarUrl?: string;
+			bannerUrl?: string;
+		} = {};
+
+		if (record.displayName) result.displayName = record.displayName;
+		if (record.pronouns) result.pronouns = record.pronouns;
+		if (record.description) result.description = record.description;
+		if (record.avatar?.ref?.$link) {
+			result.avatarCid = record.avatar.ref.$link;
+			result.avatarUrl = blobUrl(pdsUrl, did, record.avatar.ref.$link);
+		}
+		if (record.banner?.ref?.$link) {
+			result.bannerCid = record.banner.ref.$link;
+			result.bannerUrl = blobUrl(pdsUrl, did, record.banner.ref.$link);
+		}
+
+		return result;
+	} catch {
+		return null;
+	}
+}
+
+/**
  * Map a raw database row from the profiles table to a BackyardProfile object.
  */
 export function mapRowToProfile(p: any): BackyardProfile {
@@ -205,43 +287,45 @@ export async function ensureProfile(did: string): Promise<BackyardProfile | null
 
 /**
  * Update a cached profile with new data. Used after the user edits their profile.
+ * Uses an UPSERT so it works even if the profile row was evicted from the cache.
  */
 export async function updateCachedProfile(
 	did: string,
 	updates: Partial<Pick<BackyardProfile, 'handle' | 'displayName' | 'pronouns' | 'description' | 'avatar' | 'banner'>>
 ): Promise<void> {
-	const fields: string[] = ['updated_at = NOW()'];
-	const values: any[] = [did];
-	let idx = 2;
-
-	if (updates.handle !== undefined) {
-		fields.push(`handle = $${idx++}`);
-		values.push(updates.handle);
-	}
-	if (updates.displayName !== undefined) {
-		fields.push(`display_name = $${idx++}`);
-		values.push(updates.displayName);
-	}
-	if (updates.pronouns !== undefined) {
-		fields.push(`pronouns = $${idx++}`);
-		values.push(updates.pronouns);
-	}
-	if (updates.description !== undefined) {
-		fields.push(`description = $${idx++}`);
-		values.push(updates.description);
-	}
-	if (updates.avatar !== undefined) {
-		fields.push(`avatar = $${idx++}`);
-		values.push(updates.avatar);
-	}
-	if (updates.banner !== undefined) {
-		fields.push(`banner = $${idx++}`);
-		values.push(updates.banner);
+	// Resolve handle for the INSERT branch — we need at least a handle for
+	// the row to be useful.
+	let handle = updates.handle;
+	if (!handle) {
+		try {
+			const didDoc = await resolveDidDocument(did);
+			handle = getHandle(didDoc) || did;
+		} catch {
+			handle = did;
+		}
 	}
 
-	if (fields.length > 1) {
-		await pool.query(`UPDATE profiles SET ${fields.join(', ')} WHERE did = $1`, values);
-	}
+	await pool.query(
+		`INSERT INTO profiles (did, handle, display_name, pronouns, description, avatar, banner, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+		 ON CONFLICT (did) DO UPDATE SET
+		   handle = COALESCE($2, profiles.handle),
+		   display_name = $3,
+		   pronouns = $4,
+		   description = $5,
+		   avatar = COALESCE($6, profiles.avatar),
+		   banner = COALESCE($7, profiles.banner),
+		   updated_at = NOW()`,
+		[
+			did,
+			handle,
+			updates.displayName ?? null,
+			updates.pronouns ?? null,
+			updates.description ?? null,
+			updates.avatar ?? null,
+			updates.banner ?? null
+		]
+	);
 }
 
 export async function getProfileByHandle(handle: string): Promise<BackyardProfile | null> {
