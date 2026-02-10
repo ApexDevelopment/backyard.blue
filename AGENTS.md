@@ -10,9 +10,9 @@ When important or relevant information is found in the AT Protocol documentation
 
 Upon first reading this document, agents must read `notes/architecture.md` and `notes/requirements.md`.
 
-## Vibe Code Smell
+## Vibecode Smell
 
-LLMs tend to converge on a specific style of web development that is not necessarily the best fit for every project. **Agents should be wary of these common pitfalls:**
+LLMs tend to converge on a specific style of web development that is not necessarily the best fit for every project. **Agents should be wary of and avoid these common pitfalls:**
 - Overuse of pill-shaped UI elements
 - Overuse of the "card" UI component metaphor
 - Duplicating the same logic in multiple places
