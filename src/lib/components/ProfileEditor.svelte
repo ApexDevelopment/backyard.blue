@@ -101,11 +101,6 @@
 	async function save() {
 		if (saving) return;
 
-		if (!displayName.trim()) {
-			errorMsg = 'display name is required.';
-			return;
-		}
-
 		saving = true;
 		errorMsg = '';
 
