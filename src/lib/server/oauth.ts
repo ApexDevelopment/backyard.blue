@@ -91,11 +91,25 @@ export function getOAuthClient(): Promise<NodeOAuthClient> {
 }
 
 async function createOAuthClient(): Promise<NodeOAuthClient> {
-	const publicUrl = env.PUBLIC_URL || 'http://localhost:3000';
+	const rawPublicUrl = env.PUBLIC_URL as string | undefined;
+	const publicUrl = rawPublicUrl?.replace(/\/+$/, '') || '';
 
-	if (isLoopbackUrl(publicUrl)) {
+	if (!publicUrl) {
+		if (env.NODE_ENV === 'production') {
+			throw new Error(
+				'FATAL: PUBLIC_URL environment variable is required in production. ' +
+				'Set it to the public-facing URL of your Backyard instance ' +
+				'(e.g. https://backyard.example.com).'
+			);
+		}
+		console.warn('⚠️  PUBLIC_URL not set — defaulting to http://localhost:3000 (development only).');
+	}
 
-		const port = new URL(publicUrl).port || '3000';
+	const url = publicUrl || 'http://localhost:3000';
+
+	if (isLoopbackUrl(url)) {
+
+		const port = new URL(url).port || '3000';
 		const redirectUri = `http://127.0.0.1:${port}/oauth/callback`;
 
 		// The AT-Proto spec encodes scope + redirect_uri as query-params
@@ -155,10 +169,10 @@ async function createOAuthClient(): Promise<NodeOAuthClient> {
 
 	const webClient = new NodeOAuthClient({
 		clientMetadata: {
-			client_id: `${publicUrl}/oauth/client-metadata.json`,
+			client_id: `${url}/oauth/client-metadata.json`,
 			client_name: 'Backyard',
-			client_uri: publicUrl,
-			redirect_uris: [`${publicUrl}/oauth/callback`],
+			client_uri: url,
+			redirect_uris: [`${url}/oauth/callback`],
 			grant_types: ['authorization_code', 'refresh_token'],
 			// Scoped permissions — NOT transitional full-access
 			// repo:<collection> grants full read/write access to that collection in the user's repo
@@ -168,13 +182,14 @@ async function createOAuthClient(): Promise<NodeOAuthClient> {
 			token_endpoint_auth_method: 'private_key_jwt',
 			token_endpoint_auth_signing_alg: 'RS256',
 			dpop_bound_access_tokens: true,
-			jwks_uri: `${publicUrl}/oauth/jwks.json`
+			jwks_uri: `${url}/oauth/jwks.json`
 		},
 		keyset: keys,
 		stateStore,
 		sessionStore
 	});
 
+	console.info(`🔒 OAuth configured as web client (${url})`);
 	return webClient;
 }
 
