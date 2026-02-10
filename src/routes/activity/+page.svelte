@@ -3,18 +3,27 @@
 	import type { BackyardNotification } from '$lib/types.js';
 	import { Heart, MessageCircle, Repeat2, UserPlus } from 'lucide-svelte';
 	import { onMount, onDestroy } from 'svelte';
+	import { invalidateAll } from '$app/navigation';
 
 	let { data }: { data: PageData } = $props();
 
 	let liveNotifications: BackyardNotification[] = $state([]);
 	let eventSource: EventSource | null = null;
+	let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+	function pushLive(notif: BackyardNotification) {
+		if (liveNotifications.some((n) => n.id === notif.id)) return;
+		liveNotifications = [notif, ...liveNotifications];
+	}
 
 	onMount(() => {
+		// SSE for instant delivery
 		eventSource = new EventSource('/api/activity/stream');
+
 		eventSource.addEventListener('notification', (e) => {
 			try {
 				const event = JSON.parse(e.data);
-				liveNotifications = [{
+				pushLive({
 					id: event.id,
 					actor: { did: event.actorDid, handle: event.actorDid },
 					type: event.type,
@@ -22,7 +31,7 @@
 					actionUri: event.actionUri,
 					read: false,
 					createdAt: event.createdAt
-				}, ...liveNotifications];
+				});
 
 				fetch('/api/activity', {
 					method: 'POST',
@@ -31,10 +40,24 @@
 				}).catch(() => {});
 			} catch {}
 		});
+
+		// Polling fallback — catches anything SSE misses
+		pollTimer = setInterval(async () => {
+			try {
+				const res = await fetch('/api/activity');
+				if (!res.ok) return;
+				const { unreadCount } = await res.json();
+				if (unreadCount > 0) {
+					liveNotifications = [];
+					await invalidateAll();
+				}
+			} catch {}
+		}, 15_000);
 	});
 
 	onDestroy(() => {
 		eventSource?.close();
+		if (pollTimer) clearInterval(pollTimer);
 	});
 
 	let allNotifications = $derived([...liveNotifications, ...data.notifications]);

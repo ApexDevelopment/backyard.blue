@@ -7,53 +7,59 @@ export const GET: RequestHandler = async ({ locals }) => {
 	}
 
 	const did = locals.did;
+	const encoder = new TextEncoder();
 
-	const stream = new ReadableStream({
+	let unsubscribe: (() => void) | null = null;
+	let heartbeat: ReturnType<typeof setInterval> | null = null;
+	let controllerRef: ReadableStreamDefaultController<Uint8Array> | null = null;
+
+	function cleanup() {
+		if (heartbeat) {
+			clearInterval(heartbeat);
+			heartbeat = null;
+		}
+		if (unsubscribe) {
+			unsubscribe();
+			unsubscribe = null;
+		}
+		controllerRef = null;
+	}
+
+	function enqueue(text: string) {
+		try {
+			controllerRef?.enqueue(encoder.encode(text));
+		} catch {
+			cleanup();
+		}
+	}
+
+	const stream = new ReadableStream<Uint8Array>({
 		start(controller) {
-			const encoder = new TextEncoder();
+			controllerRef = controller;
 
-			const send = (event: string, data: unknown) => {
-				try {
-					controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
-				} catch {
-					// Stream closed
-				}
-			};
+			// Send initial comment so the HTTP response headers are flushed immediately
+			enqueue(': ok\n\n');
 
-			// Send a heartbeat every 30s to keep the connection alive
-			const heartbeat = setInterval(() => {
-				try {
-					controller.enqueue(encoder.encode(': heartbeat\n\n'));
-				} catch {
-					clearInterval(heartbeat);
-				}
-			}, 30_000);
+			heartbeat = setInterval(() => {
+				enqueue(': heartbeat\n\n');
+			}, 15_000);
 
-			const unsubscribe = subscribeNotifications(did, (event) => {
-				send('notification', event);
+			unsubscribe = subscribeNotifications(did, (event) => {
+				enqueue(`event: notification\ndata: ${JSON.stringify(event)}\n\n`);
 			});
-
-			// Clean up when the client disconnects
-			const cleanup = () => {
-				clearInterval(heartbeat);
-				unsubscribe();
-			};
-
-			// ReadableStream cancel is called when the client closes the connection
-			// We store cleanup so the cancel callback can call it
-			(controller as any)._cleanup = cleanup;
 		},
-		cancel(controller: any) {
-			controller._cleanup?.();
+		cancel() {
+			cleanup();
 		}
 	});
 
 	return new Response(stream, {
 		headers: {
 			'Content-Type': 'text/event-stream',
-			'Cache-Control': 'no-cache',
+			'Cache-Control': 'no-cache, no-transform',
 			'Connection': 'keep-alive',
-			'X-Accel-Buffering': 'no'
+			'X-Accel-Buffering': 'no',
+			'Content-Encoding': 'none'
 		}
 	});
 };
