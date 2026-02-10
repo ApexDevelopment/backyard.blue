@@ -16,6 +16,7 @@ import { env } from '$env/dynamic/private';
 import { NSID, ALL_NSIDS } from '$lib/lexicon.js';
 import pool from './db.js';
 import { ensureProfile } from './identity.js';
+import { createNotification } from './notifications.js';
 import {
 	clampText,
 	clampTags,
@@ -85,6 +86,33 @@ function buildAtUri(did: string, collection: string, rkey: string): string {
 }
 
 /**
+ * Look up the author of a post/reblog/comment and notify them.
+ * Fire-and-forget — errors are silently swallowed.
+ */
+function notifySubjectAuthorFirehose(
+	actorDid: string,
+	subjectUri: string,
+	type: 'like' | 'comment' | 'reblog',
+	actionUri: string
+): void {
+	(async () => {
+		const result = await pool.query(
+			`SELECT author_did FROM posts WHERE uri = $1
+			 UNION ALL
+			 SELECT author_did FROM reblogs WHERE uri = $1
+			 UNION ALL
+			 SELECT author_did FROM comments WHERE uri = $1
+			 LIMIT 1`,
+			[subjectUri]
+		);
+		const recipientDid = result.rows[0]?.author_did;
+		if (recipientDid) {
+			await createNotification({ recipientDid, actorDid, type, subjectUri, actionUri });
+		}
+	})().catch(() => {});
+}
+
+/**
  * Index a create or update operation from the firehose.
  * Uses upsert semantics so that records already indexed via the
  * dual-write path are harmlessly deduplicated.
@@ -147,6 +175,9 @@ async function indexRecord(did: string, commit: JetstreamCommit): Promise<void> 
 					safeIsoDate(r.createdAt)
 				]
 			);
+			if (subject?.uri) {
+				notifySubjectAuthorFirehose(did, subject.uri, 'comment', uri);
+			}
 			break;
 		}
 		case NSID.REBLOG: {
@@ -174,6 +205,9 @@ async function indexRecord(did: string, commit: JetstreamCommit): Promise<void> 
 					safeIsoDate(r.createdAt)
 				]
 			);
+			if (subjectUri) {
+				notifySubjectAuthorFirehose(did, subjectUri, 'reblog', uri);
+			}
 			break;
 		}
 		case NSID.LIKE: {
@@ -184,6 +218,9 @@ async function indexRecord(did: string, commit: JetstreamCommit): Promise<void> 
 				 ON CONFLICT (uri) DO NOTHING`,
 				[uri, cid, did, subject?.uri || '', safeIsoDate(r.createdAt)]
 			);
+			if (subject?.uri) {
+				notifySubjectAuthorFirehose(did, subject.uri, 'like', uri);
+			}
 			break;
 		}
 		case NSID.FOLLOW: {
@@ -196,6 +233,12 @@ async function indexRecord(did: string, commit: JetstreamCommit): Promise<void> 
 					[uri, did, subjectDid, safeIsoDate(r.createdAt)]
 				);
 				ensureProfile(subjectDid).catch(() => {});
+				createNotification({
+					recipientDid: subjectDid,
+					actorDid: did,
+					type: 'follow',
+					actionUri: uri
+				}).catch(() => {});
 			}
 			break;
 		}

@@ -149,6 +149,23 @@ export async function initializeDatabase(): Promise<void> {
 				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 
+			-- Notifications (likes, comments, reblogs, follows on a user's content)
+			CREATE TABLE IF NOT EXISTS notifications (
+				id BIGSERIAL PRIMARY KEY,
+				recipient_did TEXT NOT NULL,
+				actor_did TEXT NOT NULL,
+				type TEXT NOT NULL,
+				subject_uri TEXT,
+				action_uri TEXT NOT NULL,
+				read BOOLEAN NOT NULL DEFAULT FALSE,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_notifications_recipient
+				ON notifications(recipient_did, id DESC);
+			CREATE INDEX IF NOT EXISTS idx_notifications_unread
+				ON notifications(recipient_did) WHERE read = FALSE;
+
 			-- Signup allowlist for gated instances
 			CREATE TABLE IF NOT EXISTS signup_allowlist (
 				identifier TEXT PRIMARY KEY,

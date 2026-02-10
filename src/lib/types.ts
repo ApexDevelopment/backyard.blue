@@ -102,4 +102,20 @@ export interface BackyardFollowInfo {
 	followUri?: string;
 }
 
+export type NotificationType = 'like' | 'comment' | 'reblog' | 'follow';
+
+export interface BackyardNotification {
+	id: number;
+	actor: BackyardProfile;
+	type: NotificationType;
+	/** The post/comment that was interacted with (absent for follows) */
+	subjectUri?: string;
+	/** The AT URI of the like/comment/reblog/follow record */
+	actionUri: string;
+	read: boolean;
+	/** Short text preview of the subject post, when available */
+	subjectPreview?: string;
+	createdAt: string;
+}
+
 export type Theme = 'light' | 'dark';

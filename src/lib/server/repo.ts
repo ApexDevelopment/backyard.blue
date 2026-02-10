@@ -9,12 +9,41 @@ import { NSID } from '$lib/lexicon.js';
 import pool from './db.js';
 import { ensureProfile } from './identity.js';
 import { resolveRootPostUri } from './validation.js';
+import { createNotification } from './notifications.js';
+import type { NotificationType } from '$lib/types.js';
 
 /** Parse an AT URI into its components */
 export function parseAtUri(uri: string): { repo: string; collection: string; rkey: string } {
 	const stripped = uri.replace('at://', '');
 	const [repo, collection, rkey] = stripped.split('/');
 	return { repo, collection, rkey };
+}
+
+/**
+ * Look up the author of a post, reblog, or comment by its AT URI
+ * and create a notification for them. Fire-and-forget.
+ */
+function notifySubjectAuthor(
+	actorDid: string,
+	subjectUri: string,
+	type: NotificationType,
+	actionUri: string
+): void {
+	(async () => {
+		const result = await pool.query(
+			`SELECT author_did FROM posts WHERE uri = $1
+			 UNION ALL
+			 SELECT author_did FROM reblogs WHERE uri = $1
+			 UNION ALL
+			 SELECT author_did FROM comments WHERE uri = $1
+			 LIMIT 1`,
+			[subjectUri]
+		);
+		const recipientDid = result.rows[0]?.author_did;
+		if (recipientDid) {
+			await createNotification({ recipientDid, actorDid, type, subjectUri, actionUri });
+		}
+	})().catch(() => {});
 }
 
 export async function createPost(
@@ -108,6 +137,8 @@ export async function createComment(
 		]
 	);
 
+	notifySubjectAuthor(did, data.subjectUri, 'comment', res.data.uri);
+
 	return { uri: res.data.uri, cid: res.data.cid };
 }
 
@@ -158,6 +189,8 @@ export async function createReblog(
 		]
 	);
 
+	notifySubjectAuthor(did, data.subjectUri, 'reblog', res.data.uri);
+
 	return { uri: res.data.uri, cid: res.data.cid };
 }
 
@@ -184,6 +217,8 @@ export async function createLike(
 		 ON CONFLICT (uri) DO NOTHING`,
 		[res.data.uri, res.data.cid, did, subjectUri, now]
 	);
+
+	notifySubjectAuthor(did, subjectUri, 'like', res.data.uri);
 
 	return { uri: res.data.uri, cid: res.data.cid };
 }
@@ -213,6 +248,13 @@ export async function createFollow(
 
 	// Ensure the followed user's profile is cached
 	ensureProfile(subjectDid).catch(() => {});
+
+	createNotification({
+		recipientDid: subjectDid,
+		actorDid: did,
+		type: 'follow',
+		actionUri: res.data.uri
+	}).catch(() => {});
 
 	return { uri: res.data.uri, cid: res.data.cid };
 }
