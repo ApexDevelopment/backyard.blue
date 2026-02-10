@@ -1,7 +1,6 @@
 <script lang="ts">
 	import PostCard from '$lib/components/PostCard.svelte';
 	import type { PageData } from './$types.js';
-	import { Repeat2 } from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
 </script>
@@ -22,14 +21,7 @@
 	<div class="feed">
 		{#if data.feed && data.feed.length > 0}
 			{#each data.feed as item (item.post.uri + (item.reblog?.uri || ''))}
-				{#if item.type === 'reblog' && item.reblog && (!item.chain || item.chain.length <= 1)}
-					<!-- Silent reblog (no additions chain): show indicator -->
-					<div class="reblog-indicator">
-						<Repeat2 size={14} />
-						<a href="/profile/{item.reblog.by.handle}">{item.reblog.by.displayName || item.reblog.by.handle}</a> reblogged
-					</div>
-				{/if}
-				<PostCard post={item.post} chain={item.chain} />
+				<PostCard post={item.post} chain={item.chain} reblog={item.reblog} />
 			{/each}
 		{:else if data.user}
 			<div class="empty-state">
@@ -75,20 +67,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.75rem;
-	}
-
-	.reblog-indicator {
-		display: flex;
-		align-items: center;
-		gap: 0.375rem;
-		padding: 0.5rem 1rem 0;
-		font-size: 0.8125rem;
-		color: var(--text-tertiary);
-	}
-
-	.reblog-indicator a {
-		color: var(--text-secondary);
-		font-weight: 600;
 	}
 
 	.empty-state {

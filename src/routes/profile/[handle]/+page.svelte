@@ -2,7 +2,6 @@
 	import ProfileCard from '$lib/components/ProfileCard.svelte';
 	import PostCard from '$lib/components/PostCard.svelte';
 	import type { PageData } from './$types.js';
-	import { Repeat2 } from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
 </script>
@@ -25,13 +24,7 @@
 		<div class="feed-list">
 			{#if data.feed && data.feed.length > 0}
 				{#each data.feed as item (item.post.uri + (item.reblog?.uri || ''))}
-					{#if item.type === 'reblog' && item.reblog && (!item.chain || item.chain.length <= 1)}
-						<div class="reblog-indicator">
-							<Repeat2 size={14} />
-							reblogged
-						</div>
-					{/if}
-					<PostCard post={item.post} chain={item.chain} profileHandle={data.profile.handle} />
+					<PostCard post={item.post} chain={item.chain} reblog={item.reblog} profileHandle={data.profile.handle} />
 				{/each}
 			{:else}
 				<div class="empty-state">
@@ -60,15 +53,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.75rem;
-	}
-
-	.reblog-indicator {
-		display: flex;
-		align-items: center;
-		gap: 0.375rem;
-		padding: 0.5rem 1rem 0;
-		font-size: 0.8125rem;
-		color: var(--text-tertiary);
 	}
 
 	.empty-state {

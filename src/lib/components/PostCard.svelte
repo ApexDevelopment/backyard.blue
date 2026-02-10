@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { BackyardPost, BackyardChainEntry } from '$lib/types.js';
+	import type { BackyardPost, BackyardChainEntry, BackyardReblogInfo } from '$lib/types.js';
 	import { MessageCircle, Repeat2, Heart, ChevronDown } from 'lucide-svelte';
 	import { openReblogComposer } from '$lib/stores/composer.js';
 	import RichTextRenderer from './RichTextRenderer.svelte';
@@ -8,13 +8,18 @@
 		post: BackyardPost;
 		/** Reblog chain: original post first, each addition after. When present, renders Tumblr-style stacked entries. */
 		chain?: BackyardChainEntry[];
+		/** Present when this card represents a reblog. Contains reblogger info and the reblog's own tags. */
+		reblog?: BackyardReblogInfo;
 		showActions?: boolean;
 		compact?: boolean;
 		/** When set, tag links point to /profile/{profileHandle}/tags/{tag} instead of /tags/{tag} */
 		profileHandle?: string;
 	}
 
-	let { post, chain, showActions = true, compact = false, profileHandle }: Props = $props();
+	let { post, chain, reblog, showActions = true, compact = false, profileHandle }: Props = $props();
+
+	/** The tags to display at the card bottom: reblog's own tags if this is a reblog, otherwise the post's. */
+	let cardTags = $derived(reblog ? reblog.tags : post.tags);
 
 	function tagHref(tag: string): string {
 		const encoded = encodeURIComponent(tag);
@@ -117,6 +122,13 @@
 </script>
 
 <article class="post-card card" class:compact>
+	{#if reblog}
+		<div class="reblog-header">
+			<Repeat2 size={14} />
+			<a href="/profile/{reblog.by.handle}">{reblog.by.displayName || reblog.by.handle}</a> reblogged
+		</div>
+	{/if}
+
 	{#if contentChain.length > 1}
 		<!-- CHAIN VIEW: Tumblr-style stacked entries -->
 		<div class="chain">
@@ -158,16 +170,17 @@
 							</div>
 						</div>
 					{/if}
-					{#if entry.tags && entry.tags.length > 0 && i === visibleEntries.length - 1}
-						<div class="post-tags">
-							{#each entry.tags as tag}
-								<span class="tag">#{tag}</span>
-							{/each}
-						</div>
-					{/if}
 				</div>
 			{/each}
 		</div>
+
+		{#if cardTags && cardTags.length > 0}
+			<div class="post-tags">
+				{#each cardTags as tag}
+					<a href={tagHref(tag)} class="tag">#{tag}</a>
+				{/each}
+			</div>
+		{/if}
 	{:else}
 		<!-- SINGLE POST VIEW (no chain or chain has only one entry) -->
 		<div class="post-header">
@@ -193,9 +206,9 @@
 			<p><RichTextRenderer text={post.text} facets={post.facets} /></p>
 		</div>
 
-		{#if post.tags && post.tags.length > 0}
+		{#if cardTags && cardTags.length > 0}
 			<div class="post-tags">
-				{#each post.tags as tag}
+				{#each cardTags as tag}
 					<a href={tagHref(tag)} class="tag">#{tag}</a>
 				{/each}
 			</div>
@@ -246,6 +259,27 @@
 
 	.post-card.compact {
 		padding: 0.75rem;
+	}
+
+	/* ── Reblog header ────────────────────────────────────── */
+
+	.reblog-header {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		margin-bottom: 0.5rem;
+		font-size: 0.8125rem;
+		color: var(--text-tertiary);
+	}
+
+	.reblog-header a {
+		color: var(--text-secondary);
+		font-weight: 600;
+		text-decoration: none;
+	}
+
+	.reblog-header a:hover {
+		text-decoration: underline;
 	}
 
 	/* ── Chain view ───────────────────────────────────────── */
