@@ -164,7 +164,7 @@ async function createOAuthClient(): Promise<NodeOAuthClient> {
 		console.warn(
 			'⚠️  No OAuth private keys configured. Generating ephemeral key (development only).'
 		);
-		keys.push(await JoseKey.generate(['RS256']));
+		keys.push(await JoseKey.generate(['ES256']));
 	}
 
 	const webClient = new NodeOAuthClient({
@@ -180,7 +180,7 @@ async function createOAuthClient(): Promise<NodeOAuthClient> {
 			response_types: ['code'],
 			application_type: 'web',
 			token_endpoint_auth_method: 'private_key_jwt',
-			token_endpoint_auth_signing_alg: 'RS256',
+			token_endpoint_auth_signing_alg: 'ES256',
 			dpop_bound_access_tokens: true,
 			jwks_uri: `${url}/oauth/jwks.json`
 		},

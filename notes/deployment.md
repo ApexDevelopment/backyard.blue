@@ -31,14 +31,14 @@ Configured via `.env` (copy from `.env.example`):
 | `INSTANCE_URL` | The public URL where the app is hosted | `http://localhost:3000` |
 | `SESSION_SECRET` | Secret for AES-256-GCM session cookie encryption (32+ chars) | Development fallback (insecure) |
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://backyard:backyard@localhost:5432/backyard` |
-| `OAUTH_PRIVATE_KEY_1` | RS256 JWK private key for OAuth client auth | Empty (ephemeral key generated in dev) |
+| `OAUTH_PRIVATE_KEY_1` | ES256 (P-256) JWK private key for OAuth client auth | Empty (ephemeral key generated in dev) |
 | `OAUTH_PRIVATE_KEY_2` | Optional additional key for rotation | Empty |
 | `OAUTH_PRIVATE_KEY_3` | Optional additional key for rotation | Empty |
 
 ### Generating OAuth Keys
 
 ```sh
-node -e "const { JoseKey } = require('@atproto/jwk-jose'); JoseKey.generate('RS256').then(k => console.log(JSON.stringify(k.privateJwk)))"
+node -e "const{generateKeyPairSync}=require('node:crypto');const{publicKey,privateKey}=generateKeyPairSync('ec',{namedCurve:'P-256'});const j=privateKey.export({format:'jwk'});j.alg='ES256';j.use='sig';console.log(JSON.stringify(j))"
 ```
 
 ### Port

@@ -16,10 +16,10 @@ The included `docker-compose.yml` runs both the app and a PostgreSQL instance.
 
 ### 1. Generate secrets
 
-Generate an OAuth private key (RS256 JWK):
+Generate an OAuth private key (ES256 / P-256 JWK):
 
 ```sh
-node -e "const{generateKeyPairSync}=require('node:crypto');const{privateKey}=generateKeyPairSync('rsa',{modulusLength:2048});const j=privateKey.export({format:'jwk'});j.alg='RS256';console.log(JSON.stringify(j))"
+node -e "const{generateKeyPairSync}=require('node:crypto');const{publicKey,privateKey}=generateKeyPairSync('ec',{namedCurve:'P-256'});const j=privateKey.export({format:'jwk'});j.alg='ES256';j.use='sig';console.log(JSON.stringify(j))"
 ```
 
 Generate a session secret:
@@ -37,7 +37,7 @@ Copy `.env.example` to `.env` and set the required values:
 | `INSTANCE_URL` | Yes | The public HTTPS URL of your instance (e.g. `https://backyard.example.com`) |
 | `SESSION_SECRET` | Yes | Random string, 32+ characters. Used to encrypt session cookies. |
 | `DATABASE_URL` | No | PostgreSQL connection string. Defaults to the bundled Compose database. |
-| `OAUTH_PRIVATE_KEY_1` | Yes | RS256 private key in JWK format (see step 1). |
+| `OAUTH_PRIVATE_KEY_1` | Yes | ES256 (P-256) private key in JWK format (see step 1). |
 | `OAUTH_PRIVATE_KEY_2` | No | Additional key for rotation. |
 | `OAUTH_PRIVATE_KEY_3` | No | Additional key for rotation. |
 | `JETSTREAM_URL` | No | Custom Jetstream WebSocket URL. Defaults to `wss://jetstream2.us-east.bsky.network/subscribe`. |
