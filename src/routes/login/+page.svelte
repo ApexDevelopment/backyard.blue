@@ -6,9 +6,10 @@
 
 	let handle = $state('');
 	let loading = $state(false);
+	/* svelte-ignore state_referenced_locally */
 	let errorMsg = $state(data.error || '');
 
-	const signupsDisabled = data.signupMode === 'closed';
+	let signupsDisabled = $derived(data.signupMode === 'closed');
 
 	async function handleSubmit(e: Event) {
 		e.preventDefault();

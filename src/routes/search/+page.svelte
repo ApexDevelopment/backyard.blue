@@ -4,7 +4,9 @@
 
 	let { data }: { data: PageData } = $props();
 
+	/* svelte-ignore state_referenced_locally */
 	let searchQuery = $state(data.query || '');
+	/* svelte-ignore state_referenced_locally */
 	let mode = $state(data.mode || 'profiles');
 </script>
 
@@ -226,6 +228,7 @@
 		margin-top: 0.25rem;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
+		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}

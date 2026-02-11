@@ -20,16 +20,23 @@
 	let { mode, handle, initialData }: Props = $props();
 
 	// ── Form state ──────────────────────────────────────────────────────
+	/* svelte-ignore state_referenced_locally */
 	let displayName = $state(initialData?.displayName || '');
+	/* svelte-ignore state_referenced_locally */
 	let pronouns = $state(initialData?.pronouns || '');
+	/* svelte-ignore state_referenced_locally */
 	let description = $state(initialData?.description || '');
 
 	// Image state: preview URL + selected file + action for the API
+	/* svelte-ignore state_referenced_locally */
 	let avatarPreview = $state<string | null>(initialData?.avatar || null);
+	/* svelte-ignore state_referenced_locally */
 	let bannerPreview = $state<string | null>(initialData?.banner || null);
 	let avatarFile = $state<File | null>(null);
 	let bannerFile = $state<File | null>(null);
+	/* svelte-ignore state_referenced_locally */
 	let avatarAction = $state<'keep' | 'upload' | 'remove'>(initialData?.avatar ? 'keep' : 'remove');
+	/* svelte-ignore state_referenced_locally */
 	let bannerAction = $state<'keep' | 'upload' | 'remove'>(initialData?.banner ? 'keep' : 'remove');
 
 	let saving = $state(false);

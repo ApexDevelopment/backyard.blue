@@ -8,8 +8,8 @@
 	let loading = $state('');
 	let errorMsg = $state('');
 
-	const bsky = data.blueskyProfile;
-	const hasBskyProfile = !!(bsky?.displayName || bsky?.description || bsky?.avatarUrl);
+	let bsky = $derived(data.blueskyProfile);
+	let hasBskyProfile = $derived(!!(bsky?.displayName || bsky?.description || bsky?.avatarUrl));
 
 	async function choose(choice: 'import' | 'fresh' | 'skip') {
 		if (loading) return;
@@ -288,6 +288,7 @@
 		color: var(--text-tertiary);
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
+		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 		margin-top: 0.125rem;
