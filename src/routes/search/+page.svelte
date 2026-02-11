@@ -18,6 +18,7 @@
 			<span class="search-icon">
 				<Search size={18} />
 			</span>
+			<!-- svelte-ignore a11y_autofocus -->
 			<input
 				type="search"
 				name="q"
