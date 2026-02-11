@@ -305,13 +305,14 @@
 		</div>
 	{/if}
 </article>
+{/if}
 
 {#if confirmOpen}
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<div class="confirm-backdrop" role="dialog" aria-modal="true" aria-label="confirm deletion" tabindex="-1" onclick={() => (confirmOpen = false)} onkeydown={handleConfirmKeydown}>
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div class="confirm-dialog card" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
-			<p class="confirm-message">delete this {reblog ? 'reblog' : 'post'}? this can’t be undone.</p>
+			<p class="confirm-message">delete this {reblog ? 'reblog' : 'post'}? this can't be undone.</p>
 			<div class="confirm-actions">
 				<button class="btn btn-ghost" onclick={() => (confirmOpen = false)}>cancel</button>
 				<button class="btn btn-danger" onclick={handleDeleteConfirm} disabled={deleteLoading}>
@@ -320,7 +321,6 @@
 			</div>
 		</div>
 	</div>
-{/if}
 {/if}
 
 <style>
