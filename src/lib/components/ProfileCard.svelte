@@ -24,21 +24,34 @@
 	async function toggleFollow() {
 		if (followLoading) return;
 		followLoading = true;
+
+		const wasFollowing = isFollowing;
+		const prevUri = followUri;
+
+		// Optimistic update
+		isFollowing = !wasFollowing;
+		if (wasFollowing) followUri = '';
+
 		try {
 			const res = await fetch('/api/follow', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					did: profile.did,
-					following: isFollowing,
-					followUri
+					following: wasFollowing,
+					followUri: prevUri
 				})
 			});
 			if (res.ok) {
 				const data = await res.json();
-				isFollowing = !isFollowing;
 				followUri = data.uri || '';
+			} else {
+				isFollowing = wasFollowing;
+				followUri = prevUri;
 			}
+		} catch {
+			isFollowing = wasFollowing;
+			followUri = prevUri;
 		} finally {
 			followLoading = false;
 		}

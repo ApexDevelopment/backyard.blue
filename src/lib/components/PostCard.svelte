@@ -86,22 +86,37 @@
 	async function handleLike() {
 		if (likeLoading) return;
 		likeLoading = true;
+
+		const wasLiked = viewerLike;
+		const prevCount = likeCount;
+
+		// Optimistic update
+		if (wasLiked) {
+			viewerLike = undefined;
+			likeCount = Math.max(0, likeCount - 1);
+		} else {
+			viewerLike = 'pending';
+			likeCount += 1;
+		}
+
 		try {
 			const res = await fetch('/api/like', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ uri: post.uri, cid: post.cid, liked: viewerLike || '' })
+				body: JSON.stringify({ uri: post.uri, cid: post.cid, liked: wasLiked || '' })
 			});
 			if (res.ok) {
-				const data = await res.json();
-				if (viewerLike) {
-					viewerLike = undefined;
-					likeCount = Math.max(0, likeCount - 1);
-				} else {
+				if (!wasLiked) {
+					const data = await res.json();
 					viewerLike = data.uri;
-					likeCount += 1;
 				}
+			} else {
+				viewerLike = wasLiked;
+				likeCount = prevCount;
 			}
+		} catch {
+			viewerLike = wasLiked;
+			likeCount = prevCount;
 		} finally {
 			likeLoading = false;
 		}
