@@ -108,6 +108,7 @@
 		border: 1px solid var(--border-color);
 		border-radius: var(--radius-sm);
 		padding: 0.375rem 0.5rem;
+		min-height: 2.125rem;
 		background-color: var(--bg-primary);
 		transition: border-color 0.15s ease;
 		cursor: text;
