@@ -17,7 +17,10 @@
 		menuOpen = !menuOpen;
 	}
 
-	function closeMenu() {
+	async function signOut() {
+		console.log('Logging out...');
+		await fetch('/logout', { method: 'POST' });
+		window.location.href = '/';
 		menuOpen = false;
 	}
 
@@ -60,7 +63,7 @@
 
 					{#if menuOpen}
 						<div class="menu-dropdown">
-							<a href="/profile/{user.handle}" class="menu-item" onclick={closeMenu}>
+							<a href="/profile/{user.handle}" class="menu-item" onclick={() => menuOpen = false}>
 								<User size={18} />
 								<span>view profile</span>
 							</a>
@@ -72,20 +75,10 @@
 								{/if}
 								<span>switch themes</span>
 							</button>
-							<form
-								method="POST"
-								action="/logout"
-								onsubmit={async (e) => {
-									e.preventDefault();
-									await fetch('/logout', { method: 'POST' });
-									window.location.href = '/';
-								}}
-							>
-								<button type="submit" class="menu-item" onclick={closeMenu}>
-									<LogOut size={18} />
-									<span>sign out</span>
-								</button>
-							</form>
+							<button class="menu-item" onclick={signOut}>
+								<LogOut size={18} />
+								<span>sign out</span>
+							</button>
 						</div>
 					{/if}
 				</div>
