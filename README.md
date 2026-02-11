@@ -44,6 +44,7 @@ Copy `.env.example` to `.env` and set the required values:
 | `FIREHOSE_DISABLED` | No | Set to `true` to disable the Jetstream firehose consumer. |
 | `SIGNUP_MODE` | No | `open` (default), `allowlist`, or `closed`. Controls who can create new sessions. |
 | `ADMIN_DID` | No | DID of the instance admin. Required for `/api/admin/*` endpoints. |
+| `HANDLE_RESOLVER_URL` | No | XRPC-compatible endpoint for resolving handles to DIDs. Falls back to `https://public.api.bsky.app`. A good choice is `https://slingshot.microcosm.blue/`. |
 
 In production, the app will refuse to start if `SESSION_SECRET` uses a default value or if no OAuth private key is configured.
 

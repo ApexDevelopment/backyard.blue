@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types.js';
 import { getAgent } from '$lib/server/oauth.js';
 import { createReblog, deleteRecord } from '$lib/server/repo.js';
-import { isValidAtUri, MAX_TEXT_LENGTH, clampTags, sanitizeFormatFacets } from '$lib/server/validation.js';
+import { isValidAtUri, isValidCid, MAX_TEXT_LENGTH, clampTags, sanitizeFormatFacets } from '$lib/server/validation.js';
 
 /**
  * Reblog a post (Tumblr-style). Supports quick reblogs (no additions)
@@ -35,8 +35,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		if (!uri || typeof uri !== 'string' || !isValidAtUri(uri)) {
 			return json({ error: 'Valid subject URI is required' }, { status: 400 });
 		}
-		if (!cid || typeof cid !== 'string') {
-			return json({ error: 'Subject CID is required' }, { status: 400 });
+		if (!cid || typeof cid !== 'string' || !isValidCid(cid)) {
+			return json({ error: 'Valid subject CID is required' }, { status: 400 });
 		}
 		if (text && typeof text !== 'string') {
 			return json({ error: 'Reblog text must be a string' }, { status: 400 });
@@ -64,6 +64,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			return json({ uri: res.uri });
 		}
 	} catch (err) {
+		const message = err instanceof Error ? err.message : '';
+		if (message.includes('depth limit')) {
+			return json({ error: 'Reblog chain is too deep' }, { status: 400 });
+		}
 		console.error('Reblog error:', err);
 		return json({ error: 'Failed to update reblog' }, { status: 500 });
 	}

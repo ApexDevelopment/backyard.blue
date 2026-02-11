@@ -19,9 +19,11 @@ import type {
  * First checks the local cache, then eagerly resolves any missing profiles
  * from the network via ensureProfile so we don't show raw DIDs.
  */
+const MAX_PROFILE_BATCH = 500;
+
 async function resolveProfiles(dids: string[]): Promise<Map<string, BackyardProfile>> {
 	if (dids.length === 0) return new Map();
-	const unique = [...new Set(dids)];
+	const unique = [...new Set(dids)].slice(0, MAX_PROFILE_BATCH);
 	const res = await pool.query('SELECT * FROM profiles WHERE did = ANY($1)', [unique]);
 	const map = new Map<string, BackyardProfile>();
 	for (const row of res.rows) {

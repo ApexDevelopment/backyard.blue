@@ -40,7 +40,7 @@ export const POST: RequestHandler = async ({ locals, cookies, request }) => {
 			// to Bluesky profile data when no Backyard profile exists.
 			const session = getSessionData(cookies);
 			setSessionData(cookies, { ...session, needsOnboarding: false });
-			return json({ ok: true });
+			return json({ success: true });
 		}
 
 		const agent = await getAgent(did);
@@ -159,7 +159,7 @@ export const POST: RequestHandler = async ({ locals, cookies, request }) => {
 		const session = getSessionData(cookies);
 		setSessionData(cookies, { ...session, needsOnboarding: false });
 
-		return json({ ok: true });
+		return json({ success: true });
 	} catch (err) {
 		console.error('Onboarding error:', err);
 		return json({ error: 'Failed to complete profile setup.' }, { status: 500 });

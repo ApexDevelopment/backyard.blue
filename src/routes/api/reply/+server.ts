@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types.js';
 import { getAgent } from '$lib/server/oauth.js';
 import { RichText } from '@atproto/api';
 import { createComment } from '$lib/server/repo.js';
-import { isValidAtUri, MAX_TEXT_LENGTH } from '$lib/server/validation.js';
+import { isValidAtUri, isValidCid, MAX_TEXT_LENGTH } from '$lib/server/validation.js';
 
 /**
  * Create a comment on a post (Tumblr-style "note").
@@ -39,8 +39,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({ error: 'Valid subject URI is required' }, { status: 400 });
 	}
 
-	if (!subjectCid || typeof subjectCid !== 'string') {
-		return json({ error: 'Subject CID is required' }, { status: 400 });
+	if (!subjectCid || typeof subjectCid !== 'string' || !isValidCid(subjectCid)) {
+		return json({ error: 'Valid subject CID is required' }, { status: 400 });
 	}
 
 	try {

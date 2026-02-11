@@ -31,6 +31,7 @@ function doInit(): Promise<void> {
 const RATE_WINDOW_MS = 60_000;
 const RATE_MAX_WRITE = 60;   // write endpoints per window
 const RATE_MAX_READ = 300;   // general requests per window
+const RATE_MAX_BUCKETS = 50_000; // max tracked IPs per map to prevent memory exhaustion
 
 interface RateBucket {
 	count: number;
@@ -40,11 +41,31 @@ interface RateBucket {
 const writeBuckets = new Map<string, RateBucket>();
 const readBuckets = new Map<string, RateBucket>();
 
+/**
+ * Evict the oldest expired buckets when a map exceeds the size limit.
+ * If no expired entries exist, evict the oldest entries by resetAt.
+ */
+function evictBuckets(buckets: Map<string, RateBucket>): void {
+	const now = Date.now();
+	// First pass: remove all expired
+	for (const [key, b] of buckets) {
+		if (now >= b.resetAt) buckets.delete(key);
+	}
+	// If still over limit, evict oldest entries
+	if (buckets.size > RATE_MAX_BUCKETS) {
+		const sorted = [...buckets.entries()].sort((a, b) => a[1].resetAt - b[1].resetAt);
+		const toRemove = sorted.slice(0, buckets.size - RATE_MAX_BUCKETS);
+		for (const [key] of toRemove) buckets.delete(key);
+	}
+}
+
 function isRateLimited(
 	buckets: Map<string, RateBucket>,
 	key: string,
 	max: number
 ): boolean {
+	if (buckets.size >= RATE_MAX_BUCKETS) evictBuckets(buckets);
+
 	const now = Date.now();
 	let bucket = buckets.get(key);
 	if (!bucket || now >= bucket.resetAt) {

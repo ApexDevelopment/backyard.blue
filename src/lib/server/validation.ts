@@ -16,6 +16,9 @@ export const MAX_TAG_LENGTH = 128;
 /** Maximum serialised JSON size for facets or media (256 KB). */
 export const MAX_JSON_SIZE = 256 * 1024;
 
+/** CID regex: CIDv0 (Qm...) or CIDv1 (b...) */
+const CID_RE = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]{58,})$/;
+
 /** AT-URI regex: at://<did>/<collection>/<rkey> */
 const AT_URI_RE = /^at:\/\/did:[a-zA-Z0-9._:%-]+\/[a-zA-Z0-9.]+\/[a-zA-Z0-9._~-]+$/;
 
@@ -30,6 +33,13 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
  */
 export function isValidAtUri(uri: string): boolean {
 	return typeof uri === 'string' && AT_URI_RE.test(uri) && uri.length < 512;
+}
+
+/**
+ * Validate that a string looks like a CID (v0 or v1).
+ */
+export function isValidCid(cid: string): boolean {
+	return typeof cid === 'string' && CID_RE.test(cid);
 }
 
 /**
@@ -98,6 +108,29 @@ export async function resolveRootPostUri(subjectUri: string): Promise<string> {
 		return parentReblog.rows[0].root_post_uri;
 	}
 	return subjectUri;
+}
+
+/** Maximum reblog chain depth. Prevents unbounded recursive chains. */
+export const MAX_REBLOG_DEPTH = 20;
+
+/**
+ * Check the current reblog depth for a given subject URI.
+ * Returns the depth of the subject (0 for original posts, 1+ for reblogs).
+ */
+export async function getReblogDepth(subjectUri: string): Promise<number> {
+	const result = await pool.query(
+		`WITH RECURSIVE chain AS (
+			SELECT uri, subject_uri, 0 AS depth FROM reblogs WHERE uri = $1
+			UNION ALL
+			SELECT r.uri, r.subject_uri, c.depth + 1
+			FROM chain c
+			JOIN reblogs r ON r.uri = c.subject_uri
+			WHERE c.depth < $2
+		)
+		SELECT MAX(depth) AS depth FROM chain`,
+		[subjectUri, MAX_REBLOG_DEPTH]
+	);
+	return (result.rows[0]?.depth ?? -1) + 1;
 }
 
 /**

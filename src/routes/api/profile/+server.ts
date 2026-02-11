@@ -175,7 +175,7 @@ export const POST: RequestHandler = async ({ locals, cookies, request }) => {
 			setSessionData(cookies, { ...session, needsOnboarding: false });
 		}
 
-		return json({ ok: true });
+		return json({ success: true });
 	} catch (err) {
 		console.error('Profile update error:', err);
 		return json({ error: 'Failed to save profile. Please try again.' }, { status: 500 });

@@ -8,7 +8,7 @@ import type { Agent } from '@atproto/api';
 import { NSID } from '$lib/lexicon.js';
 import pool from './db.js';
 import { ensureProfile } from './identity.js';
-import { resolveRootPostUri } from './validation.js';
+import { resolveRootPostUri, getReblogDepth, MAX_REBLOG_DEPTH } from './validation.js';
 import { createNotification } from './notifications.js';
 import type { NotificationType } from '$lib/types.js';
 import type { QueryResult } from 'pg';
@@ -163,6 +163,12 @@ export async function createReblog(
 	if (data.text) record.text = data.text;
 	if (data.facets) record.facets = data.facets;
 	if (data.tags) record.tags = data.tags;
+
+	// Enforce reblog chain depth limit at write time
+	const depth = await getReblogDepth(data.subjectUri);
+	if (depth >= MAX_REBLOG_DEPTH) {
+		throw new Error(`Reblog chain depth limit (${MAX_REBLOG_DEPTH}) exceeded`);
+	}
 
 	// Resolve root_post_uri: if subject is a reblog, inherit its root; otherwise subject IS the root
 	const rootPostUri = await resolveRootPostUri(data.subjectUri);

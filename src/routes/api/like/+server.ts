@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types.js';
 import { getAgent } from '$lib/server/oauth.js';
 import { createLike, deleteRecord } from '$lib/server/repo.js';
-import { isValidAtUri } from '$lib/server/validation.js';
+import { isValidAtUri, isValidCid } from '$lib/server/validation.js';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.did) {
@@ -31,8 +31,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		if (!uri || typeof uri !== 'string' || !isValidAtUri(uri)) {
 			return json({ error: 'Valid subject URI is required' }, { status: 400 });
 		}
-		if (!cid || typeof cid !== 'string') {
-			return json({ error: 'Subject CID is required' }, { status: 400 });
+		if (!cid || typeof cid !== 'string' || !isValidCid(cid)) {
+			return json({ error: 'Valid subject CID is required' }, { status: 400 });
 		}
 	}
 

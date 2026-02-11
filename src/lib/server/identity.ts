@@ -264,6 +264,9 @@ export async function ensureProfile(did: string): Promise<BackyardProfile | null
 			}
 		}
 
+		// Upsert into the profile cache. COALESCE preserves existing values when
+		// the network resolution returns NULL — this is intentional for a cache
+		// refresh, where missing data shouldn't erase previously-known values.
 		await pool.query(
 			`INSERT INTO profiles (did, handle, display_name, pronouns, description, avatar, banner, pds_url)
 			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -288,6 +291,13 @@ export async function ensureProfile(did: string): Promise<BackyardProfile | null
 /**
  * Update a cached profile with new data. Used after the user edits their profile.
  * Uses an UPSERT so it works even if the profile row was evicted from the cache.
+ *
+ * NULL semantics:
+ *   - Text fields (displayName, pronouns, description): NULL means "clear the field"
+ *   - Media fields (avatar, banner): NULL means "keep existing" (use empty string to clear)
+ *
+ * This distinction exists because media URLs require an explicit upload/remove action,
+ * while text fields can legitimately be emptied by sending null/empty.
  */
 export async function updateCachedProfile(
 	did: string,
@@ -336,19 +346,28 @@ export async function getProfileByHandle(handle: string): Promise<BackyardProfil
 
 /**
  * Resolve a handle to a DID via the AT Protocol's resolveHandle XRPC.
+ * Uses HANDLE_RESOLVER_URL env var if set, falling back to Bluesky's public API.
  * Returns null if the handle cannot be resolved.
  */
 export async function resolveHandleToDid(handle: string): Promise<string | null> {
-	try {
-		const res = await fetch(
-			`https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`
-		);
-		if (!res.ok) return null;
-		const data = await res.json();
-		return data.did || null;
-	} catch {
-		return null;
+	const resolvers = [
+		process.env.HANDLE_RESOLVER_URL,
+		'https://public.api.bsky.app'
+	].filter(Boolean) as string[];
+
+	for (const baseUrl of resolvers) {
+		try {
+			const res = await fetch(
+				`${baseUrl}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`
+			);
+			if (!res.ok) continue;
+			const data = await res.json();
+			if (data.did) return data.did;
+		} catch {
+			continue;
+		}
 	}
+	return null;
 }
 
 /**

@@ -42,7 +42,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	await addToAllowlist(identifier, note);
-	return json({ ok: true });
+	return json({ success: true });
 };
 
 /**
@@ -71,5 +71,5 @@ export const DELETE: RequestHandler = async ({ locals, request }) => {
 		return json({ error: 'Identifier not found on allowlist' }, { status: 404 });
 	}
 
-	return json({ ok: true });
+	return json({ success: true });
 };

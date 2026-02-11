@@ -15,6 +15,8 @@ services:
       - FIREHOSE_DISABLED=${FIREHOSE_DISABLED:-}
       - SIGNUP_MODE=${SIGNUP_MODE:-open}
       - ADMIN_DID=${ADMIN_DID:-}
+      # AT Protocol handle resolver URL (a good choice: https://slingshot.microcosm.blue/)
+      - HANDLE_RESOLVER_URL=${HANDLE_RESOLVER_URL:-}
     depends_on:
       db:
         condition: service_healthy
