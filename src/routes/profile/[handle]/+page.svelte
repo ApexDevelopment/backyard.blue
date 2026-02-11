@@ -1,9 +1,28 @@
 <script lang="ts">
 	import ProfileCard from '$lib/components/ProfileCard.svelte';
 	import PostCard from '$lib/components/PostCard.svelte';
+	import { extractBannerGradient, BANNER_GRADIENT_ENABLED } from '$lib/bannerColors.js';
+	import { theme } from '$lib/stores/theme.js';
 	import type { PageData } from './$types.js';
 
 	let { data }: { data: PageData } = $props();
+
+	let gradient = $state<string | null>(null);
+	let effectGeneration = 0;
+
+	$effect(() => {
+		gradient = null;
+		const gen = ++effectGeneration;
+
+		if (!BANNER_GRADIENT_ENABLED || !data.profile.banner) return;
+
+		const bannerUrl = data.profile.banner;
+		const isDark = $theme === 'dark';
+
+		extractBannerGradient(bannerUrl, isDark).then((g) => {
+			if (gen === effectGeneration) gradient = g;
+		});
+	});
 </script>
 
 <svelte:head>
@@ -11,6 +30,10 @@
 </svelte:head>
 
 <div class="profile-page">
+	{#if gradient}
+		<div class="profile-gradient" style:background={gradient}></div>
+	{/if}
+
 	<ProfileCard
 		profile={data.profile}
 		isOwnProfile={data.isOwnProfile}
@@ -47,6 +70,23 @@
 	.profile-page {
 		display: flex;
 		flex-direction: column;
+		position: relative;
+		z-index: 0;
+	}
+
+	.profile-gradient {
+		position: fixed;
+		inset: 0;
+		z-index: -1;
+		opacity: 0;
+		animation: gradient-fade-in 0.6s ease forwards;
+		pointer-events: none;
+	}
+
+	@keyframes gradient-fade-in {
+		to {
+			opacity: 1;
+		}
 	}
 
 	.feed-list {
