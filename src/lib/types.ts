@@ -23,12 +23,17 @@ export interface BackyardMedia {
 	height?: number;
 }
 
+export interface Facet {
+	index: { byteStart: number; byteEnd: number };
+	features: Array<{ $type: string; uri?: string; did?: string }>;
+}
+
 export interface BackyardPost {
 	uri: string;
 	cid: string;
 	author: BackyardProfile;
 	text: string;
-	facets?: any[];
+	facets?: Facet[];
 	media?: BackyardMedia[];
 	tags?: string[];
 	likeCount: number;
@@ -47,7 +52,7 @@ export interface BackyardComment {
 	cid: string;
 	author: BackyardProfile;
 	text: string;
-	facets?: any[];
+	facets?: Facet[];
 	subjectUri: string;
 	rootUri: string;
 	parentUri?: string;
@@ -59,7 +64,7 @@ export interface BackyardReblogInfo {
 	cid: string;
 	by: BackyardProfile;
 	text?: string;
-	facets?: any[];
+	facets?: Facet[];
 	media?: BackyardMedia[];
 	tags?: string[];
 	createdAt: string;
@@ -74,7 +79,7 @@ export interface BackyardChainEntry {
 	cid: string;
 	author: BackyardProfile;
 	text: string;
-	facets?: any[];
+	facets?: Facet[];
 	media?: BackyardMedia[];
 	tags?: string[];
 	createdAt: string;
