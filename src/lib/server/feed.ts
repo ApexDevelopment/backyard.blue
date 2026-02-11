@@ -385,11 +385,11 @@ export async function getAuthorFeed(
 	limit = 30,
 	cursor?: string
 ): Promise<{ items: BackyardFeedItem[]; cursor: string | null }> {
-	const vd = viewerDid || authorDid;
+	const effectiveViewerDid = viewerDid || authorDid;
 
 	// Build parameter list: $1 = authorDid, $2 = limit, $3 = viewerDid
 	// $4 = cursor (only if present)
-	const params: any[] = [authorDid, limit, vd];
+	const params: any[] = [authorDid, limit, effectiveViewerDid];
 	const cursorIdx = cursor ? (params.push(cursor), params.length) : 0;
 	const cursorClausePost = cursorIdx ? `AND p.created_at < $${cursorIdx}` : '';
 	const cursorClauseReblog = cursorIdx ? `AND r.created_at < $${cursorIdx}` : '';
@@ -474,7 +474,7 @@ export async function getPost(
 	uri: string,
 	viewerDid: string | null
 ): Promise<BackyardPost | null> {
-	const vd = viewerDid || '';
+	const effectiveViewerDid = viewerDid || '';
 	const result = await pool.query(
 		`SELECT p.*,
 			COALESCE(lc.cnt, 0) as like_count,
@@ -489,7 +489,7 @@ export async function getPost(
 		 LEFT JOIN (SELECT subject_uri, uri FROM likes WHERE author_did = $2 AND subject_uri = $1) vl ON vl.subject_uri = p.uri
 		 LEFT JOIN (SELECT subject_uri, uri FROM reblogs WHERE author_did = $2 AND subject_uri = $1) vr ON vr.subject_uri = p.uri
 		 WHERE p.uri = $1`,
-		[uri, vd]
+		[uri, effectiveViewerDid]
 	);
 
 	if (result.rows.length === 0) return null;
@@ -594,8 +594,8 @@ export async function getPostsByTag(
 	limit = 30,
 	cursor?: string
 ): Promise<{ items: BackyardFeedItem[]; cursor: string | null }> {
-	const vd = viewerDid || '';
-	const params: any[] = [tag, limit, vd];
+	const effectiveViewerDid = viewerDid || '';
+	const params: any[] = [tag, limit, effectiveViewerDid];
 	const cursorIdx = cursor ? (params.push(cursor), params.length) : 0;
 	const cursorClausePost = cursorIdx ? `AND p.created_at < $${cursorIdx}` : '';
 	const cursorClauseReblog = cursorIdx ? `AND r.created_at < $${cursorIdx}` : '';
@@ -686,8 +686,8 @@ export async function getPostsByTagAndAuthor(
 	limit = 30,
 	cursor?: string
 ): Promise<{ items: BackyardFeedItem[]; cursor: string | null }> {
-	const vd = viewerDid || '';
-	const params: any[] = [tag, authorDid, limit, vd];
+	const effectiveViewerDid = viewerDid || '';
+	const params: any[] = [tag, authorDid, limit, effectiveViewerDid];
 	const cursorIdx = cursor ? (params.push(cursor), params.length) : 0;
 	const cursorClausePost = cursorIdx ? `AND p.created_at < $${cursorIdx}` : '';
 	const cursorClauseReblog = cursorIdx ? `AND r.created_at < $${cursorIdx}` : '';
