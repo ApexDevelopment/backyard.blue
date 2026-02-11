@@ -1,7 +1,8 @@
 <script lang="ts">
 	import ThemeToggle from './ThemeToggle.svelte';
+	import { theme } from '$lib/stores/theme.js';
 	import type { BackyardProfile } from '$lib/types.js';
-	import { House, Plus, Search, LogOut } from 'lucide-svelte';
+	import { Plus, Search, LogOut, User, Moon, Sun } from 'lucide-svelte';
 
 	interface Props {
 		user?: BackyardProfile | null;
@@ -9,7 +10,25 @@
 	}
 
 	let { user = null, onCompose }: Props = $props();
+
+	let menuOpen = $state(false);
+
+	function toggleMenu() {
+		menuOpen = !menuOpen;
+	}
+
+	function closeMenu() {
+		menuOpen = false;
+	}
+
+	function onWindowClick(e: MouseEvent) {
+		if (menuOpen && e.target instanceof Element && !e.target.closest('.user-menu')) {
+			menuOpen = false;
+		}
+	}
 </script>
+
+<svelte:window onclick={onWindowClick} />
 
 <header class="header">
 	<div class="header-inner container">
@@ -27,27 +46,56 @@
 				<a href="/search" class="btn-ghost nav-icon" title="search">
 					<Search size={18} />
 				</a>
-				<a href="/profile/{user.handle}" class="user-link" title="your profile">
-					{#if user.avatar}
-						<img src={user.avatar} alt={user.displayName || user.handle} class="avatar avatar-sm" />
-					{:else}
-						<div class="avatar avatar-sm avatar-placeholder">
-							{(user.displayName || user.handle).charAt(0).toUpperCase()}
+
+				<div class="user-menu">
+					<button class="user-btn" onclick={toggleMenu} aria-label="user menu" aria-expanded={menuOpen}>
+						{#if user.avatar}
+							<img src={user.avatar} alt={user.displayName || user.handle} class="avatar avatar-sm" />
+						{:else}
+							<div class="avatar avatar-sm avatar-placeholder">
+								{(user.displayName || user.handle).charAt(0).toUpperCase()}
+							</div>
+						{/if}
+					</button>
+
+					{#if menuOpen}
+						<div class="menu-dropdown">
+							<a href="/profile/{user.handle}" class="menu-item" onclick={closeMenu}>
+								<User size={18} />
+								<span>view profile</span>
+							</a>
+							<button class="menu-item" onclick={() => theme.toggle()}>
+								{#if $theme === 'light'}
+									<Moon size={18} />
+								{:else}
+									<Sun size={18} />
+								{/if}
+								<span>switch themes</span>
+							</button>
+							<form
+								method="POST"
+								action="/logout"
+								onsubmit={async (e) => {
+									e.preventDefault();
+									await fetch('/logout', { method: 'POST' });
+									window.location.href = '/';
+								}}
+							>
+								<button type="submit" class="menu-item" onclick={closeMenu}>
+									<LogOut size={18} />
+									<span>sign out</span>
+								</button>
+							</form>
 						</div>
 					{/if}
-				</a>
-				<form method="POST" action="/logout" onsubmit={async (e) => { e.preventDefault(); await fetch('/logout', { method: 'POST' }); window.location.href = '/'; }}>
-					<button type="submit" class="btn-ghost nav-icon" title="sign out">
-						<LogOut size={18} />
-					</button>
-				</form>
+				</div>
 			{:else}
 				<a href="/search" class="btn-ghost nav-icon" title="search">
 					<Search size={18} />
 				</a>
 				<a href="/login" class="btn btn-primary">sign in</a>
+				<ThemeToggle />
 			{/if}
-			<ThemeToggle />
 		</nav>
 	</div>
 </header>
@@ -123,12 +171,6 @@
 		line-height: 1;
 	}
 
-	.user-link {
-		display: flex;
-		align-items: center;
-		text-decoration: none;
-	}
-
 	.avatar-placeholder {
 		display: flex;
 		align-items: center;
@@ -142,6 +184,77 @@
 	@media (max-width: 480px) {
 		.btn-label {
 			display: none;
+		}
+	}
+
+	/* Menu Styles */
+	.user-menu {
+		position: relative;
+		margin-left: 0.25rem;
+	}
+
+	.user-btn {
+		display: block;
+		padding: 0;
+		border-radius: var(--radius-full);
+		transition: transform 0.1s ease;
+		cursor: pointer;
+	}
+
+	.user-btn:active {
+		transform: scale(0.95);
+	}
+
+	.menu-dropdown {
+		position: absolute;
+		top: calc(100% + 0.5rem);
+		right: 0;
+		width: 200px;
+		background-color: var(--bg-card);
+		border: 1px solid var(--border-color);
+		border-radius: var(--radius-md);
+		box-shadow: var(--shadow-lg);
+		padding: 0.375rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.125rem;
+		z-index: 1000;
+		animation: menuFadeIn 0.1s ease-out;
+		transform-origin: top right;
+	}
+
+	.menu-item {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.625rem 0.75rem;
+		border-radius: var(--radius-sm);
+		color: var(--text-primary);
+		font-size: 0.9375rem;
+		text-decoration: none;
+		transition: background-color 0.15s ease;
+		text-align: left;
+		width: 100%;
+		font-weight: 500;
+		background: none;
+		border: none;
+		cursor: pointer;
+	}
+
+	.menu-item:hover {
+		background-color: var(--bg-hover);
+		text-decoration: none;
+		color: var(--text-primary);
+	}
+
+	@keyframes menuFadeIn {
+		from {
+			opacity: 0;
+			transform: scale(0.95);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
 		}
 	}
 </style>
