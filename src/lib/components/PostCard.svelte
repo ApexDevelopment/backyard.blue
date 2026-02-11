@@ -47,6 +47,17 @@
 	);
 	let hiddenCount = $derived(contentChain.length - MAX_VISIBLE);
 
+	/** Track which author DIDs have been seen so pronouns only show on first occurrence. */
+	let seenDids = $derived.by(() => {
+		const seen = new Set<string>();
+		const result = new Map<string, boolean>();
+		for (const entry of visibleEntries) {
+			result.set(entry.uri, !seen.has(entry.author.did));
+			seen.add(entry.author.did);
+		}
+		return result;
+	});
+
 	function formatDate(dateStr: string): string {
 		const date = new Date(dateStr);
 		const now = new Date();
@@ -213,7 +224,17 @@
 									{(entry.author.displayName || entry.author.handle).charAt(0).toUpperCase()}
 								</div>
 							{/if}
-							<span class="chain-author-name">{entry.author.displayName || entry.author.handle}</span>
+							<div class="chain-author-info">
+								<div class="chain-author-name-row">
+									<span class="chain-author-name">{entry.author.displayName || entry.author.handle}</span>
+									{#if entry.author.displayName}
+										<span class="chain-author-handle">@{entry.author.handle}</span>
+									{/if}
+								</div>
+								{#if entry.author.pronouns && seenDids.get(entry.uri)}
+									<span class="pronouns-badge">{entry.author.pronouns}</span>
+								{/if}
+							</div>
 						</a>
 						<time class="post-time" datetime={entry.createdAt} title={new Date(entry.createdAt).toLocaleString()}>
 							{formatDate(entry.createdAt)}
@@ -257,8 +278,15 @@
 					</div>
 				{/if}
 				<div class="author-info">
-					<span class="author-name">{post.author.displayName || post.author.handle}</span>
-					<span class="author-handle">@{post.author.handle}</span>
+					<div class="author-name-row">
+						<span class="author-name">{post.author.displayName || post.author.handle}</span>
+						{#if post.author.displayName}
+							<span class="author-handle">@{post.author.handle}</span>
+						{/if}
+					</div>
+					{#if post.author.pronouns}
+						<span class="pronouns-badge">{post.author.pronouns}</span>
+					{/if}
 				</div>
 			</a>
 			<time class="post-time" datetime={post.createdAt} title={new Date(post.createdAt).toLocaleString()}>
@@ -390,15 +418,47 @@
 
 	.chain-entry-header {
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
 		justify-content: space-between;
 		margin-bottom: 0.375rem;
+	}
+
+	.chain-author-info {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+	}
+
+	.chain-author-name-row {
+		display: flex;
+		align-items: baseline;
+		gap: 0.375rem;
+		min-width: 0;
 	}
 
 	.chain-author-name {
 		font-weight: 600;
 		font-size: 0.875rem;
 		color: var(--text-primary);
+	}
+
+	.chain-author-handle {
+		font-size: 0.75rem;
+		color: var(--text-tertiary);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.pronouns-badge {
+		display: inline-block;
+		width: fit-content;
+		font-size: 0.6875rem;
+		color: var(--text-secondary);
+		background-color: color-mix(in srgb, var(--text-tertiary) 12%, transparent);
+		padding: 0 0.375rem;
+		border-radius: var(--radius-sm);
+		line-height: 1.5;
 	}
 
 	.chain-entry-content {
@@ -462,6 +522,13 @@
 	.author-info {
 		display: flex;
 		flex-direction: column;
+		min-width: 0;
+	}
+
+	.author-name-row {
+		display: flex;
+		align-items: baseline;
+		gap: 0.375rem;
 		min-width: 0;
 	}
 

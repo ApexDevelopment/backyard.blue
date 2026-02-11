@@ -250,6 +250,7 @@ export async function ensureProfile(did: string): Promise<BackyardProfile | null
 						const data = await bskyRes.json();
 						const record = data.value;
 						displayName = record?.displayName;
+						pronouns = record?.pronouns;
 						description = record?.description;
 						if (record?.avatar?.ref?.$link) {
 							avatar = blobUrl(pdsUrl, did, record.avatar.ref.$link);

@@ -91,10 +91,14 @@
 		</div>
 
 		<div class="profile-names">
-			<h1 class="profile-display-name">{profile.displayName || profile.handle}</h1>
-			<p class="profile-handle">@{profile.handle}</p>
+			<div class="profile-name-row">
+				<h1 class="profile-display-name">{profile.displayName || profile.handle}</h1>
+				{#if profile.displayName}
+					<span class="profile-handle">@{profile.handle}</span>
+				{/if}
+			</div>
 			{#if profile.pronouns}
-				<span class="profile-pronouns">{profile.pronouns}</span>
+				<span class="pronouns-badge">{profile.pronouns}</span>
 			{/if}
 		</div>
 
@@ -164,6 +168,13 @@
 		margin-bottom: 0.5rem;
 	}
 
+	.profile-name-row {
+		display: flex;
+		align-items: baseline;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+
 	.profile-display-name {
 		font-size: 1.25rem;
 		font-weight: 700;
@@ -176,11 +187,16 @@
 		color: var(--text-tertiary);
 	}
 
-	.profile-pronouns {
+	.pronouns-badge {
 		display: inline-block;
-		font-size: 0.8125rem;
+		width: fit-content;
+		font-size: 0.75rem;
 		color: var(--text-secondary);
-		margin-top: 0.125rem;
+		background-color: color-mix(in srgb, var(--text-tertiary) 12%, transparent);
+		padding: 0.0625rem 0.4375rem;
+		border-radius: var(--radius-sm);
+		margin-top: 0.25rem;
+		line-height: 1.5;
 	}
 
 	.profile-description {
