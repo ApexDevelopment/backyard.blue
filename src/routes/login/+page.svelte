@@ -86,6 +86,7 @@
 
 				<div class="form-group">
 					<label for="handle" class="form-label">your handle</label>
+					<!-- svelte-ignore a11y_autofocus -->
 					<input
 						id="handle"
 						type="text"
