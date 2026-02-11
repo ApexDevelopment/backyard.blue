@@ -202,6 +202,19 @@ export async function createLike(
 	subjectCid: string
 ): Promise<{ uri: string; cid: string }> {
 	const now = new Date().toISOString();
+
+	// First check if the like already exists to avoid unnecessary PDS calls
+	// The user can of course duplicate likes on their own PDS, so this is
+	// just harm reduction.
+	const existing = await pool.query(
+		`SELECT uri, cid FROM likes WHERE author_did = $1 AND subject_uri = $2`,
+		[did, subjectUri]
+	);
+
+	if (existing.rowCount && existing.rowCount > 0) {
+		return { uri: existing.rows[0].uri, cid: existing.rows[0].cid };
+	}
+
 	const res = await agent.com.atproto.repo.createRecord({
 		repo: did,
 		collection: NSID.LIKE,
