@@ -358,12 +358,12 @@
 			<div class="rte-placeholder" aria-hidden="true">{placeholder}</div>
 		{/if}
 
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
 			bind:this={editorEl}
 			class="rte-editor"
 			contenteditable={!disabled}
 			role="textbox"
+			tabindex="0"
 			aria-multiline="true"
 			aria-placeholder={placeholder}
 			oninput={handleInput}
