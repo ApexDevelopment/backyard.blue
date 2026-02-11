@@ -16,6 +16,44 @@ interface RGB {
 }
 
 /**
+ * Detect whether canvas pixel readback is trustworthy.
+ *
+ * Browsers with fingerprint-resistant settings (e.g. Firefox
+ * `privacy.resistFingerprinting`, Brave shields) poison
+ * `getImageData()` with random noise. We draw a known solid color
+ * and verify the pixels come back unchanged. The result is cached
+ * so the probe only runs once per page load.
+ */
+let canvasProbeResult: boolean | null = null;
+
+function canReadCanvasData(): boolean {
+	if (canvasProbeResult !== null) return canvasProbeResult;
+
+	try {
+		const c = document.createElement('canvas');
+		c.width = 2;
+		c.height = 2;
+		const ctx = c.getContext('2d');
+		if (!ctx) return (canvasProbeResult = false);
+
+		// Fill with a known color and read it back
+		ctx.fillStyle = '#7f3f1f';
+		ctx.fillRect(0, 0, 2, 2);
+		const { data } = ctx.getImageData(0, 0, 2, 2);
+
+		// Every pixel should be exactly (127, 63, 31, 255)
+		for (let i = 0; i < data.length; i += 4) {
+			if (data[i] !== 127 || data[i + 1] !== 63 || data[i + 2] !== 31 || data[i + 3] !== 255) {
+				return (canvasProbeResult = false);
+			}
+		}
+		return (canvasProbeResult = true);
+	} catch {
+		return (canvasProbeResult = false);
+	}
+}
+
+/**
  * Load an image URL into an offscreen canvas and return pixel data.
  * Renders the image at a small size (for speed) and reads every pixel.
  */
@@ -134,6 +172,8 @@ export async function extractBannerGradient(
 	isDark: boolean
 ): Promise<string | null> {
 	try {
+		if (!canReadCanvasData()) return null;
+
 		const pixels = await samplePixels(bannerUrl);
 		const colors = kMeans(pixels, 3);
 
