@@ -31,7 +31,7 @@ export async function createNotification(params: {
 	subjectUri?: string;
 	actionUri: string;
 }): Promise<void> {
-	// if (params.actorDid === params.recipientDid) return;
+	if (params.actorDid === params.recipientDid) return;
 
 	try {
 		const result = await pool.query(
