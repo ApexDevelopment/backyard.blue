@@ -94,9 +94,6 @@
 							</div>
 						</div>
 					{/if}
-					{#if loading === 'import'}
-						<span class="spinner" style="width:16px;height:16px;border-width:2px;"></span>
-					{/if}
 				</button>
 			{/if}
 
@@ -113,9 +110,6 @@
 					<h3>start fresh</h3>
 					<p>set up your backyard profile from scratch with your own display name, bio, and images.</p>
 				</div>
-				{#if loading === 'fresh'}
-					<span class="spinner" style="width:16px;height:16px;border-width:2px;"></span>
-				{/if}
 			</button>
 
 			<button
@@ -134,9 +128,6 @@
 						{hasBskyProfile ? 'Bluesky' : 'AT Protocol'} info instead.
 					</p>
 				</div>
-				{#if loading === 'skip'}
-					<span class="spinner" style="width:16px;height:16px;border-width:2px;"></span>
-				{/if}
 			</button>
 		</div>
 	</div>
