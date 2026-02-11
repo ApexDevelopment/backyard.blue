@@ -1,12 +1,13 @@
 <script lang="ts">
 	import type { PageData } from './$types.js';
 	import type { BackyardNotification } from '$lib/types.js';
-	import { Heart, MessageCircle, Repeat2, UserPlus } from 'lucide-svelte';
+	import { Heart, MessageCircle, Repeat2, UserPlus, XCircle } from 'lucide-svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 
 	let { data }: { data: PageData } = $props();
 
+	let initialLoadFailed = false;
 	let liveNotifications: BackyardNotification[] = $state([]);
 	let eventSource: EventSource | null = null;
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -38,7 +39,13 @@
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({ ids: [event.id] })
-				}).catch(() => {});
+				}).catch(() => {
+					// If we completely fail to load any notifications, we alert the user
+					if (liveNotifications.length === 0) {
+						initialLoadFailed = true;
+						// We will keep the listeners running in case we recover.
+					}
+				});
 			} catch {}
 		});
 
@@ -109,6 +116,15 @@
 
 <div class="activity-page">
 	<h1 class="page-title">activity</h1>
+
+	{#if initialLoadFailed}
+		<div class="error-notice">
+			<div class="icon-wrapper">
+				<XCircle size={20} />
+			</div>
+			<span>failed to load notifications, try refreshing.</span>
+		</div>
+	{/if}
 
 	{#if allNotifications.length > 0}
 		<div class="notification-list">
@@ -302,5 +318,23 @@
 		display: flex;
 		justify-content: center;
 		padding: 1rem;
+	}
+
+	.error-notice {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.75rem;
+		background-color: color-mix(in srgb, var(--danger) 10%, transparent);
+		color: var(--danger);
+		border-radius: var(--radius-sm);
+		font-size: 0.875rem;
+		line-height: 1.4;
+		margin-bottom: 1rem;
+	}
+
+	.icon-wrapper {
+		display: flex;
+		flex-shrink: 0;
 	}
 </style>

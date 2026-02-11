@@ -24,6 +24,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		}
 
 		// Trigger background backfill if needed
+		// Fire-and-forget is fine here. Backfill will eventually
+		// guarantee consistency.
 		backfillIfNeeded(profile.did).catch(() => {});
 
 		const cursor = url.searchParams.get('cursor') || undefined;

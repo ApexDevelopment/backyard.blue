@@ -11,6 +11,7 @@ import { ensureProfile } from './identity.js';
 import { resolveRootPostUri } from './validation.js';
 import { createNotification } from './notifications.js';
 import type { NotificationType } from '$lib/types.js';
+import type { QueryResult } from 'pg';
 
 /** Parse an AT URI into its components */
 export function parseAtUri(uri: string): { repo: string; collection: string; rkey: string } {
@@ -211,7 +212,7 @@ export async function createLike(
 		}
 	});
 
-	await pool.query(
+	const queryResult = await pool.query(
 		`INSERT INTO likes (uri, cid, author_did, subject_uri, created_at)
 		 VALUES ($1, $2, $3, $4, $5)
 		 ON CONFLICT (uri) DO NOTHING`,
@@ -259,26 +260,41 @@ export async function createFollow(
 	return { uri: res.data.uri, cid: res.data.cid };
 }
 
+/**
+ * 
+ * @throws Error if the delete operation fails on the PDS side.
+ * If the record isn't deleted locally, we don't throw;
+ * we are not the source of truth and will eventually be consistent.
+ */
 export async function deleteRecord(agent: Agent, uri: string): Promise<void> {
 	const { repo, collection, rkey } = parseAtUri(uri);
 
-	await agent.com.atproto.repo.deleteRecord({ repo, collection, rkey });
-
+	const pdsResponse = await agent.com.atproto.repo.deleteRecord({ repo, collection, rkey });
+	
+	if (!pdsResponse.success) {
+		throw new Error(`unable to delete record from PDS!`);
+	}
+	
+	let queryResult: QueryResult | null = null;
 	switch (collection) {
 		case NSID.POST:
-			await pool.query('DELETE FROM posts WHERE uri = $1', [uri]);
+			queryResult = await pool.query('DELETE FROM posts WHERE uri = $1', [uri]);
 			break;
 		case NSID.COMMENT:
-			await pool.query('DELETE FROM comments WHERE uri = $1', [uri]);
+			queryResult = await pool.query('DELETE FROM comments WHERE uri = $1', [uri]);
 			break;
 		case NSID.REBLOG:
-			await pool.query('DELETE FROM reblogs WHERE uri = $1', [uri]);
+			queryResult = await pool.query('DELETE FROM reblogs WHERE uri = $1', [uri]);
 			break;
 		case NSID.LIKE:
-			await pool.query('DELETE FROM likes WHERE uri = $1', [uri]);
+			queryResult = await pool.query('DELETE FROM likes WHERE uri = $1', [uri]);
 			break;
 		case NSID.FOLLOW:
-			await pool.query('DELETE FROM follows WHERE uri = $1', [uri]);
+			queryResult = await pool.query('DELETE FROM follows WHERE uri = $1', [uri]);
 			break;
+	}
+
+	if (queryResult && queryResult.rowCount === 0) {
+		console.warn(`Attempted to delete non-existent record: ${uri}`);
 	}
 }

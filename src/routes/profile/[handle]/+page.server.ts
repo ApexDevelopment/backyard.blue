@@ -29,6 +29,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		}
 
 		// Trigger background backfill if we have no posts for this user
+		// Fire-and-forget is fine here. Backfill will eventually
+		// guarantee consistency.
 		backfillIfNeeded(profile.did).catch(() => {});
 
 		const isOwnProfile = locals.did === profile.did;

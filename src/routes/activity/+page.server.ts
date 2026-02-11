@@ -15,6 +15,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		// Mark loaded notifications as read
 		const unreadIds = items.filter((n) => !n.read).map((n) => n.id);
 		if (unreadIds.length > 0) {
+			// Fire-and-forget is fine here, if it fails, the
+			// notifications will just remain unread until
+			// this succeeds on the next reload.
 			markNotificationsRead(locals.did, unreadIds).catch(() => {});
 		}
 

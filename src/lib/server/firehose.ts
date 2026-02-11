@@ -109,7 +109,7 @@ function notifySubjectAuthorFirehose(
 		if (recipientDid) {
 			await createNotification({ recipientDid, actorDid, type, subjectUri, actionUri });
 		}
-	})().catch(() => {});
+	})().catch(() => {}); // Notification errors are non-critical and have eventual consistency
 }
 
 /**
@@ -122,6 +122,11 @@ async function indexRecord(did: string, commit: JetstreamCommit): Promise<void> 
 	const cid = commit.cid || '';
 	const r = commit.record || {};
 
+	// Profile resolution is always best-effort. All we can do is attempt to
+	// keep profiles in cache; if a profile record is malformed or missing,
+	// the frontend will fall back to the Bluesky profile.
+	// ensureProfile() should not throw; it returns null on failure, but
+	// we catch() as a matter of principle.
 	switch (commit.collection) {
 		case NSID.PROFILE: {
 			// Profile changed — invalidate cache and re-resolve from network
