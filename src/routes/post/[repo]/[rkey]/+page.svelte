@@ -133,20 +133,6 @@
 		color: var(--text-link);
 	}
 
-	.page-header h1 {
-		font-size: 1.25rem;
-		font-weight: 700;
-	}
-
-	.thread-parents {
-		border-left: 3px solid var(--border-color);
-		overflow: hidden;
-	}
-
-	.thread-parent {
-		opacity: 0.8;
-	}
-
 	.main-post {
 		overflow: hidden;
 	}
