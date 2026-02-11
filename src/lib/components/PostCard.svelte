@@ -75,6 +75,7 @@
 
 	let deleted = $state(false);
 	let deleteLoading = $state(false);
+	let confirmOpen = $state(false);
 
 	/** The viewer owns the post itself (for single posts) */
 	let ownsPost = $derived(viewerDid === post.author.did);
@@ -131,10 +132,16 @@
 			openReblogComposer(subjectUri, subjectCid, composerChain);
 	}
 
-	async function handleDelete() {
+	function handleDeleteClick() {
+		confirmOpen = true;
+	}
+
+	function handleConfirmKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape') confirmOpen = false;
+	}
+
+	async function handleDeleteConfirm() {
 		if (deleteLoading) return;
-		const target = reblog ? 'reblog' : 'post';
-		if (!confirm(`delete this ${target}? this can't be undone.`)) return;
 
 		deleteLoading = true;
 		try {
@@ -149,6 +156,7 @@
 			}
 		} finally {
 			deleteLoading = false;
+			confirmOpen = false;
 		}
 	}
 </script>
@@ -290,13 +298,29 @@
 			</button>
 
 			{#if canDelete}
-				<button class="action-btn delete-btn" onclick={handleDelete} title="delete" disabled={deleteLoading}>
+				<button class="action-btn delete-btn" onclick={handleDeleteClick} title="delete" disabled={deleteLoading}>
 					<Trash2 size={16} />
 				</button>
 			{/if}
 		</div>
 	{/if}
 </article>
+
+{#if confirmOpen}
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<div class="confirm-backdrop" role="dialog" aria-modal="true" aria-label="confirm deletion" tabindex="-1" onclick={() => (confirmOpen = false)} onkeydown={handleConfirmKeydown}>
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="confirm-dialog card" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+			<p class="confirm-message">delete this {reblog ? 'reblog' : 'post'}? this can’t be undone.</p>
+			<div class="confirm-actions">
+				<button class="btn btn-ghost" onclick={() => (confirmOpen = false)}>cancel</button>
+				<button class="btn btn-danger" onclick={handleDeleteConfirm} disabled={deleteLoading}>
+					{deleteLoading ? 'deleting…' : 'delete'}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
 {/if}
 
 <style>
@@ -572,5 +596,55 @@
 		color: var(--text-tertiary);
 		font-size: 0.875rem;
 		font-style: italic;
+	}
+
+	/* ── Delete confirmation modal ────────────────────── */
+
+	.confirm-backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: 200;
+		background-color: rgba(0, 0, 0, 0.5);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 1rem;
+		animation: confirmFadeIn 0.15s ease;
+	}
+
+	@keyframes confirmFadeIn {
+		from { opacity: 0; }
+		to { opacity: 1; }
+	}
+
+	.confirm-dialog {
+		width: 100%;
+		max-width: 360px;
+		padding: 1.25rem;
+		animation: confirmSlideIn 0.2s ease;
+	}
+
+	@keyframes confirmSlideIn {
+		from {
+			opacity: 0;
+			transform: translateY(-8px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	.confirm-message {
+		font-size: 0.9375rem;
+		line-height: 1.5;
+		color: var(--text-primary);
+		margin-bottom: 1rem;
+	}
+
+	.confirm-actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: 0.5rem;
 	}
 </style>
