@@ -23,9 +23,10 @@
 		eventSource.addEventListener('notification', (e) => {
 			try {
 				const event = JSON.parse(e.data);
+				const actor = event.actorProfile || { did: event.actorDid, handle: event.actorDid };
 				pushLive({
 					id: event.id,
-					actor: { did: event.actorDid, handle: event.actorDid },
+					actor,
 					type: event.type,
 					subjectUri: event.subjectUri,
 					actionUri: event.actionUri,
@@ -55,10 +56,12 @@
 		}, 15_000);
 	});
 
-	onDestroy(() => {
+	function destroy() {
 		eventSource?.close();
 		if (pollTimer) clearInterval(pollTimer);
-	});
+	}
+
+	onDestroy(destroy);
 
 	let allNotifications = $derived([...liveNotifications, ...data.notifications]);
 
@@ -98,6 +101,8 @@
 	}
 </script>
 
+<svelte:window on:beforeunload={destroy} />
+
 <svelte:head>
 	<title>activity — backyard</title>
 </svelte:head>
@@ -124,25 +129,27 @@
 						{/if}
 					</span>
 
-					<div class="notification-body">
-						{#if notif.actor.avatar}
-							<img src={notif.actor.avatar} alt="" class="avatar avatar-sm" />
-						{:else}
-							<div class="avatar avatar-sm avatar-placeholder">
-								{(notif.actor.displayName || notif.actor.handle).charAt(0).toUpperCase()}
+					<div class="notification-details">
+						<div class="notification-body">
+							{#if notif.actor.avatar}
+								<img src={notif.actor.avatar} alt="" class="avatar avatar-sm" />
+							{:else}
+								<div class="avatar avatar-sm avatar-placeholder">
+									{(notif.actor.displayName || notif.actor.handle).charAt(0).toUpperCase()}
+								</div>
+							{/if}
+
+							<div class="notification-text">
+								<span class="actor-name">{notif.actor.displayName || notif.actor.handle}</span>
+								<span class="action">{actionLabel(notif.type)}</span>
+								<span class="time">{formatDate(notif.createdAt)}</span>
 							</div>
-						{/if}
-
-						<div class="notification-text">
-							<span class="actor-name">{notif.actor.displayName || notif.actor.handle}</span>
-							<span class="action">{actionLabel(notif.type)}</span>
-							<span class="time">{formatDate(notif.createdAt)}</span>
 						</div>
-					</div>
 
-					{#if notif.subjectPreview}
-						<p class="subject-preview">{notif.subjectPreview}</p>
-					{/if}
+						{#if notif.subjectPreview}
+							<p class="subject-preview">{notif.subjectPreview}</p>
+						{/if}
+					</div>
 				</a>
 			{/each}
 		</div>
@@ -179,8 +186,8 @@
 
 	.notification-item {
 		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
+		align-items: flex-start;
+		gap: 0.625rem;
 		padding: 0.75rem 0.875rem;
 		border-bottom: 1px solid var(--border-light);
 		text-decoration: none;
@@ -195,6 +202,14 @@
 
 	.notification-item.unread {
 		background-color: var(--accent-light);
+	}
+
+	.notification-details {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		min-width: 0;
+		flex: 1;
 	}
 
 	.notification-body {
@@ -258,7 +273,7 @@
 	}
 
 	.subject-preview {
-		margin-left: calc(28px + 32px + 1rem);
+		margin-left: calc(32px + 0.5rem);
 		font-size: 0.8125rem;
 		color: var(--text-tertiary);
 		line-height: 1.4;

@@ -1,4 +1,5 @@
 import type { RequestHandler } from './$types.js';
+import { Readable } from 'node:stream';
 import { subscribeNotifications } from '$lib/server/notifications.js';
 
 export const GET: RequestHandler = async ({ locals }) => {
@@ -7,11 +8,13 @@ export const GET: RequestHandler = async ({ locals }) => {
 	}
 
 	const did = locals.did;
-	const encoder = new TextEncoder();
 
 	let unsubscribe: (() => void) | null = null;
 	let heartbeat: ReturnType<typeof setInterval> | null = null;
-	let controllerRef: ReadableStreamDefaultController<Uint8Array> | null = null;
+
+	const nodeStream = new Readable({
+		read() {}
+	});
 
 	function cleanup() {
 		if (heartbeat) {
@@ -22,44 +25,36 @@ export const GET: RequestHandler = async ({ locals }) => {
 			unsubscribe();
 			unsubscribe = null;
 		}
-		controllerRef = null;
 	}
 
-	function enqueue(text: string) {
-		try {
-			controllerRef?.enqueue(encoder.encode(text));
-		} catch {
+	nodeStream.on('close', cleanup);
+
+	// Initial comment to flush headers
+	nodeStream.push(': ok\n\n');
+
+	heartbeat = setInterval(() => {
+		if (!nodeStream.destroyed) {
+			nodeStream.push(': heartbeat\n\n');
+		} else {
 			cleanup();
 		}
-	}
+	}, 15_000);
 
-	const stream = new ReadableStream<Uint8Array>({
-		start(controller) {
-			controllerRef = controller;
-
-			// Send initial comment so the HTTP response headers are flushed immediately
-			enqueue(': ok\n\n');
-
-			heartbeat = setInterval(() => {
-				enqueue(': heartbeat\n\n');
-			}, 15_000);
-
-			unsubscribe = subscribeNotifications(did, (event) => {
-				enqueue(`event: notification\ndata: ${JSON.stringify(event)}\n\n`);
-			});
-		},
-		cancel() {
-			cleanup();
+	unsubscribe = subscribeNotifications(did, (event) => {
+		if (!nodeStream.destroyed) {
+			nodeStream.push(`event: notification\ndata: ${JSON.stringify(event)}\n\n`);
 		}
 	});
 
-	return new Response(stream, {
+	// Convert the Node Readable into a Web ReadableStream for the Response constructor
+	const webStream = Readable.toWeb(nodeStream) as ReadableStream<Uint8Array>;
+
+	return new Response(webStream, {
 		headers: {
 			'Content-Type': 'text/event-stream',
 			'Cache-Control': 'no-cache, no-transform',
 			'Connection': 'keep-alive',
-			'X-Accel-Buffering': 'no',
-			'Content-Encoding': 'none'
+			'X-Accel-Buffering': 'no'
 		}
 	});
 };

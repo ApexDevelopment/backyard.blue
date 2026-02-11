@@ -14,7 +14,7 @@
 
 import { EventEmitter } from 'node:events';
 import pool from './db.js';
-import { mapRowToProfile } from './identity.js';
+import { mapRowToProfile, ensureProfile } from './identity.js';
 import type { BackyardNotification, BackyardProfile, NotificationType } from '$lib/types.js';
 
 const bus = new EventEmitter();
@@ -31,7 +31,7 @@ export async function createNotification(params: {
 	subjectUri?: string;
 	actionUri: string;
 }): Promise<void> {
-	if (params.actorDid === params.recipientDid) return;
+	// if (params.actorDid === params.recipientDid) return;
 
 	try {
 		const result = await pool.query(
@@ -43,10 +43,12 @@ export async function createNotification(params: {
 
 		const row = result.rows[0];
 		if (row) {
+			const actorProfile = await ensureProfile(params.actorDid).catch(() => null);
 			bus.emit(`notify:${params.recipientDid}`, {
 				id: row.id,
 				type: params.type,
 				actorDid: params.actorDid,
+				actorProfile: actorProfile || { did: params.actorDid, handle: params.actorDid },
 				subjectUri: params.subjectUri,
 				actionUri: params.actionUri,
 				createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at
