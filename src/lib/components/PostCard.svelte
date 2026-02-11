@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { BackyardPost, BackyardChainEntry, BackyardReblogInfo } from '$lib/types.js';
-	import { MessageCircle, Repeat2, Heart, ChevronDown } from 'lucide-svelte';
+	import { MessageCircle, Repeat2, Heart, ChevronDown, Trash2 } from 'lucide-svelte';
 	import { openReblogComposer } from '$lib/stores/composer.js';
 	import RichTextRenderer from './RichTextRenderer.svelte';
 
@@ -14,9 +14,11 @@
 		compact?: boolean;
 		/** When set, tag links point to /profile/{profileHandle}/tags/{tag} instead of /tags/{tag} */
 		profileHandle?: string;
+		/** The logged-in user's DID, used to show delete controls on owned posts/reblogs */
+		viewerDid?: string;
 	}
 
-	let { post, chain, reblog, showActions = true, compact = false, profileHandle }: Props = $props();
+	let { post, chain, reblog, showActions = true, compact = false, profileHandle, viewerDid }: Props = $props();
 
 	/** The tags to display at the card bottom: reblog's own tags if this is a reblog, otherwise the post's. */
 	let cardTags = $derived(reblog ? reblog.tags : post.tags);
@@ -33,9 +35,9 @@
 	const MAX_VISIBLE = 3;
 	let expanded = $state(false);
 
-	/** Chain entries that actually have content (text or media) */
+	/** Chain entries that actually have content (text or media), plus tombstones */
 	let contentChain = $derived(
-		chain?.filter((e) => e.text?.trim() || (e.media && e.media.length > 0)) ?? []
+		chain?.filter((e) => e.deleted || e.text?.trim() || (e.media && e.media.length > 0)) ?? []
 	);
 	let needsClipping = $derived(contentChain.length > MAX_VISIBLE && !expanded);
 	let visibleEntries = $derived(
@@ -70,6 +72,15 @@
 	let likeCount = $state(post.likeCount);
 	let liked = $derived(!!viewerLike);
 	let likeLoading = $state(false);
+
+	let deleted = $state(false);
+	let deleteLoading = $state(false);
+
+	/** The viewer owns the post itself (for single posts) */
+	let ownsPost = $derived(viewerDid === post.author.did);
+	/** The viewer owns the reblog wrapper (for reblogs) */
+	let ownsReblog = $derived(reblog ? viewerDid === reblog.by.did : false);
+	let canDelete = $derived(viewerDid ? (reblog ? ownsReblog : ownsPost) : false);
 
 	async function handleLike() {
 		if (likeLoading) return;
@@ -119,8 +130,34 @@
 
 			openReblogComposer(subjectUri, subjectCid, composerChain);
 	}
+
+	async function handleDelete() {
+		if (deleteLoading) return;
+		const target = reblog ? 'reblog' : 'post';
+		if (!confirm(`delete this ${target}? this can't be undone.`)) return;
+
+		deleteLoading = true;
+		try {
+			const uri = reblog ? reblog.uri : post.uri;
+			const res = await fetch('/api/post', {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ uri })
+			});
+			if (res.ok) {
+				deleted = true;
+			}
+		} finally {
+			deleteLoading = false;
+		}
+	}
 </script>
 
+{#if deleted}
+	<article class="post-card card deleted-card">
+		<p class="tombstone">this post has been deleted.</p>
+	</article>
+{:else}
 <article class="post-card card" class:compact>
 	{#if reblog}
 		<div class="reblog-header">
@@ -141,6 +178,9 @@
 					</button>
 				{/if}
 				<div class="chain-entry" class:chain-entry-last={i === visibleEntries.length - 1}>
+					{#if entry.deleted}
+						<p class="tombstone">this post has been deleted by the author.</p>
+					{:else}
 					<div class="chain-entry-header">
 						<a href="/profile/{entry.author.handle}" class="author-link">
 							{#if entry.author.avatar}
@@ -169,6 +209,7 @@
 								{/each}
 							</div>
 						</div>
+					{/if}
 					{/if}
 				</div>
 			{/each}
@@ -247,9 +288,16 @@
 					<span>{formatCount(likeCount)}</span>
 				{/if}
 			</button>
+
+			{#if canDelete}
+				<button class="action-btn delete-btn" onclick={handleDelete} title="delete" disabled={deleteLoading}>
+					<Trash2 size={16} />
+				</button>
+			{/if}
 		</div>
 	{/if}
 </article>
+{/if}
 
 <style>
 	.post-card {
@@ -426,7 +474,7 @@
 		color: var(--text-link);
 		background-color: color-mix(in srgb, var(--accent) 10%, transparent);
 		padding: 0.125rem 0.5rem;
-		border-radius: var(--radius-full);
+		border-radius: var(--radius-md);
 		text-decoration: none;
 		transition: background-color 0.15s ease;
 	}
@@ -456,10 +504,9 @@
 	/* ── Action bar ──────────────────────────────────────── */
 
 	.post-actions {
-		display: grid;
-		grid-template-columns: repeat(3, 4.5rem);
+		display: flex;
 		align-items: center;
-		justify-items: start;
+		gap: 0.25rem;
 		margin-top: 0.25rem;
 		min-height: 2rem;
 	}
@@ -507,5 +554,23 @@
 		color: white;
 		font-weight: 600;
 		font-size: 0.875rem;
+	}
+
+	.delete-btn:hover {
+		color: var(--danger);
+	}
+
+	.delete-btn {
+		margin-left: auto;
+	}
+
+	.deleted-card {
+		padding: 1rem;
+	}
+
+	.tombstone {
+		color: var(--text-tertiary);
+		font-size: 0.875rem;
+		font-style: italic;
 	}
 </style>

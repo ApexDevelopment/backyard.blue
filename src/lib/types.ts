@@ -80,6 +80,8 @@ export interface BackyardChainEntry {
 	createdAt: string;
 	/** Whether this entry is the original post (true) or a reblog addition (false) */
 	isRoot: boolean;
+	/** True when the original record has been deleted — renders as a tombstone */
+	deleted?: boolean;
 }
 
 export interface BackyardFeedItem {

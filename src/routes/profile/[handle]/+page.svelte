@@ -47,7 +47,7 @@
 		<div class="feed-list">
 			{#if data.feed && data.feed.length > 0}
 				{#each data.feed as item (item.post.uri + (item.reblog?.uri || ''))}
-					<PostCard post={item.post} chain={item.chain} reblog={item.reblog} profileHandle={data.profile.handle} />
+					<PostCard post={item.post} chain={item.chain} reblog={item.reblog} profileHandle={data.profile.handle} viewerDid={data.user?.did} />
 				{/each}
 			{:else}
 				<div class="empty-state">

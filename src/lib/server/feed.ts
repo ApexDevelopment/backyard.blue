@@ -155,7 +155,7 @@ async function buildReblogChains(
 	for (const [leafUri, entries] of chainsByLeaf) {
 		const chain: BackyardChainEntry[] = [];
 
-		// First: root post
+		// First: root post (or tombstone if it's been deleted)
 		const rootUri = entries[0].subject_uri;
 		const rootPost = rootPostRows.get(rootUri);
 		if (rootPost) {
@@ -169,6 +169,16 @@ async function buildReblogChains(
 				tags: rootPost.tags || undefined,
 				createdAt: toIso(rootPost.created_at),
 				isRoot: true
+			});
+		} else {
+			chain.push({
+				uri: rootUri,
+				cid: '',
+				author: { did: '', handle: '' },
+				text: '',
+				createdAt: '',
+				isRoot: true,
+				deleted: true
 			});
 		}
 

@@ -59,7 +59,7 @@
 
 	<!-- Main post -->
 	<div class="main-post">
-		<PostCard post={data.post} />
+		<PostCard post={data.post} viewerDid={data.user?.did} />
 	</div>
 
 	<!-- Comment composer -->

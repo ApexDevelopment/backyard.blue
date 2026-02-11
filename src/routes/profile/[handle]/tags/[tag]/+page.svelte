@@ -30,7 +30,7 @@
 						reblogged
 					</div>
 				{/if}
-				<PostCard post={item.post} chain={item.chain} profileHandle={data.profile.handle} />
+				<PostCard post={item.post} chain={item.chain} profileHandle={data.profile.handle} viewerDid={data.user?.did} />
 			{/each}
 		{:else}
 			<div class="empty-state card">
