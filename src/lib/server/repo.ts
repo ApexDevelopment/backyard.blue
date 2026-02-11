@@ -212,7 +212,7 @@ export async function createLike(
 		}
 	});
 
-	const queryResult = await pool.query(
+	await pool.query(
 		`INSERT INTO likes (uri, cid, author_did, subject_uri, created_at)
 		 VALUES ($1, $2, $3, $4, $5)
 		 ON CONFLICT (uri) DO NOTHING`,
