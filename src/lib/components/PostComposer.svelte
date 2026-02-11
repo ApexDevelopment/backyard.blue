@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { BackyardProfile, BackyardChainEntry } from '$lib/types.js';
-	import { X } from 'lucide-svelte';
+	import { X, ImagePlus } from 'lucide-svelte';
 	import RichTextEditor from './RichTextEditor.svelte';
 	import TagInput from './TagInput.svelte';
 
@@ -35,11 +35,124 @@
 	let error = $state('');
 	let charCount = $derived(text.length);
 	const MAX_CHARS = 3000;
+	const MAX_IMAGES = 4;
 
 	let isReblog = $derived(mode === 'reblog');
 	let title = $derived(isReblog ? 'reblog' : 'new post');
 	let placeholder = $derived(isReblog ? 'add your thoughts...' : "what's on your mind?");
 	let submitLabel = $derived(isReblog ? 'reblog' : 'post');
+
+	/* ── Image attachments ──────────────────────────── */
+
+	interface ImageAttachment {
+		file: File;
+		previewUrl: string;
+		alt: string;
+		/** Set after successful upload to PDS */
+		blob?: unknown;
+		mimeType: string;
+	}
+
+	let images: ImageAttachment[] = $state([]);
+	let uploading = $state(false);
+	let fileInput: HTMLInputElement | undefined = $state();
+	let dragging = $state(false);
+
+	const ALLOWED_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+	const MAX_FILE_SIZE = 1_000_000; // 1 MB
+
+	function addFiles(files: FileList | File[]) {
+		const remaining = MAX_IMAGES - images.length;
+		if (remaining <= 0) {
+			error = `maximum ${MAX_IMAGES} images allowed`;
+			return;
+		}
+
+		const toAdd = Array.from(files).slice(0, remaining);
+		for (const file of toAdd) {
+			if (!ALLOWED_TYPES.has(file.type)) {
+				error = `unsupported file type: ${file.type}. use PNG, JPEG, GIF, or WebP.`;
+				return;
+			}
+			if (file.size > MAX_FILE_SIZE) {
+				error = `"${file.name}" exceeds the 1 MB size limit.`;
+				return;
+			}
+		}
+
+		error = '';
+		for (const file of toAdd) {
+			images.push({
+				file,
+				previewUrl: URL.createObjectURL(file),
+				alt: '',
+				mimeType: file.type
+			});
+		}
+	}
+
+	function removeImage(index: number) {
+		const removed = images.splice(index, 1);
+		if (removed[0]) URL.revokeObjectURL(removed[0].previewUrl);
+	}
+
+	function handleFileSelect(e: Event) {
+		const input = e.target as HTMLInputElement;
+		if (input.files && input.files.length > 0) {
+			addFiles(input.files);
+			input.value = '';
+		}
+	}
+
+	function handleDrop(e: DragEvent) {
+		e.preventDefault();
+		dragging = false;
+		if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+			addFiles(e.dataTransfer.files);
+		}
+	}
+
+	function handleDragOver(e: DragEvent) {
+		e.preventDefault();
+		dragging = true;
+	}
+
+	function handleDragLeave(e: DragEvent) {
+		if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) {
+			dragging = false;
+		}
+	}
+
+	async function uploadImages(): Promise<boolean> {
+		const pending = images.filter((img) => !img.blob);
+		if (pending.length === 0) return true;
+
+		uploading = true;
+		try {
+			for (const img of pending) {
+				const res = await fetch('/api/upload', {
+					method: 'POST',
+					headers: { 'Content-Type': img.mimeType },
+					body: img.file
+				});
+				if (!res.ok) {
+					const data = await res.json();
+					error = data.error || 'failed to upload image';
+					return false;
+				}
+				const { blob } = await res.json();
+				img.blob = blob;
+			}
+			return true;
+		} catch {
+			error = 'network error uploading images.';
+			return false;
+		} finally {
+			uploading = false;
+		}
+	}
+
+	/* ── Lifecycle ──────────────────────────────────── */
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') {
@@ -53,22 +166,43 @@
 		}
 	}
 
+	function resetState() {
+		text = '';
+		formatFacets = [];
+		tags = [];
+		for (const img of images) URL.revokeObjectURL(img.previewUrl);
+		images = [];
+		error = '';
+	}
+
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
-		if (submitting) return;
+		if (submitting || uploading) return;
 
-		// For new posts, text is required; for reblogs, text is optional
-		if (!isReblog && !text.trim()) return;
+		// For new posts, text or images are required; for reblogs, text is optional
+		if (!isReblog && !text.trim() && images.length === 0) return;
 
 		submitting = true;
 		error = '';
 
 		try {
+			// Upload any pending images first
+			if (images.length > 0) {
+				const ok = await uploadImages();
+				if (!ok) {
+					submitting = false;
+					return;
+				}
+			}
+
 			const tagList = tags.length > 0 ? tags : undefined;
 			const facetList = formatFacets.length > 0 ? formatFacets : undefined;
 
+			const media = images.length > 0
+				? images.map((img) => ({ blob: img.blob, mimeType: img.mimeType, alt: img.alt || undefined }))
+				: undefined;
+
 			if (isReblog) {
-				// Reblog mode: call /api/repost
 				const res = await fetch('/api/repost', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
@@ -82,9 +216,7 @@
 				});
 
 				if (res.ok) {
-					text = '';
-					formatFacets = [];
-					tags = [];
+					resetState();
 					onClose();
 					window.location.reload();
 				} else {
@@ -92,21 +224,19 @@
 					error = data.error || 'failed to reblog';
 				}
 			} else {
-				// New post mode
 				const res = await fetch('/api/post', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({
 						text: text.trim(),
 						tags: tagList,
-						formatFacets: facetList
+						formatFacets: facetList,
+						media
 					})
 				});
 
 				if (res.ok) {
-					text = '';
-					formatFacets = [];
-					tags = [];
+					resetState();
 					onClose();
 					window.location.reload();
 				} else {
@@ -124,7 +254,19 @@
 
 {#if open}
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<div class="modal-backdrop" role="dialog" aria-modal="true" aria-label={title} onclick={handleBackdropClick} onkeydown={handleKeydown}>
+	<div
+		class="modal-backdrop"
+		class:dragging
+		role="dialog"
+		tabindex="-1"
+		aria-modal="true"
+		aria-label={title}
+		onclick={handleBackdropClick}
+		onkeydown={handleKeydown}
+		ondrop={handleDrop}
+		ondragover={handleDragOver}
+		ondragleave={handleDragLeave}
+	>
 		<form class="modal-content card" onsubmit={handleSubmit}>
 			<div class="modal-header">
 				<h2>{title}</h2>
@@ -175,23 +317,73 @@
 						bind:text
 						bind:facets={formatFacets}
 						maxLength={MAX_CHARS}
-						disabled={submitting}
+						disabled={submitting || uploading}
 						{placeholder}
 					/>
-					<TagInput bind:tags disabled={submitting} />
+
+					{#if images.length > 0}
+						<div class="image-previews">
+							{#each images as img, i}
+								<div class="image-preview">
+									<img src={img.previewUrl} alt={img.alt || 'attachment preview'} class="preview-thumb" />
+									<button
+										type="button"
+										class="preview-remove"
+										onclick={() => removeImage(i)}
+										aria-label="remove image"
+										disabled={submitting || uploading}
+									>
+										<X size={14} />
+									</button>
+									<input
+										type="text"
+										class="preview-alt"
+										placeholder="alt text"
+										bind:value={img.alt}
+										disabled={submitting || uploading}
+									/>
+								</div>
+							{/each}
+						</div>
+					{/if}
+
+					<TagInput bind:tags disabled={submitting || uploading} />
 				</div>
 			</div>
 
 			<div class="composer-footer">
+				<input
+					type="file"
+					accept="image/png,image/jpeg,image/gif,image/webp"
+					multiple
+					class="sr-only"
+					bind:this={fileInput}
+					onchange={handleFileSelect}
+				/>
+				<button
+					type="button"
+					class="image-btn"
+					title="attach images"
+					disabled={images.length >= MAX_IMAGES || submitting || uploading}
+					onclick={() => fileInput?.click()}
+				>
+					<ImagePlus size={18} />
+					{#if images.length > 0}
+						<span class="image-count">{images.length}/{MAX_IMAGES}</span>
+					{/if}
+				</button>
+
+				<span class="footer-spacer"></span>
+
 				<span class="char-count" class:warning={charCount > MAX_CHARS * 0.9} class:over={charCount >= MAX_CHARS}>
 					{charCount}/{MAX_CHARS}
 				</span>
 				<button
 					type="submit"
 					class="btn btn-primary"
-					disabled={(!isReblog && !text.trim()) || submitting || charCount > MAX_CHARS}
+					disabled={(!isReblog && !text.trim() && images.length === 0) || submitting || uploading || charCount > MAX_CHARS}
 				>
-					{#if submitting}
+					{#if submitting || uploading}
 						<span class="spinner" style="width:16px;height:16px;border-width:2px;"></span>
 					{:else}
 						{submitLabel}
@@ -356,11 +548,128 @@
 	.composer-footer {
 		display: flex;
 		align-items: center;
-		justify-content: flex-end;
 		gap: 0.75rem;
 		padding: 0.75rem 1rem;
 		border-top: 1px solid var(--border-light);
 		flex-shrink: 0;
+	}
+
+	.footer-spacer {
+		flex: 1;
+	}
+
+	.image-btn {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.25rem 0.5rem;
+		border-radius: var(--radius-sm, 6px);
+		color: var(--text-tertiary);
+		font-size: 0.75rem;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.image-btn:hover:not(:disabled) {
+		background-color: var(--bg-hover);
+		color: var(--accent);
+	}
+
+	.image-btn:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	.image-count {
+		color: var(--text-tertiary);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
+
+	/* ── Image previews ─────────────────────────────── */
+
+	.image-previews {
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+
+	.image-preview {
+		position: relative;
+		width: 96px;
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	.preview-thumb {
+		width: 96px;
+		height: 96px;
+		object-fit: cover;
+		border-radius: var(--radius-sm, 6px);
+		border: 1px solid var(--border-light);
+	}
+
+	.preview-remove {
+		position: absolute;
+		top: 4px;
+		right: 4px;
+		width: 22px;
+		height: 22px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: var(--radius-full);
+		background-color: rgba(0, 0, 0, 0.6);
+		color: white;
+		cursor: pointer;
+		transition: background-color 0.15s ease;
+	}
+
+	.preview-remove:hover {
+		background-color: rgba(0, 0, 0, 0.8);
+	}
+
+	.preview-alt {
+		width: 100%;
+		font-size: 0.6875rem;
+		padding: 0.125rem 0.25rem;
+		border: 1px solid var(--border-light);
+		border-radius: var(--radius-sm, 4px);
+		background: var(--bg-primary, var(--bg));
+		color: var(--text-secondary);
+	}
+
+	.preview-alt::placeholder {
+		color: var(--text-tertiary);
+	}
+
+	/* ── Drag-and-drop overlay ──────────────────────── */
+
+	.modal-backdrop.dragging::after {
+		content: 'drop images here';
+		position: fixed;
+		inset: 0;
+		z-index: 210;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background-color: rgba(0, 0, 0, 0.55);
+		color: white;
+		font-size: 1.125rem;
+		font-weight: 600;
+		pointer-events: none;
 	}
 
 	.char-count {

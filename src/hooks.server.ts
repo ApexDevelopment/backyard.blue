@@ -71,7 +71,8 @@ const WRITE_PATHS = new Set([
 	'/api/repost',
 	'/api/profile',
 	'/api/onboarding',
-	'/api/admin/allowlist'
+	'/api/admin/allowlist',
+	'/api/upload'
 ]);
 
 export const handle: Handle = async ({ event, resolve }) => {

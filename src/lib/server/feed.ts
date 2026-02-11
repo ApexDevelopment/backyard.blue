@@ -4,13 +4,14 @@
  */
 
 import pool from './db.js';
-import { mapRowToProfile, ensureProfile } from './identity.js';
+import { mapRowToProfile, ensureProfile, blobUrl } from './identity.js';
 import type {
 	BackyardPost,
 	BackyardFeedItem,
 	BackyardComment,
 	BackyardProfile,
-	BackyardChainEntry
+	BackyardChainEntry,
+	BackyardMedia
 } from '$lib/types.js';
 
 /**
@@ -46,6 +47,34 @@ async function resolveProfiles(dids: string[]): Promise<Map<string, BackyardProf
 	return map;
 }
 
+/**
+ * Convert raw media blob refs (as stored in the DB from AT Protocol records)
+ * into BackyardMedia objects with resolved URLs.
+ *
+ * Stored format: [{ blob: { ref: { $link: "cid..." }, ... }, mimeType, alt, aspectRatio }, ...]
+ * Output format: [{ url, mimeType, alt, width, height }, ...]
+ */
+function resolveMedia(media: any, authorDid: string, profiles: Map<string, BackyardProfile>): BackyardMedia[] | undefined {
+	if (!media || !Array.isArray(media) || media.length === 0) return undefined;
+	const profile = profiles.get(authorDid);
+	const pdsUrl = profile?.pdsUrl;
+	if (!pdsUrl) return undefined;
+
+	const resolved: BackyardMedia[] = [];
+	for (const item of media) {
+		const cid = item?.blob?.ref?.$link || item?.blob?.ref;
+		if (!cid || typeof cid !== 'string') continue;
+		resolved.push({
+			url: blobUrl(pdsUrl, authorDid, cid),
+			mimeType: item.mimeType || 'image/jpeg',
+			alt: item.alt || undefined,
+			width: item.aspectRatio?.width || undefined,
+			height: item.aspectRatio?.height || undefined
+		});
+	}
+	return resolved.length > 0 ? resolved : undefined;
+}
+
 /** Enrich a raw post row with counts and viewer state. */
 function enrichPost(
 	row: any,
@@ -57,7 +86,7 @@ function enrichPost(
 		author: profiles.get(row.author_did) || { did: row.author_did, handle: row.author_did },
 		text: row.text,
 		facets: row.facets || undefined,
-		media: row.media || undefined,
+		media: resolveMedia(row.media, row.author_did, profiles),
 		tags: row.tags || undefined,
 		likeCount: parseInt(row.like_count, 10) || 0,
 		commentCount: parseInt(row.comment_count, 10) || 0,
@@ -165,7 +194,7 @@ async function buildReblogChains(
 				author: profiles.get(rootPost.author_did) || { did: rootPost.author_did, handle: rootPost.author_did },
 				text: rootPost.text || '',
 				facets: rootPost.facets || undefined,
-				media: rootPost.media || undefined,
+				media: resolveMedia(rootPost.media, rootPost.author_did, profiles),
 				tags: rootPost.tags || undefined,
 				createdAt: toIso(rootPost.created_at),
 				isRoot: true
@@ -190,7 +219,7 @@ async function buildReblogChains(
 				author: profiles.get(entry.author_did) || { did: entry.author_did, handle: entry.author_did },
 				text: entry.text || '',
 				facets: entry.facets || undefined,
-				media: entry.media || undefined,
+				media: resolveMedia(entry.media, entry.author_did, profiles),
 				tags: entry.tags || undefined,
 				createdAt: toIso(entry.created_at),
 				isRoot: false
@@ -240,7 +269,7 @@ async function enrichFeedItems(
 				by: profiles.get(row.reblog_author_did) || { did: row.reblog_author_did, handle: row.reblog_author_did },
 				text: row.reblog_text || undefined,
 				facets: row.reblog_facets || undefined,
-				media: row.reblog_media || undefined,
+				media: resolveMedia(row.reblog_media, row.reblog_author_did, profiles),
 				tags: row.reblog_tags || undefined,
 				createdAt: toIso(row.created_at)
 			};

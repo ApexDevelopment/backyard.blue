@@ -22,7 +22,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	} catch {
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
-	const { text, tags, formatFacets } = body;
+	const { text, tags, formatFacets, media } = body;
 
 	if (!text || typeof text !== 'string' || text.trim().length === 0) {
 		return json({ error: 'Post text is required' }, { status: 400 });
@@ -30,6 +30,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	if (text.length > MAX_TEXT_LENGTH) {
 		return json({ error: `Post text must be ${MAX_TEXT_LENGTH} characters or fewer` }, { status: 400 });
+	}
+
+	if (media && (!Array.isArray(media) || media.length > 4)) {
+		return json({ error: 'Media must be an array of up to 4 items' }, { status: 400 });
 	}
 
 	try {
@@ -47,6 +51,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const res = await createPost(agent, locals.did, {
 			text: rt.text,
 			facets: allFacets.length > 0 ? allFacets : undefined,
+			media: Array.isArray(media) && media.length > 0 ? media : undefined,
 			tags: safeTags || undefined
 		});
 
