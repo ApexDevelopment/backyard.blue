@@ -68,8 +68,8 @@
 		return n.toString();
 	}
 
-	let viewerLike = $state(post.viewerLike);
-	let likeCount = $state(post.likeCount);
+	let viewerLike = $derived(post.viewerLike);
+	let likeCount = $derived(post.likeCount);
 	let liked = $derived(!!viewerLike);
 	let likeLoading = $state(false);
 
