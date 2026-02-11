@@ -7,7 +7,7 @@
 
 	let { data }: { data: PageData } = $props();
 
-	let initialLoadFailed = false;
+	let initialLoadFailed = $state(false);
 	let liveNotifications: BackyardNotification[] = $state([]);
 	let eventSource: EventSource | null = null;
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
