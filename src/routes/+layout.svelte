@@ -6,6 +6,7 @@
 	import SideNav from '$lib/components/SideNav.svelte';
 	import NewsPanel from '$lib/components/NewsPanel.svelte';
 	import PostComposer from '$lib/components/PostComposer.svelte';
+	import PullToRefresh from '$lib/components/PullToRefresh.svelte';
 	import { theme } from '$lib/stores/theme.js';
 	import { composer, openComposer, closeComposer } from '$lib/stores/composer.js';
 	import { unreadCount, initNotifications, destroyNotifications } from '$lib/stores/notifications.js';
@@ -49,6 +50,10 @@
 </svelte:head>
 
 <Header user={data.user} onCompose={() => openComposer()} />
+
+{#if data.user}
+	<PullToRefresh />
+{/if}
 
 <main class="main">
 	<div class="layout" class:layout-full={hideChrome}>
