@@ -22,15 +22,20 @@ const initial: NotificationState = {
 export const notifications = writable<NotificationState>(initial);
 export const unreadCount = derived(notifications, ($n) => $n.unreadCount);
 
+/** Maximum notifications kept in memory. Older entries are dropped on overflow. */
+const MAX_STORED = 200;
+
 let eventSource: EventSource | null = null;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 function pushLive(notif: BackyardNotification) {
 	notifications.update((state) => {
 		if (state.items.some((n) => n.id === notif.id)) return state;
+		const items = [notif, ...state.items];
+		if (items.length > MAX_STORED) items.length = MAX_STORED;
 		return {
 			...state,
-			items: [notif, ...state.items],
+			items,
 			unreadCount: state.unreadCount + 1
 		};
 	});
@@ -89,9 +94,11 @@ export async function initNotifications(): Promise<void> {
 					(n) => !existingIds.has(n.id)
 				);
 				if (fresh.length === 0) return state;
+				const items = [...fresh, ...state.items];
+				if (items.length > MAX_STORED) items.length = MAX_STORED;
 				return {
 					...state,
-					items: [...fresh, ...state.items],
+					items,
 					unreadCount: data.unreadCount ?? state.unreadCount
 				};
 			});
@@ -118,10 +125,14 @@ export async function loadMoreNotifications(): Promise<void> {
 			const fresh = (data.notifications as BackyardNotification[]).filter(
 				(n) => !existingIds.has(n.id)
 			);
+			const items = [...state.items, ...fresh];
+			const hitCap = items.length > MAX_STORED;
+			if (hitCap) items.length = MAX_STORED;
 			return {
 				...state,
-				items: [...state.items, ...fresh],
-				cursor: data.cursor ?? null
+				items,
+				// Stop offering pagination if we've hit the memory cap
+				cursor: hitCap ? null : (data.cursor ?? null)
 			};
 		});
 	} catch {}
