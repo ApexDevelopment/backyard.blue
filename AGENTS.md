@@ -22,3 +22,5 @@ LLMs tend to converge on a specific style of web development that is not necessa
 - Excessive use of comments to explain code, even when the code is already self-explanatory
 
 Backyard has its own established style and patterns. **Agents should strive to match the existing style and patterns by reading existing code** rather than writing best-guess CSS that "feels right" but does not look like the rest of the application.
+
+After making any changes, agents must run `npx svelte-check`. Warnings are not acceptable and should be resolved before considering the task complete.
