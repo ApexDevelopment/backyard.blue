@@ -11,7 +11,8 @@ import type {
 	BackyardComment,
 	BackyardProfile,
 	BackyardChainEntry,
-	BackyardMedia
+	BackyardMedia,
+	BackyardReblogPreview
 } from '$lib/types.js';
 
 /**
@@ -111,7 +112,7 @@ function toIso(val: any): string {
  *
  * Returns a Map from leaf reblog URI → BackyardChainEntry[] (root post first, leaf last).
  */
-async function buildReblogChains(
+export async function buildReblogChains(
 	reblogUris: string[]
 ): Promise<Map<string, BackyardChainEntry[]>> {
 	if (reblogUris.length === 0) return new Map();
@@ -795,4 +796,51 @@ export async function searchTags(
 		tag: r.tag,
 		count: parseInt(r.cnt, 10) || 0
 	}));
+}
+
+export async function getPostReblogs(
+	postUri: string,
+	limit: number
+): Promise<BackyardReblogPreview[]> {
+	const result = await pool.query(
+		`WITH target_reblogs AS (
+			SELECT * FROM reblogs
+			WHERE (root_post_uri = $1 OR subject_uri = $1)
+			ORDER BY created_at DESC
+			LIMIT $2
+		)
+		SELECT
+			r.uri as reblog_uri,
+			r.author_did as reblogger_did,
+			r.created_at,
+			COALESCE(p.author_did, rb.author_did) as source_did
+		FROM target_reblogs r
+		LEFT JOIN posts p ON p.uri = r.subject_uri
+		LEFT JOIN reblogs rb ON rb.uri = r.subject_uri`,
+		[postUri, limit]
+	);
+
+	if (result.rows.length === 0) return [];
+
+	const dids = new Set<string>();
+	for (const row of result.rows) {
+		dids.add(row.reblogger_did);
+		if (row.source_did) {
+			dids.add(row.source_did);
+		}
+	}
+
+	const profiles = await resolveProfiles(Array.from(dids));
+
+	return result.rows.map((row) => ({
+		reblogUri: row.reblog_uri,
+		reblogger: profiles.get(row.reblogger_did) || { did: row.reblogger_did, handle: row.reblogger_did },
+		source: profiles.get(row.source_did) || { did: row.source_did || 'unknown', handle: 'unknown' },
+		createdAt: row.created_at
+	}));
+}
+
+export async function getReblog(uri: string): Promise<{ root_post_uri: string } | null> {
+	const result = await pool.query('SELECT root_post_uri FROM reblogs WHERE uri = $1', [uri]);
+	return result.rows[0] || null;
 }

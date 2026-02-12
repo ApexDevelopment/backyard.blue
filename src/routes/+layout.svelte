@@ -1,12 +1,14 @@
 <script lang="ts">
 	import '../app.css';
 	import { page } from '$app/stores';
+	import { onDestroy } from 'svelte';
 	import Header from '$lib/components/Header.svelte';
 	import SideNav from '$lib/components/SideNav.svelte';
 	import NewsPanel from '$lib/components/NewsPanel.svelte';
 	import PostComposer from '$lib/components/PostComposer.svelte';
 	import { theme } from '$lib/stores/theme.js';
 	import { composer, openComposer, closeComposer } from '$lib/stores/composer.js';
+	import { unreadCount, initNotifications, destroyNotifications } from '$lib/stores/notifications.js';
 	import type { LayoutData } from './$types.js';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
@@ -19,6 +21,21 @@
 	$effect(() => {
 		if (data.theme) {
 			theme.initialize(data.theme as 'light' | 'dark');
+		}
+	});
+
+	// Bootstrap notification listener when logged in (client-side only)
+	let notificationsInitialized = false;
+	$effect(() => {
+		if (data.user && !notificationsInitialized) {
+			notificationsInitialized = true;
+			initNotifications();
+		}
+	});
+
+	onDestroy(() => {
+		if (notificationsInitialized) {
+			destroyNotifications();
 		}
 	});
 
@@ -36,7 +53,7 @@
 <main class="main">
 	<div class="layout" class:layout-full={hideChrome}>
 		{#if !hideChrome}
-			<SideNav user={data.user} />
+			<SideNav user={data.user} unreadNotifications={$unreadCount} />
 		{/if}
 		<div class="content">
 			{@render children()}

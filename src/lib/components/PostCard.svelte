@@ -324,7 +324,7 @@
 
 	{#if showActions}
 		<div class="post-actions">
-			<a href="/post/{postHref(post.uri)}" class="action-btn" title="comment">
+			<a href="/post/{postHref(reblog ? reblog.uri : post.uri)}" class="action-btn" title="comment">
 				<MessageCircle size={16} />
 				{#if post.commentCount > 0}
 					<span>{formatCount(post.commentCount)}</span>

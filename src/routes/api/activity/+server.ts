@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types.js';
-import { markNotificationsRead, getUnreadCount } from '$lib/server/notifications.js';
+import { markNotificationsRead, getNotifications, getUnreadCount } from '$lib/server/notifications.js';
 
 /** POST: mark notifications as read */
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -26,17 +26,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 };
 
-/** GET: return unread count */
-export const GET: RequestHandler = async ({ locals }) => {
+/** GET: return notifications list + unread count, with optional cursor pagination */
+export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.did) {
 		return json({ error: 'Authentication required' }, { status: 401 });
 	}
 
 	try {
-		const count = await getUnreadCount(locals.did);
-		return json({ unreadCount: count });
+		const cursor = url.searchParams.get('cursor') || undefined;
+		const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10) || 50, 100);
+
+		const [{ items, cursor: nextCursor }, unreadCount] = await Promise.all([
+			getNotifications(locals.did, limit, cursor),
+			cursor ? Promise.resolve(0) : getUnreadCount(locals.did)
+		]);
+
+		return json({ notifications: items, cursor: nextCursor, unreadCount });
 	} catch (err) {
-		console.error('Unread count error:', err);
-		return json({ unreadCount: 0 });
+		console.error('Notifications fetch error:', err);
+		return json({ notifications: [], cursor: null, unreadCount: 0 });
 	}
 };

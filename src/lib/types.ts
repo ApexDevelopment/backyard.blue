@@ -101,6 +101,13 @@ export interface BackyardFeedItem {
 	chain?: BackyardChainEntry[];
 }
 
+export interface BackyardReblogPreview {
+	reblogUri: string;
+	reblogger: BackyardProfile;
+	source: BackyardProfile;
+	createdAt: string;
+}
+
 export interface BackyardFollowInfo {
 	did: string;
 	handle: string;

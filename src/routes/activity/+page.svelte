@@ -1,76 +1,39 @@
 <script lang="ts">
-	import type { PageData } from './$types.js';
-	import type { BackyardNotification } from '$lib/types.js';
-	import { Heart, MessageCircle, Repeat2, UserPlus, XCircle } from 'lucide-svelte';
-	import { onMount, onDestroy } from 'svelte';
-	import { invalidateAll } from '$app/navigation';
+	import { Heart, MessageCircle, Repeat2, UserPlus } from 'lucide-svelte';
+	import { onMount } from 'svelte';
+	import {
+		notifications as notifStore,
+		loadMoreNotifications,
+		markNotificationsRead
+	} from '$lib/stores/notifications.js';
 
-	let { data }: { data: PageData } = $props();
-
-	let initialLoadFailed = $state(false);
-	let liveNotifications: BackyardNotification[] = $state([]);
-	let eventSource: EventSource | null = null;
-	let pollTimer: ReturnType<typeof setInterval> | null = null;
-
-	function pushLive(notif: BackyardNotification) {
-		if (liveNotifications.some((n) => n.id === notif.id)) return;
-		liveNotifications = [notif, ...liveNotifications];
-	}
+	let items = $derived($notifStore.items);
+	let loaded = $derived($notifStore.loaded);
+	let cursor = $derived($notifStore.cursor);
 
 	onMount(() => {
-		// SSE for instant delivery
-		eventSource = new EventSource('/api/activity/stream');
+		// Mark all currently-unread notifications as read when the page is viewed
+		const unreadIds = $notifStore.items.filter((n) => !n.read).map((n) => n.id);
+		if (unreadIds.length > 0) {
+			markNotificationsRead(unreadIds);
+		}
 
-		eventSource.addEventListener('notification', (e) => {
-			try {
-				const event = JSON.parse(e.data);
-				const actor = event.actorProfile || { did: event.actorDid, handle: event.actorDid };
-				pushLive({
-					id: event.id,
-					actor,
-					type: event.type,
-					subjectUri: event.subjectUri,
-					actionUri: event.actionUri,
-					read: false,
-					createdAt: event.createdAt
-				});
-
-				fetch('/api/activity', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ ids: [event.id] })
-				}).catch(() => {
-					// If we completely fail to load any notifications, we alert the user
-					if (liveNotifications.length === 0) {
-						initialLoadFailed = true;
-						// We will keep the listeners running in case we recover.
-					}
-				});
-			} catch {}
+		// Also mark any future ones that arrive while we're on this page
+		return notifStore.subscribe((state) => {
+			const fresh = state.items.filter((n) => !n.read).map((n) => n.id);
+			if (fresh.length > 0) {
+				markNotificationsRead(fresh);
+			}
 		});
-
-		// Polling fallback — catches anything SSE misses
-		pollTimer = setInterval(async () => {
-			try {
-				const res = await fetch('/api/activity');
-				if (!res.ok) return;
-				const { unreadCount } = await res.json();
-				if (unreadCount > 0) {
-					liveNotifications = [];
-					await invalidateAll();
-				}
-			} catch {}
-		}, 15_000);
 	});
 
-	function destroy() {
-		eventSource?.close();
-		if (pollTimer) clearInterval(pollTimer);
+	let loadingMore = $state(false);
+
+	async function handleLoadMore() {
+		loadingMore = true;
+		await loadMoreNotifications();
+		loadingMore = false;
 	}
-
-	onDestroy(destroy);
-
-	let allNotifications = $derived([...liveNotifications, ...data.notifications]);
 
 	function postHref(uri: string): string {
 		const stripped = uri.replace('at://', '');
@@ -108,8 +71,6 @@
 	}
 </script>
 
-<svelte:window on:beforeunload={destroy} />
-
 <svelte:head>
 	<title>activity — backyard</title>
 </svelte:head>
@@ -117,22 +78,17 @@
 <div class="activity-page">
 	<h1 class="page-title">activity</h1>
 
-	{#if initialLoadFailed}
-		<div class="error-notice">
-			<div class="icon-wrapper">
-				<XCircle size={20} />
-			</div>
-			<span>failed to load notifications, try refreshing.</span>
+	{#if !loaded}
+		<div class="empty-state">
+			<p>loading notifications…</p>
 		</div>
-	{/if}
-
-	{#if allNotifications.length > 0}
+	{:else if items.length > 0}
 		<div class="notification-list">
-			{#each allNotifications as notif (notif.id)}
+			{#each items as notif (notif.id)}
 				{@const href = notif.type === 'follow'
 					? profileHref(notif.actor.handle)
 					: notif.subjectUri ? postHref(notif.subjectUri) : '#'}
-				<a class="notification-item" class:unread={!notif.read} {href}>
+				<a class="notification-item" {href}>
 					<span class="notification-icon" class:icon-like={notif.type === 'like'} class:icon-comment={notif.type === 'comment'} class:icon-reblog={notif.type === 'reblog'} class:icon-follow={notif.type === 'follow'}>
 						{#if notif.type === 'like'}
 							<Heart size={16} />
@@ -170,9 +126,11 @@
 			{/each}
 		</div>
 
-		{#if data.cursor}
+		{#if cursor}
 			<div class="load-more">
-				<a href="/activity?cursor={data.cursor}" class="btn btn-secondary">load more</a>
+				<button class="btn btn-secondary" onclick={handleLoadMore} disabled={loadingMore}>
+					{loadingMore ? 'loading…' : 'load more'}
+				</button>
 			</div>
 		{/if}
 	{:else}
@@ -214,10 +172,6 @@
 	.notification-item:hover {
 		background-color: var(--bg-hover);
 		text-decoration: none;
-	}
-
-	.notification-item.unread {
-		background-color: var(--accent-light);
 	}
 
 	.notification-details {
@@ -318,23 +272,5 @@
 		display: flex;
 		justify-content: center;
 		padding: 1rem;
-	}
-
-	.error-notice {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		padding: 0.75rem;
-		background-color: color-mix(in srgb, var(--danger) 10%, transparent);
-		color: var(--danger);
-		border-radius: var(--radius-sm);
-		font-size: 0.875rem;
-		line-height: 1.4;
-		margin-bottom: 1rem;
-	}
-
-	.icon-wrapper {
-		display: flex;
-		flex-shrink: 0;
 	}
 </style>

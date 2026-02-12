@@ -2,7 +2,7 @@
 	import PostCard from '$lib/components/PostCard.svelte';
 	import RichTextRenderer from '$lib/components/RichTextRenderer.svelte';
 	import type { PageData } from './$types.js';
-	import { ChevronLeft } from 'lucide-svelte';
+	import { ChevronLeft, Repeat2 } from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -59,8 +59,35 @@
 
 	<!-- Main post -->
 	<div class="main-post">
-		<PostCard post={data.post} viewerDid={data.user?.did} />
+		<PostCard post={data.post} reblog={data.reblog} chain={data.chain} viewerDid={data.user?.did} />
 	</div>
+
+	<!-- Reblogs List -->
+	{#if data.reblogs && data.reblogs.length > 0}
+		<div class="reblogs-section">
+			<div class="reblogs-list card">
+				{#each data.reblogs as reblog (reblog.reblogUri)}
+					{@const rkey = reblog.reblogUri.split('/').pop()}
+					<a href="/post/{reblog.reblogger.did}/{rkey}" class="reblog-item">
+						<div class="reblog-avatar">
+							{#if reblog.reblogger.avatar}
+								<img src={reblog.reblogger.avatar} alt={reblog.reblogger.handle} class="avatar avatar-xs" />
+							{:else}
+								<div class="avatar avatar-xs avatar-placeholder">
+									{(reblog.reblogger.displayName || reblog.reblogger.handle).charAt(0).toUpperCase()}
+								</div>
+							{/if}
+						</div>
+						<span class="reblog-name">{reblog.reblogger.displayName || reblog.reblogger.handle}</span>
+						<span class="reblog-icon-wrapper">
+							<Repeat2 size={14} />
+						</span>
+						<span class="reblog-source">@{reblog.source.handle}</span>
+					</a>
+				{/each}
+			</div>
+		</div>
+	{/if}
 
 	<!-- Comment composer -->
 	<form class="comment-composer card" onsubmit={handleComment}>
@@ -135,6 +162,66 @@
 
 	.main-post {
 		overflow: hidden;
+	}
+
+	.reblogs-section {
+		margin-bottom: 0.5rem;
+	}
+
+	.reblogs-list {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.reblog-item {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+		padding: 0.75rem 1rem;
+		color: var(--text-primary);
+		text-decoration: none;
+		transition: background-color 0.15s ease;
+	}
+
+	.reblog-item:hover {
+		background-color: var(--hover-bg);
+	}
+
+	/* No dividers requested */
+	.reblog-item {
+		border-bottom: none;
+	}
+
+	.reblog-avatar {
+		width: 24px;
+		height: 24px;
+	}
+
+	.avatar-xs {
+		width: 24px;
+		height: 24px;
+		border-radius: 50%;
+		object-fit: cover;
+	}
+
+	.reblog-name {
+		font-weight: 500;
+		font-size: 0.9375rem;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.reblog-icon-wrapper {
+		color: var(--text-secondary);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.reblog-source {
+		font-size: 0.75rem;
+		color: var(--text-secondary);
 	}
 
 	.comment-composer {

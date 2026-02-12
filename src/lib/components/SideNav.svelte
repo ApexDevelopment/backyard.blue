@@ -5,9 +5,10 @@
 
 	interface Props {
 		user?: BackyardProfile | null;
+		unreadNotifications?: number;
 	}
 
-	let { user = null }: Props = $props();
+	let { user = null, unreadNotifications = 0 }: Props = $props();
 
 	let currentPath = $derived($page.url.pathname);
 
@@ -25,7 +26,12 @@
 		<span class="sidenav-label">home</span>
 	</a>
 	<a href="/activity" class="sidenav-item" class:active={isActive('/activity')}>
-		<Bell size={20} />
+		<span class="sidenav-icon-wrapper">
+			<Bell size={20} />
+			{#if unreadNotifications > 0}
+				<span class="badge">{unreadNotifications > 99 ? '99+' : unreadNotifications}</span>
+			{/if}
+		</span>
 		<span class="sidenav-label">notifications</span>
 	</a>
 	<a href={profileHref} class="sidenav-item" class:active={currentPath.startsWith('/profile/' + (user?.handle ?? '\0'))}>
@@ -75,6 +81,28 @@
 		color: var(--text-primary);
 		background-color: var(--bg-hover);
 		font-weight: 600;
+	}
+
+	.sidenav-icon-wrapper {
+		position: relative;
+		display: flex;
+		align-items: center;
+	}
+
+	.badge {
+		position: absolute;
+		top: -6px;
+		right: -8px;
+		min-width: 16px;
+		height: 16px;
+		padding: 0 4px;
+		border-radius: var(--radius-full);
+		background-color: var(--danger);
+		color: white;
+		font-size: 0.625rem;
+		font-weight: 700;
+		line-height: 16px;
+		text-align: center;
 	}
 
 	@media (max-width: 960px) {
