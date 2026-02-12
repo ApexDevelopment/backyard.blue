@@ -31,6 +31,11 @@
 		return `/tags/${encoded}`;
 	}
 
+	function postHref(uri: string): string {
+		const parts = uri.replace('at://', '').split('/');
+		return `${encodeURIComponent(parts[0])}/${encodeURIComponent(parts[2])}`;
+	}
+
 	/** Max chain entries visible before clipping */
 	const MAX_VISIBLE = 3;
 	let expanded = $state(false);
@@ -319,7 +324,7 @@
 
 	{#if showActions}
 		<div class="post-actions">
-			<a href="/post/{post.uri.split('/').slice(-3).join('/')}" class="action-btn" title="comment">
+			<a href="/post/{postHref(post.uri)}" class="action-btn" title="comment">
 				<MessageCircle size={16} />
 				{#if post.commentCount > 0}
 					<span>{formatCount(post.commentCount)}</span>
