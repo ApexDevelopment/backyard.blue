@@ -215,45 +215,45 @@
 					{#if entry.deleted}
 						<p class="tombstone">this post has been deleted by the author.</p>
 					{:else}
-					<div class="chain-entry-header">
-						<a href="/profile/{entry.author.handle}" class="author-link">
-							{#if entry.author.avatar}
-								<img src={entry.author.avatar} alt="" class="avatar avatar-sm" />
-							{:else}
-								<div class="avatar avatar-sm avatar-placeholder">
-									{(entry.author.displayName || entry.author.handle).charAt(0).toUpperCase()}
-								</div>
-							{/if}
-							<div class="chain-author-info">
-								<div class="chain-author-name-row">
-									<span class="chain-author-name">{entry.author.displayName || entry.author.handle}</span>
-									{#if entry.author.displayName}
-										<span class="chain-author-handle">@{entry.author.handle}</span>
+						<div class="chain-entry-header">
+							<a href="/profile/{entry.author.handle}" class="author-link">
+								{#if entry.author.avatar}
+									<img src={entry.author.avatar} alt="" class="avatar avatar-sm" />
+								{:else}
+									<div class="avatar avatar-sm avatar-placeholder">
+										{(entry.author.displayName || entry.author.handle).charAt(0).toUpperCase()}
+									</div>
+								{/if}
+								<div class="chain-author-info">
+									<div class="chain-author-name-row">
+										<span class="chain-author-name">{entry.author.displayName || entry.author.handle}</span>
+										{#if entry.author.displayName}
+											<span class="chain-author-handle">@{entry.author.handle}</span>
+										{/if}
+									</div>
+									{#if entry.author.pronouns && seenDids.get(entry.uri)}
+										<span class="pronouns-badge">{entry.author.pronouns}</span>
 									{/if}
 								</div>
-								{#if entry.author.pronouns && seenDids.get(entry.uri)}
-									<span class="pronouns-badge">{entry.author.pronouns}</span>
-								{/if}
-							</div>
-						</a>
-						<time class="post-time" datetime={entry.createdAt} title={new Date(entry.createdAt).toLocaleString()}>
-							{formatDate(entry.createdAt)}
-						</time>
-					</div>
-					{#if entry.text}
-						<div class="chain-entry-content">
-							<p><RichTextRenderer text={entry.text} facets={entry.facets} /></p>
+							</a>
+							<time class="post-time" datetime={entry.createdAt} title={new Date(entry.createdAt).toLocaleString()}>
+								{formatDate(entry.createdAt)}
+							</time>
 						</div>
-					{/if}
-					{#if entry.media && entry.media.length > 0}
-						<div class="post-embed">
-							<div class="embed-images" class:single={entry.media.length === 1} class:grid={entry.media.length > 1}>
-								{#each entry.media as media}
-									<img src={media.url} alt={media.alt || ''} class="embed-image" loading="lazy" />
-								{/each}
+						{#if entry.text}
+							<div class="chain-entry-content">
+								<p><RichTextRenderer text={entry.text} facets={entry.facets} /></p>
 							</div>
-						</div>
-					{/if}
+						{/if}
+						{#if entry.media && entry.media.length > 0}
+							<div class="post-embed">
+								<div class="embed-images" class:single={entry.media.length === 1} class:grid={entry.media.length > 1}>
+									{#each entry.media as media}
+										<img src={media.url} alt={media.alt || ''} class="embed-image" loading="lazy" />
+									{/each}
+								</div>
+							</div>
+						{/if}
 					{/if}
 				</div>
 			{/each}
@@ -523,6 +523,7 @@
 		display: flex;
 		flex-direction: column;
 		min-width: 0;
+		gap: 0.125rem;
 	}
 
 	.author-name-row {

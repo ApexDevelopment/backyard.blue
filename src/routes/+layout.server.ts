@@ -1,6 +1,8 @@
 import type { LayoutServerLoad } from './$types.js';
 import { ensureProfile } from '$lib/server/identity.js';
+import { getNewsDocuments } from '$lib/server/news.js';
 import type { BackyardProfile } from '$lib/types.js';
+import type { NewsDocument } from '$lib/types.js';
 
 export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 	const theme = cookies.get('backyard_theme') || 'light';
@@ -15,5 +17,7 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 		}
 	}
 
-	return { user, theme };
+	const news: NewsDocument[] = await getNewsDocuments();
+
+	return { user, theme, news };
 };

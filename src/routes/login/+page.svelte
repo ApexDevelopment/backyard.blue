@@ -48,7 +48,7 @@
 	<div class="login-card card">
 		<div class="login-header">
 			<span class="login-logo"><House size={40} color="var(--accent)" strokeWidth={2} /></span>
-			<h1>welcome to backyard</h1>
+			<h1>welcome to the backyard</h1>
 			{#if signupsDisabled}
 				<p class="login-subtitle">signups are currently disabled.</p>
 			{:else if data.signupMode === 'allowlist'}

@@ -70,14 +70,11 @@
 	.profile-page {
 		display: flex;
 		flex-direction: column;
-		position: relative;
-		z-index: 0;
 	}
 
 	.profile-gradient {
 		position: fixed;
 		inset: 0;
-		z-index: -1;
 		opacity: 0;
 		animation: gradient-fade-in 0.6s ease forwards;
 		pointer-events: none;
@@ -87,6 +84,10 @@
 		to {
 			opacity: 1;
 		}
+	}
+
+	.profile-feed {
+		z-index: 1;
 	}
 
 	.feed-list {

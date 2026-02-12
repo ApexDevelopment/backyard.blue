@@ -16,20 +16,20 @@
 			<p>a cozy corner of the atmosphere. sign in to start posting and connect with others.</p>
 			<a href="/login" class="btn btn-primary">sign in to get started</a>
 		</div>
+	{:else}
+		<div class="feed">
+			{#if data.feed && data.feed.length > 0}
+				{#each data.feed as item (item.post.uri + (item.reblog?.uri || ''))}
+					<PostCard post={item.post} chain={item.chain} reblog={item.reblog} viewerDid={data.user?.did} />
+				{/each}
+			{:else}
+				<div class="empty-state">
+					<p>your feed is empty. follow some people to see their posts here!</p>
+					<a href="/search" class="btn btn-secondary">find people to follow</a>
+				</div>
+			{/if}
+		</div>
 	{/if}
-
-	<div class="feed">
-		{#if data.feed && data.feed.length > 0}
-			{#each data.feed as item (item.post.uri + (item.reblog?.uri || ''))}
-				<PostCard post={item.post} chain={item.chain} reblog={item.reblog} viewerDid={data.user?.did} />
-			{/each}
-		{:else if data.user}
-			<div class="empty-state">
-				<p>your feed is empty. follow some people to see their posts here!</p>
-				<a href="/search" class="btn btn-secondary">find people to follow</a>
-			</div>
-		{/if}
-	</div>
 
 	{#if data.cursor}
 		<div class="load-more">

@@ -74,7 +74,21 @@ The post composer is a **modal overlay** (not an inline text box). It is trigger
 | Component | Description |
 |-----------|-------------|
 | `Header.svelte` | Top navigation bar with home, compose, search, logout |
+| `SideNav.svelte` | Left-column navigation: home, notifications, profile, settings. Sticky, collapses to icons on medium screens, hidden on mobile. |
+| `NewsPanel.svelte` | Right-column placeholder for news/announcements. Hidden below 1100px. |
 | `PostCard.svelte` | Displays a post or reblog with actions (like, comment, reblog) |
 | `PostComposer.svelte` | Modal for creating new posts |
 | `ProfileCard.svelte` | Profile banner, avatar, stats, follow button |
 | `ThemeToggle.svelte` | Light/dark theme switcher |
+
+## Three-Column Layout
+
+The root layout (`+layout.svelte`) uses a three-column flex layout:
+
+| Column | Component | Width | Behavior |
+|--------|-----------|-------|----------|
+| Left | `SideNav` | 200px | Sticky, collapses to icon-only at ≤960px, hidden at ≤640px |
+| Center | Page content | max 640px (`--max-width`) | Always visible, fills available space |
+| Right | `NewsPanel` | 280px | Sticky, hidden at ≤1100px |
+
+The outer `.layout` wrapper has `max-width: 1160px` and is centered with `margin: 0 auto`.

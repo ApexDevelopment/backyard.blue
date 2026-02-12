@@ -138,7 +138,6 @@
 		display: flex;
 		justify-content: center;
 		align-items: flex-start;
-		padding-top: 3rem;
 		min-height: 60vh;
 	}
 

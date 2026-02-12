@@ -126,3 +126,17 @@ export interface BackyardNotification {
 }
 
 export type Theme = 'light' | 'dark';
+
+/**
+ * A preview of a site.standard.document record, used for the news panel.
+ * Not a full representation — just the fields needed for display.
+ */
+export interface NewsDocument {
+	/** AT URI of the document record */
+	uri: string;
+	title: string;
+	description?: string;
+	/** Canonical URL constructed from site + path */
+	url?: string;
+	publishedAt: string;
+}

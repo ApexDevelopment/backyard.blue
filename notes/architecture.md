@@ -84,6 +84,18 @@ Sessions use AES-256-GCM symmetric encryption (via `src/lib/server/session.ts`):
 
 The `BackyardFeedItem` type is a discriminated union (`type: 'post' | 'reblog'`) that represents either a standalone post or a reblog with additional context.
 
+| `src/lib/server/news.ts` | Fetches `site.standard.document` records from the `@backyard.blue` account for the news panel |
+
+## News Panel (standard.site Integration)
+
+The right-column news panel displays previews of `site.standard.document` records published by the official `@backyard.blue` AT Protocol account.
+
+- **Lexicon**: `site.standard.document` from [standard.site](https://standard.site/) — a community schema for long-form publishing on AT Protocol
+- **Fetching**: `src/lib/server/news.ts` resolves the news account's DID (via `NEWS_DID` env var or handle resolution of `NEWS_HANDLE` / default `backyard.blue`), then calls `com.atproto.repo.listRecords` on the account's PDS
+- **Caching**: In-memory cache with 5-minute TTL; stale cache returned on fetch failure (graceful degradation)
+- **Display**: Title, date, optional description. Links to the canonical URL (constructed from `site` + `path` fields) when available
+- **Data flow**: `+layout.server.ts` → `getNewsDocuments()` → `NewsPanel` component via `data.news`
+
 ## Database Schema
 
 Tables map to AT Protocol record types:

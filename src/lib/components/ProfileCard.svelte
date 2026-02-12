@@ -119,6 +119,7 @@
 
 <style>
 	.profile-card {
+		z-index: 1;
 		overflow: hidden;
 		margin-bottom: 0.5rem;
 	}
