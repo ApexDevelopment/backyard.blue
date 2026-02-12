@@ -78,6 +78,7 @@
 		reblogUri={$composer.reblogSubject?.uri}
 		reblogCid={$composer.reblogSubject?.cid}
 		reblogChain={$composer.reblogSubject?.chain}
+		editSubject={$composer.editSubject}
 	/>
 {/if}
 

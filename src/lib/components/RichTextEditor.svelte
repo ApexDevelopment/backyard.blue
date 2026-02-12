@@ -36,6 +36,118 @@
 	let editorEl: HTMLDivElement | undefined = $state();
 	const encoder = new TextEncoder();
 
+	/** When true, the next text change originated from our own syncFromDOM and should not seed the editor. */
+	let internalUpdate = false;
+
+	/**
+	 * Build an HTML string from plain text + formatting facets so the
+	 * contenteditable div shows bold/italic/underline/strikethrough visually.
+	 *
+	 * Facet byte ranges are converted to character ranges, then each character
+	 * position is tagged with its active formats. Adjacent chars with the same
+	 * format set are merged into a single HTML run.
+	 */
+	function buildFormattedHTML(t: string, f: typeof facets): string {
+		if (!t) return '';
+		if (!f || f.length === 0) return escapeHTML(t);
+
+		// For each character, determine its byte offset so we can map facet byte ranges → char ranges.
+		const charByteStart: number[] = [];
+		let byteIdx = 0;
+		for (const ch of t) {
+			charByteStart.push(byteIdx);
+			byteIdx += encoder.encode(ch).length;
+		}
+		const chars = [...t]; // full unicode chars
+		const len = chars.length;
+
+		// Per-character format flags
+		const bold = new Uint8Array(len);
+		const italic = new Uint8Array(len);
+		const underline = new Uint8Array(len);
+		const strike = new Uint8Array(len);
+
+		for (const facet of f) {
+			const bs = facet.index.byteStart;
+			const be = facet.index.byteEnd;
+			const types = new Set(facet.features.map((ft) => ft.$type));
+			const isBold = types.has(BOLD);
+			const isItalic = types.has(ITALIC);
+			const isUnderline = types.has(UNDERLINE);
+			const isStrike = types.has(STRIKE);
+
+			for (let ci = 0; ci < len; ci++) {
+				const cb = charByteStart[ci];
+				if (cb >= bs && cb < be) {
+					if (isBold) bold[ci] = 1;
+					if (isItalic) italic[ci] = 1;
+					if (isUnderline) underline[ci] = 1;
+					if (isStrike) strike[ci] = 1;
+				}
+			}
+		}
+
+		// Merge adjacent chars with the same formatting into runs
+		let html = '';
+		let ri = 0;
+		while (ri < len) {
+			const rb = bold[ri], rit = italic[ri], ru = underline[ri], rs = strike[ri];
+			let runEnd = ri + 1;
+			while (
+				runEnd < len &&
+				bold[runEnd] === rb &&
+				italic[runEnd] === rit &&
+				underline[runEnd] === ru &&
+				strike[runEnd] === rs &&
+				chars[runEnd] !== '\n'
+			) {
+				runEnd++;
+			}
+
+			// Handle newlines as line breaks
+			if (chars[ri] === '\n') {
+				html += '<br>';
+				ri = runEnd;
+				continue;
+			}
+
+			let chunk = escapeHTML(chars.slice(ri, runEnd).join(''));
+			if (rb) chunk = `<b>${chunk}</b>`;
+			if (rit) chunk = `<i>${chunk}</i>`;
+			if (ru) chunk = `<u>${chunk}</u>`;
+			if (rs) chunk = `<s>${chunk}</s>`;
+			html += chunk;
+			ri = runEnd;
+		}
+
+		return html;
+	}
+
+	function escapeHTML(s: string): string {
+		return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+	}
+
+	/**
+	 * Seed the contenteditable div when `text` is set externally (e.g. edit mode pre-fill).
+	 * We detect "external" by tracking whether the change came from syncFromDOM.
+	 */
+	$effect(() => {
+		// Subscribe to text and facets so we re-run when either changes
+		const t = text;
+		const f = facets;
+		if (!editorEl) return;
+		if (internalUpdate) {
+			internalUpdate = false;
+			return;
+		}
+		// External update — populate the div with formatted HTML
+		if (t && editorEl.textContent !== t) {
+			editorEl.innerHTML = buildFormattedHTML(t, f);
+		} else if (!t && editorEl.textContent) {
+			editorEl.innerHTML = '';
+		}
+	});
+
 	// ── Facet type constants ──────────────────────────────
 	const BOLD = 'blue.backyard.richtext.facet#bold';
 	const ITALIC = 'blue.backyard.richtext.facet#italic';
@@ -223,6 +335,7 @@
 			}
 		}
 
+		internalUpdate = true;
 		text = plainText;
 		facets = newFacets;
 	}

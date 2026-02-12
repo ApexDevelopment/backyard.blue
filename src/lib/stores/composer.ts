@@ -1,15 +1,26 @@
 import { writable } from 'svelte/store';
-import type { BackyardChainEntry } from '$lib/types.js';
+import type { BackyardChainEntry, BackyardMedia, Facet } from '$lib/types.js';
 
 export interface ComposerState {
 	open: boolean;
-	mode: 'post' | 'reblog';
+	mode: 'post' | 'reblog' | 'edit';
 	/** When mode === 'reblog', the subject to reblog */
 	reblogSubject?: {
 		uri: string;
 		cid: string;
 		/** Existing chain (original post + previous additions) to display in the composer */
 		chain?: BackyardChainEntry[];
+	};
+	/** When mode === 'edit', the record being edited */
+	editSubject?: {
+		uri: string;
+		cid: string;
+		/** 'post' or 'reblog' — determines which API endpoint to call */
+		collection: 'post' | 'reblog';
+		text: string;
+		facets?: Facet[];
+		tags?: string[];
+		media?: BackyardMedia[];
 	};
 }
 
@@ -24,6 +35,22 @@ export function openReblogComposer(uri: string, cid: string, chain?: BackyardCha
 		open: true,
 		mode: 'reblog',
 		reblogSubject: { uri, cid, chain }
+	});
+}
+
+export function openEditComposer(params: {
+	uri: string;
+	cid: string;
+	collection: 'post' | 'reblog';
+	text: string;
+	facets?: Facet[];
+	tags?: string[];
+	media?: BackyardMedia[];
+}) {
+	composer.set({
+		open: true,
+		mode: 'edit',
+		editSubject: params
 	});
 }
 

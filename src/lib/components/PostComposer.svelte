@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { BackyardProfile, BackyardChainEntry } from '$lib/types.js';
+	import type { BackyardProfile, BackyardChainEntry, BackyardMedia, Facet } from '$lib/types.js';
 	import { X, ImagePlus } from 'lucide-svelte';
 	import RichTextEditor from './RichTextEditor.svelte';
 	import TagInput from './TagInput.svelte';
@@ -9,13 +9,23 @@
 		open: boolean;
 		onClose: () => void;
 		/** When set, the composer is in reblog mode */
-		mode?: 'post' | 'reblog';
+		mode?: 'post' | 'reblog' | 'edit';
 		/** In reblog mode: the subject URI to reblog */
 		reblogUri?: string;
 		/** In reblog mode: the subject CID */
 		reblogCid?: string;
 		/** In reblog mode: the chain to show as read-only context */
 		reblogChain?: BackyardChainEntry[];
+		/** In edit mode: the record being edited */
+		editSubject?: {
+			uri: string;
+			cid: string;
+			collection: 'post' | 'reblog';
+			text: string;
+			facets?: Facet[];
+			tags?: string[];
+			media?: BackyardMedia[];
+		};
 	}
 
 	let {
@@ -25,7 +35,8 @@
 		mode = 'post',
 		reblogUri,
 		reblogCid,
-		reblogChain
+		reblogChain,
+		editSubject
 	}: Props = $props();
 
 	let text = $state('');
@@ -38,9 +49,36 @@
 	const MAX_IMAGES = 4;
 
 	let isReblog = $derived(mode === 'reblog');
-	let title = $derived(isReblog ? 'reblog' : 'new post');
-	let placeholder = $derived(isReblog ? 'add your thoughts...' : "what's on your mind?");
-	let submitLabel = $derived(isReblog ? 'reblog' : 'post');
+	let isEdit = $derived(mode === 'edit');
+	let title = $derived(isEdit ? 'edit' : isReblog ? 'reblog' : 'new post');
+	let placeholder = $derived(isEdit ? 'edit your post…' : isReblog ? 'add your thoughts...' : "what's on your mind?");
+	let submitLabel = $derived(isEdit ? 'save' : isReblog ? 'reblog' : 'post');
+
+	// Pre-fill when entering edit mode
+	let lastEditUri = '';
+	$effect(() => {
+		if (open && isEdit && editSubject && editSubject.uri !== lastEditUri) {
+			lastEditUri = editSubject.uri;
+			text = editSubject.text || '';
+			tags = editSubject.tags ? [...editSubject.tags] : [];
+			formatFacets = editSubject.facets ? [...editSubject.facets] : [];
+			// Restore existing media as already-uploaded images
+			if (editSubject.media && editSubject.media.length > 0) {
+				images = editSubject.media.map((m) => ({
+					file: null as unknown as File,
+					previewUrl: m.url,
+					alt: m.alt || '',
+					blob: m, // treat as already uploaded
+					mimeType: m.mimeType
+				}));
+			} else {
+				images = [];
+			}
+		}
+		if (!open) {
+			lastEditUri = '';
+		}
+	});
 
 	/* ── Image attachments ──────────────────────────── */
 
@@ -179,8 +217,9 @@
 		e.preventDefault();
 		if (submitting || uploading) return;
 
-		// For new posts, text or images are required; for reblogs, text is optional
-		if (!isReblog && !text.trim() && images.length === 0) return;
+		// For edits, same rules as original: post edits need text/images, reblog edits text is optional
+		if (!isReblog && !isEdit && !text.trim() && images.length === 0) return;
+		if (isEdit && editSubject?.collection === 'post' && !text.trim() && images.length === 0) return;
 
 		submitting = true;
 		error = '';
@@ -202,7 +241,33 @@
 				? images.map((img) => ({ blob: img.blob, mimeType: img.mimeType, alt: img.alt || undefined }))
 				: undefined;
 
-			if (isReblog) {
+			if (isEdit && editSubject) {
+				const endpoint = editSubject.collection === 'post' ? '/api/post' : '/api/repost';
+				const body: Record<string, unknown> = {
+					uri: editSubject.uri,
+					text: text.trim() || undefined,
+					tags: tagList,
+					formatFacets: facetList
+				};
+				if (editSubject.collection === 'post') {
+					body.media = media;
+				}
+
+				const res = await fetch(endpoint, {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(body)
+				});
+
+				if (res.ok) {
+					resetState();
+					onClose();
+					window.location.reload();
+				} else {
+					const data = await res.json();
+					error = data.error || 'failed to save edit';
+				}
+			} else if (isReblog) {
 				const res = await fetch('/api/repost', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },

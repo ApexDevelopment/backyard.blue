@@ -88,6 +88,97 @@ export async function createPost(
 	return { uri: res.data.uri, cid: res.data.cid };
 }
 
+export async function updatePost(
+	agent: Agent,
+	did: string,
+	uri: string,
+	data: { text: string; facets?: any[]; media?: any[]; tags?: string[] }
+): Promise<{ uri: string; cid: string }> {
+	const { rkey } = parseAtUri(uri);
+
+	// Fetch existing record to preserve createdAt
+	const existing = await agent.com.atproto.repo.getRecord({
+		repo: did,
+		collection: NSID.POST,
+		rkey
+	});
+
+	const record = {
+		...existing.data.value as Record<string, unknown>,
+		text: data.text,
+		facets: data.facets || undefined,
+		media: data.media || undefined,
+		tags: data.tags || undefined
+	};
+
+	const res = await agent.com.atproto.repo.putRecord({
+		repo: did,
+		collection: NSID.POST,
+		rkey,
+		record
+	});
+
+	await pool.query(
+		`UPDATE posts SET cid = $1, text = $2, facets = $3, media = $4, tags = $5
+		 WHERE uri = $6 AND author_did = $7`,
+		[
+			res.data.cid,
+			data.text,
+			data.facets ? JSON.stringify(data.facets) : null,
+			data.media ? JSON.stringify(data.media) : null,
+			data.tags || null,
+			uri,
+			did
+		]
+	);
+
+	return { uri: res.data.uri, cid: res.data.cid };
+}
+
+export async function updateReblog(
+	agent: Agent,
+	did: string,
+	uri: string,
+	data: { text?: string; facets?: any[]; tags?: string[] }
+): Promise<{ uri: string; cid: string }> {
+	const { rkey } = parseAtUri(uri);
+
+	const existing = await agent.com.atproto.repo.getRecord({
+		repo: did,
+		collection: NSID.REBLOG,
+		rkey
+	});
+
+	const record = {
+		...existing.data.value as Record<string, unknown>,
+		text: data.text || undefined,
+		facets: data.facets || undefined,
+		tags: data.tags || undefined
+	};
+
+	const res = await agent.com.atproto.repo.putRecord({
+		repo: did,
+		collection: NSID.REBLOG,
+		rkey,
+		record
+	});
+
+	await pool.query(
+		`UPDATE reblogs SET cid = $1, text = $2, facets = $3, tags = $4
+		 WHERE uri = $5 AND author_did = $6`,
+		[
+			res.data.cid,
+			data.text || null,
+			data.facets ? JSON.stringify(data.facets) : null,
+			data.tags || null,
+			uri,
+			did
+		]
+	);
+
+	return { uri: res.data.uri, cid: res.data.cid };
+}
+
 export async function createComment(
 	agent: Agent,
 	did: string,

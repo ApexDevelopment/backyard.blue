@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { BackyardPost, BackyardChainEntry, BackyardReblogInfo } from '$lib/types.js';
-	import { MessageCircle, Repeat2, Heart, ChevronDown, Trash2 } from 'lucide-svelte';
-	import { openReblogComposer } from '$lib/stores/composer.js';
+	import { MessageCircle, Repeat2, Heart, ChevronDown, Trash2, Pencil } from 'lucide-svelte';
+	import { openReblogComposer, openEditComposer } from '$lib/stores/composer.js';
 	import RichTextRenderer from './RichTextRenderer.svelte';
 
 	interface Props {
@@ -161,6 +161,30 @@
 				}];
 
 			openReblogComposer(subjectUri, subjectCid, composerChain);
+	}
+
+	function handleEditClick() {
+		if (reblog && ownsReblog) {
+			openEditComposer({
+				uri: reblog.uri,
+				cid: reblog.cid,
+				collection: 'reblog',
+				text: reblog.text || '',
+				facets: reblog.facets,
+				tags: reblog.tags,
+				media: reblog.media
+			});
+		} else if (ownsPost) {
+			openEditComposer({
+				uri: post.uri,
+				cid: post.cid,
+				collection: 'post',
+				text: post.text,
+				facets: post.facets,
+				tags: post.tags,
+				media: post.media
+			});
+		}
 	}
 
 	function handleDeleteClick() {
@@ -346,6 +370,9 @@
 			</button>
 
 			{#if canDelete}
+				<button class="action-btn edit-btn" onclick={handleEditClick} title="edit">
+					<Pencil size={16} />
+				</button>
 				<button class="action-btn delete-btn" onclick={handleDeleteClick} title="delete" disabled={deleteLoading}>
 					<Trash2 size={16} />
 				</button>
