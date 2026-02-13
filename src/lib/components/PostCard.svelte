@@ -1,8 +1,20 @@
 <script lang="ts">
-	import type { BackyardPost, BackyardChainEntry, BackyardReblogInfo } from '$lib/types.js';
+	import type { BackyardPost, BackyardChainEntry, BackyardReblogInfo, Facet } from '$lib/types.js';
 	import { MessageCircle, Repeat2, Heart, ChevronDown, Trash2, Pencil } from 'lucide-svelte';
 	import { openReblogComposer, openEditComposer } from '$lib/stores/composer.js';
 	import RichTextRenderer from './RichTextRenderer.svelte';
+	import EmbedCard from './EmbedCard.svelte';
+
+	/** Extract the first link URL from a set of facets. */
+	function firstLinkUrl(facets?: Facet[]): string | undefined {
+		if (!facets) return undefined;
+		for (const f of facets) {
+			for (const feat of f.features) {
+				if (feat.$type === 'app.bsky.richtext.facet#link' && feat.uri) return feat.uri;
+			}
+		}
+		return undefined;
+	}
 
 	interface Props {
 		post: BackyardPost;
@@ -98,6 +110,9 @@
 	/** The viewer owns the reblog wrapper (for reblogs) */
 	let ownsReblog = $derived(reblog ? viewerDid === reblog.by.did : false);
 	let canDelete = $derived(viewerDid ? (reblog ? ownsReblog : ownsPost) : false);
+
+	/** First link URL found in the post's facets, used for embed preview. */
+	let postEmbedUrl = $derived(firstLinkUrl(post.facets));
 
 	async function handleLike() {
 		if (likeLoading) return;
@@ -283,6 +298,12 @@
 								</div>
 							</div>
 						{/if}
+						{@const entryLink = firstLinkUrl(entry.facets)}
+						{#if entryLink}
+							<div class="post-embed">
+								<EmbedCard url={entryLink} />
+							</div>
+						{/if}
 					{/if}
 				</div>
 			{/each}
@@ -342,6 +363,12 @@
 						<img src={media.url} alt={media.alt || ''} class="embed-image" loading="lazy" />
 					{/each}
 				</div>
+			</div>
+		{/if}
+
+		{#if postEmbedUrl}
+			<div class="post-embed">
+				<EmbedCard url={postEmbedUrl} />
 			</div>
 		{/if}
 	{/if}

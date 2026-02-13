@@ -173,8 +173,18 @@ export async function initializeDatabase(): Promise<void> {
 				added_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 
+			-- Embed preview cache (OpenGraph / Twitter Card metadata)
+			CREATE TABLE IF NOT EXISTS embed_cache (
+				url TEXT PRIMARY KEY,
+				data JSONB,
+				is_null BOOLEAN NOT NULL DEFAULT FALSE,
+				fetched_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+
 			-- Housekeeping: clean up expired OAuth state
 			DELETE FROM oauth_state WHERE created_at < NOW() - INTERVAL '1 hour';
+			-- Housekeeping: clean up stale negative embed cache entries (older than 1 hour)
+			DELETE FROM embed_cache WHERE is_null = TRUE AND fetched_at < NOW() - INTERVAL '1 hour';
 		`);
 	} finally {
 		client.release();
