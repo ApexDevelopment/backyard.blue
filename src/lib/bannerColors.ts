@@ -135,11 +135,29 @@ function kMeans(pixels: RGB[], k: number, iterations = 8): RGB[] {
 	return centroids;
 }
 
-/** Theme base colors to mix toward. */
-const THEME_BG: Record<string, RGB> = {
-	light: { r: 251, g: 240, b: 224 }, // --bg-secondary: #fbf0e0
-	dark:  { r: 38,  g: 34,  b: 32  }, // --bg-secondary: #262220
-};
+/**
+ * Read the active theme's --bg-secondary from the document root
+ * so the gradient blends toward the correct base regardless of scheme.
+ */
+function getThemeBase(): RGB {
+	if (typeof document === 'undefined') return { r: 251, g: 240, b: 224 };
+
+	const raw = getComputedStyle(document.documentElement)
+		.getPropertyValue('--bg-secondary')
+		.trim();
+
+	// Parse "#rrggbb"
+	if (raw.startsWith('#') && raw.length === 7) {
+		return {
+			r: parseInt(raw.slice(1, 3), 16),
+			g: parseInt(raw.slice(3, 5), 16),
+			b: parseInt(raw.slice(5, 7), 16)
+		};
+	}
+
+	// Fallback for unexpected formats
+	return { r: 251, g: 240, b: 224 };
+}
 
 /**
  * Mix a color toward the theme background.
@@ -188,7 +206,7 @@ export async function extractBannerGradient(
 		// become a subtle tint rather than an overpowering wash.
 		// Higher mix = more washed out. Dark mode mixes more aggressively
 		// because bright saturated colors are more jarring on dark backgrounds.
-		const base = isDark ? THEME_BG.dark : THEME_BG.light;
+		const base = getThemeBase();
 		const mix = isDark ? 0.82 : 0.75;
 		const muted = colors.map((c) => mixToward(c, base, mix));
 

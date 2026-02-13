@@ -8,6 +8,8 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 	const rawTheme = cookies.get('backyard_theme') || 'chocoberry-light';
 	const theme = rawTheme === 'light' ? 'chocoberry-light' : rawTheme === 'dark' ? 'chocoberry-dark' : rawTheme;
 
+	const fancyProfiles = cookies.get('backyard_fancy_profiles') !== '0';
+
 	let user: BackyardProfile | null = null;
 
 	if (locals.did) {
@@ -20,5 +22,5 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 
 	const news: NewsDocument[] = await getNewsDocuments();
 
-	return { user, theme, news };
+	return { user, theme, fancyProfiles, news };
 };

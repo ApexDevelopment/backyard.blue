@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { theme, themeMode, themeScheme, COLOR_SCHEMES } from '$lib/stores/theme.js';
+	import { fancyProfiles } from '$lib/stores/preferences.js';
 	import { Moon, Sun } from 'lucide-svelte';
 	import type { ColorScheme } from '$lib/types.js';
 
@@ -8,6 +9,9 @@
 
 	let scheme: string;
 	themeScheme.subscribe((s) => (scheme = s));
+
+	let fancy: boolean;
+	fancyProfiles.subscribe((v) => (fancy = v));
 
 	function handleSchemeChange(e: Event) {
 		const value = (e.target as HTMLSelectElement).value as ColorScheme;
@@ -51,6 +55,18 @@
 							<Moon size={14} />
 						{/if}
 					</span>
+				</span>
+			</button>
+		</div>
+
+		<div class="setting-row">
+			<div class="setting-info">
+				<span class="setting-label">fancy profiles</span>
+				<span class="setting-description">tint the page with a gradient sampled from each user's banner image</span>
+			</div>
+			<button class="mode-toggle" onclick={() => fancyProfiles.toggle()} aria-label="toggle fancy profiles">
+				<span class="mode-toggle-track" class:dark={fancy}>
+					<span class="mode-toggle-thumb"></span>
 				</span>
 			</button>
 		</div>
@@ -144,15 +160,17 @@
 		align-items: center;
 		width: 3rem;
 		height: 1.625rem;
-		border-radius: var(--radius-full);
+		border-radius: var(--radius-sm);
 		background-color: var(--bg-tertiary);
+		border: 1px solid var(--border-color);
 		padding: 0.125rem;
-		transition: background-color 0.2s ease;
+		transition: background-color 0.2s ease, border-color 0.2s ease;
 		cursor: pointer;
 	}
 
 	.mode-toggle-track.dark {
 		background-color: var(--accent);
+		border-color: var(--accent);
 	}
 
 	.mode-toggle-thumb {
@@ -161,7 +179,7 @@
 		justify-content: center;
 		width: 1.375rem;
 		height: 1.375rem;
-		border-radius: var(--radius-full);
+		border-radius: calc(var(--radius-sm) - 2px);
 		background-color: var(--bg-card);
 		box-shadow: var(--shadow-sm);
 		transition: transform 0.2s ease;
@@ -169,7 +187,7 @@
 	}
 
 	.mode-toggle-track.dark .mode-toggle-thumb {
-		transform: translateX(1.375rem);
+		transform: translateX(calc(1.375rem - 2px));
 		color: var(--accent);
 	}
 </style>

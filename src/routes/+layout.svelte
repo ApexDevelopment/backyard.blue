@@ -8,6 +8,7 @@
 	import PostComposer from '$lib/components/PostComposer.svelte';
 	import PullToRefresh from '$lib/components/PullToRefresh.svelte';
 	import { theme } from '$lib/stores/theme.js';
+	import { fancyProfiles } from '$lib/stores/preferences.js';
 	import { composer, openComposer, closeComposer } from '$lib/stores/composer.js';
 	import { unreadCount, initNotifications, destroyNotifications } from '$lib/stores/notifications.js';
 	import type { LayoutData } from './$types.js';
@@ -23,6 +24,10 @@
 		if (data.theme) {
 			theme.initialize(data.theme);
 		}
+	});
+
+	$effect(() => {
+		fancyProfiles.initialize(data.fancyProfiles);
 	});
 
 	// Bootstrap notification listener when logged in (client-side only)
