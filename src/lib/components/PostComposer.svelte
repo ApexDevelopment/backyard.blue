@@ -54,26 +54,35 @@
 	let placeholder = $derived(isEdit ? 'edit your post…' : isReblog ? 'add your thoughts...' : "what's on your mind?");
 	let submitLabel = $derived(isEdit ? 'save' : isReblog ? 'reblog' : 'post');
 
-	// Pre-fill when entering edit mode
+	// Pre-fill when entering edit mode; clear state for new post/reblog
 	let lastEditUri = '';
+	let wasOpen = false;
 	$effect(() => {
-		if (open && isEdit && editSubject && editSubject.uri !== lastEditUri) {
+		const justOpened = open && !wasOpen;
+		wasOpen = open;
+
+		if (justOpened && isEdit && editSubject) {
 			lastEditUri = editSubject.uri;
 			text = editSubject.text || '';
 			tags = editSubject.tags ? [...editSubject.tags] : [];
 			formatFacets = editSubject.facets ? [...editSubject.facets] : [];
-			// Restore existing media as already-uploaded images
 			if (editSubject.media && editSubject.media.length > 0) {
 				images = editSubject.media.map((m) => ({
 					file: null as unknown as File,
 					previewUrl: m.url,
 					alt: m.alt || '',
-					blob: m, // treat as already uploaded
+					blob: m,
 					mimeType: m.mimeType
 				}));
 			} else {
 				images = [];
 			}
+		} else if (justOpened && !isEdit) {
+			text = '';
+			formatFacets = [];
+			tags = [];
+			images = [];
+			error = '';
 		}
 		if (!open) {
 			lastEditUri = '';
