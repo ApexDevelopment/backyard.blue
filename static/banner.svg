@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 500" width="1500" height="500" role="img" aria-label="backyard social banner">
+	<rect width="1500" height="500" fill="white"/>
+
+	<g fill="#8b3a4a"
+	   font-family="Inter, Helvetica, Arial, sans-serif"
+	   font-weight="600"
+	   font-size="56"
+	   letter-spacing="2">
+
+		<text x="-300" y="95">
+			community • fandom • art • stories • blogging • identity • connection • community • fandom • art • stories
+		</text>
+
+		<text x="-620" y="175">
+			longposts • reblogs • creativity • microcultures • tags • passion • expression • belonging • longposts • reblogs • creativity • microcultures
+		</text>
+
+		<text x="-420" y="255">
+			indie web • timelines • conversations • projects • experiments • friends • discovery • joy • indie web • timelines • conversations • projects
+		</text>
+
+		<text x="-680" y="335">
+			essays • artblogs • fanfiction • sketches • community • roleplay • headcanons • mutuals • signal boosts • essays • artblogs • fanfiction
+		</text>
+
+		<text x="-540" y="415">
+			backyard • backyard • backyard • backyard • backyard • backyard • backyard • backyard • backyard • backyard • backyard
+		</text>
+
+	</g>
+</svg>
