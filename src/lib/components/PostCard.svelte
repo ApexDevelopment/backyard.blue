@@ -348,14 +348,6 @@
 			<p><RichTextRenderer text={post.text} facets={post.facets} /></p>
 		</div>
 
-		{#if cardTags && cardTags.length > 0}
-			<div class="post-tags">
-				{#each cardTags as tag}
-					<a href={tagHref(tag)} class="tag">#{tag}</a>
-				{/each}
-			</div>
-		{/if}
-
 		{#if post.media && post.media.length > 0}
 			<div class="post-embed">
 				<div class="embed-images" class:single={post.media.length === 1} class:grid={post.media.length > 1}>
@@ -369,6 +361,14 @@
 		{#if postEmbedUrl}
 			<div class="post-embed">
 				<EmbedCard url={postEmbedUrl} />
+			</div>
+		{/if}
+
+		{#if cardTags && cardTags.length > 0}
+			<div class="post-tags">
+				{#each cardTags as tag}
+					<a href={tagHref(tag)} class="tag">#{tag}</a>
+				{/each}
 			</div>
 		{/if}
 	{/if}
