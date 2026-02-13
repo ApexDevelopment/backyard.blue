@@ -55,13 +55,11 @@
 	}
 
 	.news-heading {
-		font-size: 0.875rem;
+		font-size: 0.8125rem;
 		font-weight: 600;
 		color: var(--text-tertiary);
-		text-transform: lowercase;
 		letter-spacing: 0.02em;
 		margin-bottom: 0.5rem;
-		padding: 0 0.25rem;
 	}
 
 	.news-list {

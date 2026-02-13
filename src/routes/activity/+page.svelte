@@ -144,12 +144,12 @@
 	.activity-page {
 		display: flex;
 		flex-direction: column;
+		gap: 1rem;
 	}
 
 	.page-title {
 		font-size: 1.25rem;
 		font-weight: 700;
-		margin-bottom: 1rem;
 		color: var(--text-primary);
 	}
 

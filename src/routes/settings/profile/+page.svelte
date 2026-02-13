@@ -26,7 +26,7 @@
 	}
 
 	.edit-page h1 {
-		font-size: 1.375rem;
+		font-size: 1.25rem;
 		font-weight: 700;
 		margin-bottom: 1.5rem;
 		color: var(--text-primary);

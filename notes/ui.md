@@ -1,46 +1,50 @@
 # UI & Design
 
-## Color Scheme
+## Color Schemes
 
-Backyard uses a warm, muted palette — cream/white backgrounds with maroon accents. Both light and dark themes are defined via CSS custom properties in `src/app.css`.
+Backyard supports multiple color schemes, each with light and dark variants. Schemes are defined as CSS custom property blocks in `src/app.css` using `[data-theme='<scheme>-<mode>']` selectors.
 
-### Light Theme
+The active scheme is stored in a `backyard_theme` cookie as a compound string (e.g. `chocoberry-light`) so the server can inject the correct `data-theme` during SSR, preventing a flash of wrong theme. The `theme` store in `src/lib/stores/theme.ts` exposes derived stores `themeMode` (`'light' | 'dark'`) and `themeScheme` (the scheme name) for components that need to branch on mode or scheme.
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--bg-primary` | `#faf8f5` | Page background (warm white) |
-| `--bg-secondary` | `#f3efe9` | Secondary surfaces |
-| `--bg-card` | `#ffffff` | Card backgrounds |
-| `--text-primary` | `#2c2420` | Main body text (warm dark brown) |
-| `--text-secondary` | `#5c524a` | Secondary/muted text |
-| `--text-link` | `#7c3040` | Links |
-| `--accent` | `#8b3a4a` | Primary accent (maroon) |
-| `--accent-light` | `#f2dce0` | Accent background tint |
-| `--danger` | `#c44040` | Destructive actions, active likes |
+### Adding a new scheme
 
-### Dark Theme
+1. Add the scheme name to the `ColorScheme` union type in `src/lib/types.ts`.
+2. Add an entry to the `COLOR_SCHEMES` array in `src/lib/stores/theme.ts` (provides the display label and description for the settings UI).
+3. Add `[data-theme='<name>-light']` and `[data-theme='<name>-dark']` blocks in `src/app.css`. Every token listed in the Chocoberry block must be defined — there are no fallback values.
+
+### Design Tokens (structural, scheme-independent)
+
+Set on `:root` in `src/app.css`:
 
 | Token | Value | Usage |
 |-------|-------|-------|
-| `--bg-primary` | `#1c1917` | Page background (warm charcoal) |
-| `--bg-card` | `#262220` | Card backgrounds (warm dark brown) |
-| `--text-primary` | `#e0d9d4` | Main body text |
-| `--accent` | `#c26070` | Primary accent (rosy) |
-| `--accent-hover` | `#d9899a` | Accent hover state |
+| `--radius-sm/md/lg/full` | `8px` / `12px` / `16px` / `9999px` | Border radii |
+| `--max-width` | `640px` | Content column |
+| `--header-height` | `60px` | Top nav bar |
+| `--font-sans` | Inter, system fallbacks | Body text |
+| `--font-mono` | JetBrains Mono, Fira Code | Code text |
 
-### Design Tokens
+## Heading Scale
 
-- Border radii: `8px` / `12px` / `16px` / `9999px` (pill)
-- Max content width: `640px`
-- Header height: `60px`
-- Font stack: Inter, system fonts fallback
-- Monospace: JetBrains Mono, Fira Code
+All headings are styled via Svelte scoped `<style>` blocks rather than global rules. To keep sizing and weight consistent across pages, every heading must conform to one of the tiers below.
+
+| Tier | Element | `font-size` | `font-weight` | `color` | When to use |
+|------|---------|-------------|---------------|---------|-------------|
+| **Page title** | `h1` | `1.25rem` | 700 | `var(--text-primary)` | Standard in-app page headings (feed, activity, settings, search, tags, following, etc.) |
+| **Hero title** | `h1` | `1.375rem` | 700 | `var(--text-primary)` | Centered landing pages (login, onboarding, create profile) |
+| **Section heading** | `h2` | `1rem` | 600 | `var(--text-primary)` | Named sections within a page (comments, search result groups) |
+| **Section label** | `h2` | `0.8125rem` | 600 | `var(--text-tertiary)` | Small category labels in sidebars/settings. `letter-spacing: 0.02em`. |
+| **Card title** | `h3` | `0.9375rem` | 600 | *(inherited)* | Titles inside cards (onboarding choices, etc.) |
+| **Modal title** | `h2` | `1.0625rem` | 700 | *(inherited)* | Dialog/modal headers (composer) |
+
+**Rules:**
+- Every heading must explicitly set `color` unless it naturally inherits the correct value from a parent (e.g. inside a card that already sets `--text-primary`).
+- Spacing between a heading and its subsequent content should be handled by the parent container's `gap`, not by `margin-bottom` on the heading, when the parent is a flex/grid container.
+- No `text-transform`. All text in Backyard is lowercase by convention.
 
 ## Theme Toggle
 
-The theme preference is stored in a `backyard_theme` cookie (not localStorage) so the server can inject the correct `data-theme` attribute during SSR, preventing a flash of wrong theme.
-
-The toggle uses Lucide `Moon`/`Sun` icons.
+The toggle uses Lucide `Moon`/`Sun` icons and flips light ↔ dark within the current color scheme.
 
 ## Icons
 

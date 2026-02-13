@@ -244,7 +244,6 @@
 		font-weight: 600;
 		color: var(--text-primary);
 		margin-bottom: 0.5rem;
-		padding: 0 0.25rem;
 	}
 
 	.comments-list {

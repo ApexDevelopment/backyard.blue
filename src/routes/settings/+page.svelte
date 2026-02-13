@@ -78,7 +78,7 @@
 	}
 
 	.settings-page h1 {
-		font-size: 1.375rem;
+		font-size: 1.25rem;
 		font-weight: 700;
 		color: var(--text-primary);
 	}
@@ -93,7 +93,7 @@
 	.settings-section h2 {
 		font-size: 0.8125rem;
 		font-weight: 600;
-		letter-spacing: 0.04em;
+		letter-spacing: 0.02em;
 		color: var(--text-tertiary);
 		margin-bottom: 0.25rem;
 	}

@@ -134,7 +134,7 @@
 	}
 
 	.login-header h1 {
-		font-size: 1.5rem;
+		font-size: 1.375rem;
 		font-weight: 700;
 		margin-top: 0.75rem;
 		color: var(--text-primary);

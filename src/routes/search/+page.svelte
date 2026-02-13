@@ -159,6 +159,7 @@
 	.results-header h2 {
 		font-size: 1rem;
 		font-weight: 600;
+		color: var(--text-primary);
 	}
 
 	.result-count {
