@@ -351,10 +351,10 @@ export async function getTimeline(
 			SELECT subject_uri, COUNT(*) as cnt FROM reblogs WHERE subject_uri IN (SELECT post_uri FROM post_uris) GROUP BY subject_uri
 		),
 		vl AS (
-			SELECT subject_uri, uri FROM likes WHERE author_did = $1 AND subject_uri IN (SELECT post_uri FROM post_uris)
+			SELECT DISTINCT ON (subject_uri) subject_uri, uri FROM likes WHERE author_did = $1 AND subject_uri IN (SELECT post_uri FROM post_uris)
 		),
 		vr AS (
-			SELECT subject_uri, uri FROM reblogs WHERE author_did = $1 AND subject_uri IN (SELECT post_uri FROM post_uris)
+			SELECT DISTINCT ON (subject_uri) subject_uri, uri FROM reblogs WHERE author_did = $1 AND subject_uri IN (SELECT post_uri FROM post_uris)
 		)
 		SELECT f.*,
 			COALESCE(lc.cnt, 0) as like_count,
@@ -442,10 +442,10 @@ export async function getAuthorFeed(
 			SELECT subject_uri, COUNT(*) as cnt FROM reblogs WHERE subject_uri IN (SELECT post_uri FROM post_uris) GROUP BY subject_uri
 		),
 		vl AS (
-			SELECT subject_uri, uri FROM likes WHERE author_did = $3 AND subject_uri IN (SELECT post_uri FROM post_uris)
+			SELECT DISTINCT ON (subject_uri) subject_uri, uri FROM likes WHERE author_did = $3 AND subject_uri IN (SELECT post_uri FROM post_uris)
 		),
 		vr AS (
-			SELECT subject_uri, uri FROM reblogs WHERE author_did = $3 AND subject_uri IN (SELECT post_uri FROM post_uris)
+			SELECT DISTINCT ON (subject_uri) subject_uri, uri FROM reblogs WHERE author_did = $3 AND subject_uri IN (SELECT post_uri FROM post_uris)
 		)
 		SELECT f.*,
 			COALESCE(lc.cnt, 0) as like_count,
@@ -648,10 +648,10 @@ export async function getPostsByTag(
 			SELECT subject_uri, COUNT(*) as cnt FROM reblogs WHERE subject_uri IN (SELECT post_uri FROM post_uris) GROUP BY subject_uri
 		),
 		vl AS (
-			SELECT subject_uri, uri FROM likes WHERE author_did = $3 AND subject_uri IN (SELECT post_uri FROM post_uris)
+			SELECT DISTINCT ON (subject_uri) subject_uri, uri FROM likes WHERE author_did = $3 AND subject_uri IN (SELECT post_uri FROM post_uris)
 		),
 		vr AS (
-			SELECT subject_uri, uri FROM reblogs WHERE author_did = $3 AND subject_uri IN (SELECT post_uri FROM post_uris)
+			SELECT DISTINCT ON (subject_uri) subject_uri, uri FROM reblogs WHERE author_did = $3 AND subject_uri IN (SELECT post_uri FROM post_uris)
 		)
 		SELECT f.*,
 			COALESCE(lc.cnt, 0) as like_count,
@@ -740,10 +740,10 @@ export async function getPostsByTagAndAuthor(
 			SELECT subject_uri, COUNT(*) as cnt FROM reblogs WHERE subject_uri IN (SELECT post_uri FROM post_uris) GROUP BY subject_uri
 		),
 		vl AS (
-			SELECT subject_uri, uri FROM likes WHERE author_did = $4 AND subject_uri IN (SELECT post_uri FROM post_uris)
+			SELECT DISTINCT ON (subject_uri) subject_uri, uri FROM likes WHERE author_did = $4 AND subject_uri IN (SELECT post_uri FROM post_uris)
 		),
 		vr AS (
-			SELECT subject_uri, uri FROM reblogs WHERE author_did = $4 AND subject_uri IN (SELECT post_uri FROM post_uris)
+			SELECT DISTINCT ON (subject_uri) subject_uri, uri FROM reblogs WHERE author_did = $4 AND subject_uri IN (SELECT post_uri FROM post_uris)
 		)
 		SELECT f.*,
 			COALESCE(lc.cnt, 0) as like_count,
