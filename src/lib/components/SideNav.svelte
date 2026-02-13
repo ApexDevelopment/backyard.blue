@@ -38,7 +38,7 @@
 		<User size={20} />
 		<span class="sidenav-label">profile</span>
 	</a>
-	<a href="/settings/profile" class="sidenav-item" class:active={isActive('/settings')}>
+	<a href="/settings" class="sidenav-item" class:active={isActive('/settings')}>
 		<Settings size={20} />
 		<span class="sidenav-label">settings</span>
 	</a>

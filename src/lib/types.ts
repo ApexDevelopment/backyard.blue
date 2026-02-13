@@ -132,7 +132,9 @@ export interface BackyardNotification {
 	createdAt: string;
 }
 
-export type Theme = 'light' | 'dark';
+export type ThemeMode = 'light' | 'dark';
+export type ColorScheme = 'chocoberry' | 'potpourri';
+export type Theme = `${ColorScheme}-${ThemeMode}`;
 
 /**
  * A preview of a site.standard.document record, used for the news panel.

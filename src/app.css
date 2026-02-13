@@ -2,13 +2,27 @@
    Backyard — Global Styles
    ============================================ */
 
-/* CSS Custom Properties (Light Theme — default) */
-:root,
-[data-theme='light'] {
-	--bg-primary: #fdf6ea;
-	--bg-secondary: #fbf0e0;
-	--bg-tertiary: #f0e2cf;
-	--bg-card: #fffbf7;
+/* CSS Custom Properties — structural tokens that all schemes must define */
+:root {
+	--radius-sm: 8px;
+	--radius-md: 12px;
+	--radius-lg: 16px;
+	--radius-full: 9999px;
+
+	--font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	--font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+	--max-width: 640px;
+	--header-height: 60px;
+}
+
+/* ── Chocoberry (default scheme) ── */
+
+[data-theme='chocoberry-light'] {
+	--bg-primary: #f0e6d3;
+	--bg-secondary: #f3e5d4;
+	--bg-tertiary: #e8d6c0;
+	--bg-card: #fffbf5;
 	--bg-hover: #f5e8d9;
 
 	--text-primary: #4a382e;
@@ -17,8 +31,8 @@
 	--text-link: #9c4253;
 	--text-link-hover: #7d2e3e;
 
-	--border-color: #e6d8cc;
-	--border-light: #f2e9e2;
+	--border-color: #e2d1c0;
+	--border-light: #f0e5da;
 
 	--accent: #8b3a4a;
 	--accent-hover: #732e3c;
@@ -33,23 +47,11 @@
 	--shadow-sm: 0 1px 3px rgba(44, 36, 32, 0.06);
 	--shadow-md: 0 2px 8px rgba(44, 36, 32, 0.08);
 	--shadow-lg: 0 4px 16px rgba(44, 36, 32, 0.1);
-
-	--radius-sm: 8px;
-	--radius-md: 12px;
-	--radius-lg: 16px;
-	--radius-full: 9999px;
-
-	--font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-	--font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-
-	--max-width: 640px;
-	--header-height: 60px;
 }
 
-/* Dark Theme */
-[data-theme='dark'] {
-	--bg-primary: #1c1917;
-	--bg-secondary: #262220;
+[data-theme='chocoberry-dark'] {
+	--bg-primary: #151210;
+	--bg-secondary: #1a1714;
 	--bg-tertiary: #332d2a;
 	--bg-card: #262220;
 	--bg-hover: #332d2a;
@@ -67,6 +69,75 @@
 	--accent-hover: #d9899a;
 	--accent-light: #332220;
 	--accent-text: #ffffff;
+
+	--danger: #d45050;
+	--danger-hover: #b83a3a;
+	--success: #5aad70;
+	--warning: #d4a040;
+
+	--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+	--shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
+	--shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* ── Potpourri ── */
+
+[data-theme='potpourri-light'] {
+	--bg-primary: #e4e0ed;
+	--bg-secondary: #e8e4ee;
+	--bg-tertiary: #d5d0de;
+	--bg-card: #f8f7fb;
+	--bg-hover: #ddd8e6;
+
+	--text-primary: #2e2a3b;
+	--text-secondary: #5c5672;
+	--text-tertiary: #8e88a0;
+	--text-link: #6b5ca5;
+	--text-link-hover: #503f8a;
+
+	--border-color: #cec8d9;
+	--border-light: #e0dce8;
+
+	--accent: #6b5ca5;
+	--accent-hover: #5a4b92;
+	--accent-light: #e2ddf0;
+	--accent-text: #ffffff;
+
+	--danger: #c44040;
+	--danger-hover: #a83030;
+	--success: #4a9960;
+	--warning: #c49030;
+
+	--shadow-sm: 0 1px 3px rgba(30, 26, 42, 0.06);
+	--shadow-md: 0 2px 8px rgba(30, 26, 42, 0.08);
+	--shadow-lg: 0 4px 16px rgba(30, 26, 42, 0.1);
+}
+
+[data-theme='potpourri-dark'] {
+	--bg-primary: #121018;
+	--bg-secondary: #17141e;
+	--bg-tertiary: #2a2636;
+	--bg-card: #201d2a;
+	--bg-hover: #2a2636;
+
+	--text-primary: #dddae4;
+	--text-secondary: #9892a8;
+	--text-tertiary: #605a72;
+	--text-link: #a99bdf;
+	--text-link-hover: #c4b9f0;
+
+	--border-color: #352f44;
+	--border-light: #2a2636;
+
+	--accent: #907ed0;
+	--accent-hover: #a99bdf;
+	--accent-light: #28203a;
+	--accent-text: #ffffff;
+
+	--danger: #d45050;
+	--danger-hover: #b83a3a;
+	--success: #5aad70;
+	--warning: #d4a040;
 
 	--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
 	--shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);

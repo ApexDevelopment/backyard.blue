@@ -1,22 +1,22 @@
 <script lang="ts">
-	import { theme } from '$lib/stores/theme.js';
+	import { theme, themeMode } from '$lib/stores/theme.js';
 	import { Moon, Sun } from 'lucide-svelte';
 
 	function toggle() {
 		theme.toggle();
 	}
 
-	let currentTheme: string;
-	theme.subscribe((t) => (currentTheme = t));
+	let mode: string;
+	themeMode.subscribe((m) => (mode = m));
 </script>
 
 <button
 	class="theme-toggle btn-ghost"
 	onclick={toggle}
-	aria-label="toggle {currentTheme === 'light' ? 'dark' : 'light'} mode"
+	aria-label="toggle {mode === 'light' ? 'dark' : 'light'} mode"
 	title="toggle theme"
 >
-	{#if currentTheme === 'light'}
+	{#if mode === 'light'}
 		<Moon size={18} />
 	{:else}
 		<Sun size={18} />

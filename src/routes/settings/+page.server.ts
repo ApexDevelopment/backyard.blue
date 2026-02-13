@@ -1,0 +1,10 @@
+import type { PageServerLoad } from './$types.js';
+import { redirect } from '@sveltejs/kit';
+
+export const load: PageServerLoad = async ({ locals }) => {
+	if (!locals.did) {
+		throw redirect(303, '/login');
+	}
+
+	return {};
+};

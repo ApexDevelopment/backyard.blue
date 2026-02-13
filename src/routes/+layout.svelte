@@ -21,7 +21,7 @@
 
 	$effect(() => {
 		if (data.theme) {
-			theme.initialize(data.theme as 'light' | 'dark');
+			theme.initialize(data.theme);
 		}
 	});
 

@@ -136,8 +136,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	const response = await resolve(event, {
 		transformPageChunk: ({ html }) => {
-			const theme = event.cookies.get('backyard_theme') || 'light';
-			return html.replace('%backyard.theme%', theme);
+			const theme = event.cookies.get('backyard_theme') || 'chocoberry-light';
+			// Normalize bare "light"/"dark" from older cookies
+			const normalized = theme === 'light' ? 'chocoberry-light' : theme === 'dark' ? 'chocoberry-dark' : theme;
+			return html.replace('%backyard.theme%', normalized);
 		}
 	});
 

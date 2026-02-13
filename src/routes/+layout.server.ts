@@ -5,7 +5,8 @@ import type { BackyardProfile } from '$lib/types.js';
 import type { NewsDocument } from '$lib/types.js';
 
 export const load: LayoutServerLoad = async ({ locals, cookies }) => {
-	const theme = cookies.get('backyard_theme') || 'light';
+	const rawTheme = cookies.get('backyard_theme') || 'chocoberry-light';
+	const theme = rawTheme === 'light' ? 'chocoberry-light' : rawTheme === 'dark' ? 'chocoberry-dark' : rawTheme;
 
 	let user: BackyardProfile | null = null;
 

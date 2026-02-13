@@ -164,10 +164,6 @@
 		overflow: hidden;
 	}
 
-	.reblogs-section {
-		margin-bottom: 0.5rem;
-	}
-
 	.reblogs-list {
 		display: flex;
 		flex-direction: column;

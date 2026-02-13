@@ -2,7 +2,7 @@
 	import ProfileCard from '$lib/components/ProfileCard.svelte';
 	import PostCard from '$lib/components/PostCard.svelte';
 	import { extractBannerGradient, BANNER_GRADIENT_ENABLED } from '$lib/bannerColors.js';
-	import { theme } from '$lib/stores/theme.js';
+	import { theme, themeMode } from '$lib/stores/theme.js';
 	import type { PageData } from './$types.js';
 
 	let { data }: { data: PageData } = $props();
@@ -17,7 +17,7 @@
 		if (!BANNER_GRADIENT_ENABLED || !data.profile.banner) return;
 
 		const bannerUrl = data.profile.banner;
-		const isDark = $theme === 'dark';
+		const isDark = $themeMode === 'dark';
 
 		extractBannerGradient(bannerUrl, isDark).then((g) => {
 			if (gen === effectGeneration) gradient = g;

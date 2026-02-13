@@ -1,6 +1,6 @@
 <script lang="ts">
 	import ThemeToggle from './ThemeToggle.svelte';
-	import { theme } from '$lib/stores/theme.js';
+	import { theme, themeMode } from '$lib/stores/theme.js';
 	import type { BackyardProfile } from '$lib/types.js';
 	import { Plus, Search, LogOut, User, Moon, Sun } from 'lucide-svelte';
 
@@ -68,7 +68,7 @@
 								<span>view profile</span>
 							</a>
 							<button class="menu-item" onclick={() => theme.toggle()}>
-								{#if $theme === 'light'}
+							{#if $themeMode === 'light'}
 									<Moon size={18} />
 								{:else}
 									<Sun size={18} />
