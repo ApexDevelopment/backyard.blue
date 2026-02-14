@@ -514,7 +514,7 @@
 		width: fit-content;
 		font-size: 0.6875rem;
 		color: var(--text-secondary);
-		background-color: color-mix(in srgb, var(--text-tertiary) 12%, transparent);
+		background-color: color-mix(in srgb, var(--text-tertiary) 18%, transparent);
 		padding: 0 0.375rem;
 		border-radius: var(--radius-sm);
 		line-height: 1.5;

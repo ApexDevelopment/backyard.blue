@@ -193,7 +193,7 @@
 		width: fit-content;
 		font-size: 0.75rem;
 		color: var(--text-secondary);
-		background-color: color-mix(in srgb, var(--text-tertiary) 12%, transparent);
+		background-color: color-mix(in srgb, var(--text-tertiary) 18%, transparent);
 		padding: 0.0625rem 0.4375rem;
 		border-radius: var(--radius-sm);
 		margin-top: 0.25rem;
