@@ -11,6 +11,7 @@
 	import { fancyProfiles } from '$lib/stores/preferences.js';
 	import { composer, openComposer, closeComposer } from '$lib/stores/composer.js';
 	import { unreadCount, initNotifications, destroyNotifications } from '$lib/stores/notifications.js';
+	import { mobileNavOpen, closeMobileNav } from '$lib/stores/mobileNav.js';
 	import type { LayoutData } from './$types.js';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
@@ -55,6 +56,16 @@
 </svelte:head>
 
 <Header user={data.user} onCompose={() => openComposer()} />
+
+<div
+	class="drawer-backdrop"
+	class:open={$mobileNavOpen}
+	onclick={closeMobileNav}
+	role="presentation"
+></div>
+<aside class="drawer" class:open={$mobileNavOpen}>
+	<SideNav user={data.user} unreadNotifications={$unreadCount} onnavigate={closeMobileNav} drawer={true} />
+</aside>
 
 {#if data.user}
 	<PullToRefresh />
@@ -137,6 +148,54 @@
 		.layout {
 			grid-template-columns: minmax(0, var(--max-width));
 			padding: 0 0.75rem;
+		}
+	}
+
+	/* Slide-out drawer (mobile only) */
+	.drawer-backdrop {
+		display: none;
+	}
+
+	.drawer {
+		display: none;
+	}
+
+	@media (max-width: 640px) {
+		.drawer-backdrop {
+			display: block;
+			position: fixed;
+			inset: 0;
+			background-color: rgba(0, 0, 0, 0.4);
+			z-index: 200;
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity 0.25s ease;
+		}
+
+		.drawer-backdrop.open {
+			opacity: 1;
+			pointer-events: auto;
+		}
+
+		.drawer {
+			display: flex;
+			position: fixed;
+			top: 0;
+			left: 0;
+			bottom: 0;
+			width: 16rem;
+			z-index: 201;
+			background-color: var(--bg-card);
+			border-right: 1px solid var(--border-color);
+			box-shadow: var(--shadow-lg);
+			padding: 1rem;
+			transform: translateX(-100%);
+			transition: transform 0.25s ease;
+			overflow-y: auto;
+		}
+
+		.drawer.open {
+			transform: translateX(0);
 		}
 	}
 </style>

@@ -6,9 +6,11 @@
 	interface Props {
 		user?: BackyardProfile | null;
 		unreadNotifications?: number;
+		onnavigate?: () => void;
+		drawer?: boolean;
 	}
 
-	let { user = null, unreadNotifications = 0 }: Props = $props();
+	let { user = null, unreadNotifications = 0, onnavigate, drawer = false }: Props = $props();
 
 	let currentPath = $derived($page.url.pathname);
 
@@ -20,12 +22,12 @@
 	let profileHref = $derived(user ? `/profile/${user.handle}` : '/login');
 </script>
 
-<nav class="sidenav" aria-label="Main navigation">
-	<a href="/" class="sidenav-item" class:active={isActive('/')}>
+<nav class="sidenav" class:drawer aria-label="Main navigation">
+	<a href="/" class="sidenav-item" class:active={isActive('/')} onclick={onnavigate}>
 		<House size={20} />
 		<span class="sidenav-label">home</span>
 	</a>
-	<a href="/activity" class="sidenav-item" class:active={isActive('/activity')}>
+	<a href="/activity" class="sidenav-item" class:active={isActive('/activity')} onclick={onnavigate}>
 		<span class="sidenav-icon-wrapper">
 			<Bell size={20} />
 			{#if unreadNotifications > 0}
@@ -34,11 +36,11 @@
 		</span>
 		<span class="sidenav-label">notifications</span>
 	</a>
-	<a href={profileHref} class="sidenav-item" class:active={currentPath.startsWith('/profile/' + (user?.handle ?? '\0'))}>
+	<a href={profileHref} class="sidenav-item" class:active={currentPath.startsWith('/profile/' + (user?.handle ?? '\0'))} onclick={onnavigate}>
 		<User size={20} />
 		<span class="sidenav-label">profile</span>
 	</a>
-	<a href="/settings" class="sidenav-item" class:active={isActive('/settings')}>
+	<a href="/settings" class="sidenav-item" class:active={isActive('/settings')} onclick={onnavigate}>
 		<Settings size={20} />
 		<span class="sidenav-label">settings</span>
 	</a>
@@ -106,23 +108,23 @@
 	}
 
 	@media (max-width: 960px) {
-		.sidenav {
+		.sidenav:not(.drawer) {
 			width: auto;
 			justify-self: center;
 		}
 
-		.sidenav-label {
+		.sidenav:not(.drawer) .sidenav-label {
 			display: none;
 		}
 
-		.sidenav-item {
+		.sidenav:not(.drawer) .sidenav-item {
 			justify-content: center;
 			padding: 0.625rem;
 		}
 	}
 
 	@media (max-width: 640px) {
-		.sidenav {
+		.sidenav:not(.drawer) {
 			display: none;
 		}
 	}

@@ -1,8 +1,9 @@
 <script lang="ts">
 	import ThemeToggle from './ThemeToggle.svelte';
 	import { theme, themeMode } from '$lib/stores/theme.js';
+	import { toggleMobileNav } from '$lib/stores/mobileNav.js';
 	import type { BackyardProfile } from '$lib/types.js';
-	import { Plus, Search, LogOut, User, Moon, Sun } from 'lucide-svelte';
+	import { Plus, Search, LogOut, User, Moon, Sun, Menu } from 'lucide-svelte';
 
 	interface Props {
 		user?: BackyardProfile | null;
@@ -35,6 +36,9 @@
 
 <header class="header">
 	<div class="header-inner container">
+		<button class="hamburger" onclick={toggleMobileNav} aria-label="open navigation menu">
+			<Menu size={20} />
+		</button>
 		<a href="/" class="logo">
 			<img src="/backyard-logo.svg" alt="backyard logo" width="24" height="24" />
 			<span class="logo-text">backyard</span>
@@ -109,6 +113,31 @@
 		justify-content: space-between;
 		height: 100%;
 		max-width: var(--max-width);
+	}
+
+	.hamburger {
+		display: none;
+		align-items: center;
+		justify-content: center;
+		width: 36px;
+		height: 36px;
+		border-radius: var(--radius-sm);
+		color: var(--text-secondary);
+		background: none;
+		border: none;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.hamburger:hover {
+		background-color: var(--bg-hover);
+		color: var(--text-primary);
+	}
+
+	@media (max-width: 640px) {
+		.hamburger {
+			display: flex;
+		}
 	}
 
 	.logo {
