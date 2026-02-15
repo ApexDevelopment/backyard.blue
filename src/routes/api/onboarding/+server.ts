@@ -2,8 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types.js';
 import { getAgent } from '$lib/server/oauth.js';
 import { NSID } from '$lib/lexicon.js';
-import { getSessionData, setSessionData } from '$lib/server/session.js';
-import { ensureProfile, resolveDidDocument, getPdsUrl, blobUrl } from '$lib/server/identity.js';
+import { resolveDidDocument, getPdsUrl, blobUrl } from '$lib/server/identity.js';
 import { updateCachedProfile } from '$lib/server/identity.js';
 
 /**
@@ -15,7 +14,7 @@ import { updateCachedProfile } from '$lib/server/identity.js';
  * - 'fresh': Create a blank blue.backyard.actor.profile record
  * - 'skip': Don't create a Backyard profile; continue using Bluesky data
  */
-export const POST: RequestHandler = async ({ locals, cookies, request }) => {
+export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.did) {
 		return json({ error: 'Not authenticated' }, { status: 401 });
 	}
@@ -36,10 +35,7 @@ export const POST: RequestHandler = async ({ locals, cookies, request }) => {
 
 	try {
 		if (choice === 'skip') {
-			// Clear onboarding flag and return. ensureProfile already falls back
-			// to Bluesky profile data when no Backyard profile exists.
-			const session = getSessionData(cookies);
-			setSessionData(cookies, { ...session, needsOnboarding: false });
+			// No profile to set up — proceed to follow import step
 			return json({ success: true });
 		}
 
@@ -154,10 +150,6 @@ export const POST: RequestHandler = async ({ locals, cookies, request }) => {
 				await updateCachedProfile(did, updates);
 			}
 		}
-
-		// Clear onboarding flag
-		const session = getSessionData(cookies);
-		setSessionData(cookies, { ...session, needsOnboarding: false });
 
 		return json({ success: true });
 	} catch (err) {

@@ -92,6 +92,7 @@ const WRITE_PATHS = new Set([
 	'/api/repost',
 	'/api/profile',
 	'/api/onboarding',
+	'/api/onboarding/follows',
 	'/api/admin/allowlist',
 	'/api/upload'
 ]);

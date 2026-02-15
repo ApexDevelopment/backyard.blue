@@ -337,7 +337,8 @@ export async function createLike(
 export async function createFollow(
 	agent: Agent,
 	did: string,
-	subjectDid: string
+	subjectDid: string,
+	opts?: { silent?: boolean }
 ): Promise<{ uri: string; cid: string }> {
 	const now = new Date().toISOString();
 	const res = await agent.com.atproto.repo.createRecord({
@@ -360,12 +361,14 @@ export async function createFollow(
 	// Ensure the followed user's profile is cached
 	ensureProfile(subjectDid).catch(() => {});
 
-	createNotification({
-		recipientDid: subjectDid,
-		actorDid: did,
-		type: 'follow',
-		actionUri: res.data.uri
-	}).catch(() => {});
+	if (!opts?.silent) {
+		createNotification({
+			recipientDid: subjectDid,
+			actorDid: did,
+			type: 'follow',
+			actionUri: res.data.uri
+		}).catch(() => {});
+	}
 
 	return { uri: res.data.uri, cid: res.data.cid };
 }

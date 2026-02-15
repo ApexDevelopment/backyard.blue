@@ -132,7 +132,7 @@
 			});
 
 			if (res.ok) {
-				goto(mode === 'create' ? '/' : `/profile/${handle}`);
+				goto(mode === 'create' ? '/onboarding/follows' : `/profile/${handle}`);
 			} else {
 				let msg = 'something went wrong. please try again.';
 				try {

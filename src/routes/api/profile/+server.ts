@@ -2,7 +2,6 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types.js';
 import { getAgent } from '$lib/server/oauth.js';
 import { NSID } from '$lib/lexicon.js';
-import { getSessionData, setSessionData } from '$lib/server/session.js';
 import {
 	getBackyardProfileRecord,
 	updateCachedProfile,
@@ -36,10 +35,8 @@ function parseDataUrl(dataUrl: string): { mimeType: string; bytes: Uint8Array } 
  *   displayName, pronouns, description  — string fields
  *   avatar, banner                       — base64 data-URL strings (or null)
  *   avatarAction, bannerAction           — 'keep' | 'upload' | 'remove'
- *
- * Also clears the `needsOnboarding` session flag when present.
  */
-export const POST: RequestHandler = async ({ locals, cookies, request }) => {
+export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.did) {
 		return json({ error: 'Not authenticated' }, { status: 401 });
 	}
@@ -168,12 +165,6 @@ export const POST: RequestHandler = async ({ locals, cookies, request }) => {
 		}
 
 		await updateCachedProfile(did, cacheUpdates as any);
-
-		// Clear onboarding flag if it was set
-		if (locals.needsOnboarding) {
-			const session = getSessionData(cookies);
-			setSessionData(cookies, { ...session, needsOnboarding: false });
-		}
 
 		return json({ success: true });
 	} catch (err) {

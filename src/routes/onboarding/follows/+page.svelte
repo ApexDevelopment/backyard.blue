@@ -1,60 +1,54 @@
 <script lang="ts">
-	import type { PageData } from './$types.js';
 	import { goto } from '$app/navigation';
-	import { House, Download, Sparkles, SkipForward } from 'lucide-svelte';
-
-	let { data }: { data: PageData } = $props();
+	import { House, Download, SkipForward } from 'lucide-svelte';
 
 	let loading = $state('');
 	let errorMsg = $state('');
+	let importResult = $state<{ imported: number; total: number } | null>(null);
 
-	let bsky = $derived(data.blueskyProfile);
-	let hasBskyProfile = $derived(!!(bsky?.displayName || bsky?.description || bsky?.avatarUrl));
-
-	async function choose(choice: 'import' | 'fresh' | 'skip') {
+	async function choose(choice: 'import' | 'skip') {
 		if (loading) return;
-
-		// "Start fresh" now takes the user to the full profile creation form
-		if (choice === 'fresh') {
-			goto('/onboarding/create');
-			return;
-		}
-
 		loading = choice;
 		errorMsg = '';
 
 		try {
-			const res = await fetch('/api/onboarding', {
+			const res = await fetch('/api/onboarding/follows', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ choice })
 			});
 
 			if (res.ok) {
-				goto('/onboarding/follows');
+				if (choice === 'import') {
+					const data = await res.json();
+					importResult = { imported: data.imported, total: data.total };
+					setTimeout(() => goto('/'), 1500);
+				} else {
+					goto('/');
+				}
 			} else {
 				const data = await res.json();
 				errorMsg = data.error || 'something went wrong. please try again.';
+				loading = '';
 			}
 		} catch {
 			errorMsg = 'network error. please try again.';
-		} finally {
 			loading = '';
 		}
 	}
 </script>
 
 <svelte:head>
-	<title>set up your profile — backyard</title>
+	<title>import your follows — backyard</title>
 </svelte:head>
 
 <div class="onboarding-page">
 	<div class="onboarding-card card">
 		<div class="onboarding-header">
 			<span class="logo"><House size={36} color="var(--accent)" strokeWidth={2} /></span>
-			<h1>set up your profile</h1>
+			<h1>import your follows</h1>
 			<p class="subtitle">
-				welcome to backyard! how would you like to set up your profile?
+				would you like to bring your Bluesky follow list to backyard?
 			</p>
 		</div>
 
@@ -64,8 +58,12 @@
 			</div>
 		{/if}
 
-		<div class="choices">
-			{#if hasBskyProfile}
+		{#if importResult}
+			<div class="success-msg">
+				imported {importResult.imported} of {importResult.total} follows. redirecting…
+			</div>
+		{:else}
+			<div class="choices">
 				<button
 					class="choice-card"
 					class:selected={loading === 'import'}
@@ -77,59 +75,32 @@
 					</div>
 					<div class="choice-content">
 						<h3>import from Bluesky</h3>
-						<p>copy your current Bluesky display name, bio, avatar, and banner to your backyard profile.</p>
+						<p>bring over everyone you follow on Bluesky so you can see their posts on backyard too.</p>
 					</div>
-					{#if bsky}
-						<div class="bsky-preview">
-							{#if bsky.avatarUrl}
-								<img src={bsky.avatarUrl} alt="" class="preview-avatar" />
-							{/if}
-							<div class="preview-info">
-								{#if bsky.displayName}
-									<span class="preview-name">{bsky.displayName}</span>
-								{/if}
-								{#if bsky.description}
-									<p class="preview-desc">{bsky.description}</p>
-								{/if}
-							</div>
+					{#if loading === 'import'}
+						<div class="import-progress">
+							<div class="spinner"></div>
+							<span>importing follows — this may take a moment…</span>
 						</div>
 					{/if}
 				</button>
-			{/if}
 
-			<button
-				class="choice-card"
-				class:selected={loading === 'fresh'}
-				onclick={() => choose('fresh')}
-				disabled={!!loading}
-			>
-				<div class="choice-icon fresh-icon">
-					<Sparkles size={22} />
-				</div>
-				<div class="choice-content">
-					<h3>start fresh</h3>
-					<p>set up your backyard profile from scratch with your own display name, bio, and images.</p>
-				</div>
-			</button>
-
-			<button
-				class="choice-card"
-				class:selected={loading === 'skip'}
-				onclick={() => choose('skip')}
-				disabled={!!loading}
-			>
-				<div class="choice-icon skip-icon">
-					<SkipForward size={22} />
-				</div>
-				<div class="choice-content">
-					<h3>skip for now</h3>
-					<p>
-						don't create a backyard profile yet. your profile page will show your
-						{hasBskyProfile ? 'Bluesky' : 'AT Protocol'} info instead.
-					</p>
-				</div>
-			</button>
-		</div>
+				<button
+					class="choice-card"
+					class:selected={loading === 'skip'}
+					onclick={() => choose('skip')}
+					disabled={!!loading}
+				>
+					<div class="choice-icon skip-icon">
+						<SkipForward size={22} />
+					</div>
+					<div class="choice-content">
+						<h3>skip for now</h3>
+						<p>start with a clean slate. you can always follow people later.</p>
+					</div>
+				</button>
+			</div>
+		{/if}
 	</div>
 </div>
 
@@ -172,6 +143,15 @@
 		border-radius: var(--radius-sm);
 		font-size: 0.875rem;
 		margin-bottom: 1rem;
+	}
+
+	.success-msg {
+		padding: 0.75rem;
+		background-color: color-mix(in srgb, var(--success) 10%, transparent);
+		color: var(--success);
+		border-radius: var(--radius-sm);
+		font-size: 0.875rem;
+		text-align: center;
 	}
 
 	.choices {
@@ -225,11 +205,6 @@
 		color: var(--accent);
 	}
 
-	.fresh-icon {
-		background-color: color-mix(in srgb, var(--success) 12%, transparent);
-		color: var(--success);
-	}
-
 	.skip-icon {
 		background-color: color-mix(in srgb, var(--text-tertiary) 12%, transparent);
 		color: var(--text-tertiary);
@@ -252,7 +227,7 @@
 		line-height: 1.4;
 	}
 
-	.bsky-preview {
+	.import-progress {
 		display: flex;
 		align-items: center;
 		gap: 0.625rem;
@@ -261,35 +236,23 @@
 		background-color: var(--bg-secondary);
 		border-radius: var(--radius-sm);
 		margin-top: 0.25rem;
+		font-size: 0.8125rem;
+		color: var(--text-secondary);
 	}
 
-	.preview-avatar {
-		width: 2.5rem;
-		height: 2.5rem;
+	.spinner {
+		width: 1rem;
+		height: 1rem;
+		border: 2px solid var(--border-color);
+		border-top-color: var(--accent);
 		border-radius: var(--radius-full);
-		object-fit: cover;
+		animation: spin 0.6s linear infinite;
 		flex-shrink: 0;
 	}
 
-	.preview-info {
-		min-width: 0;
-		flex: 1;
-	}
-
-	.preview-name {
-		font-weight: 600;
-		font-size: 0.875rem;
-		display: block;
-	}
-
-	.preview-desc {
-		font-size: 0.75rem;
-		color: var(--text-tertiary);
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		line-clamp: 2;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-		margin-top: 0.125rem;
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
 	}
 </style>
