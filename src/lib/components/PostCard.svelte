@@ -789,4 +789,10 @@
 		justify-content: flex-end;
 		gap: 0.5rem;
 	}
+
+	@media (max-width: 640px) {
+		.post-card {
+			padding: 0.75rem;
+		}
+	}
 </style>

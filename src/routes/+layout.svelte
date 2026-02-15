@@ -147,6 +147,10 @@
 	@media (max-width: 640px) {
 		.layout {
 			grid-template-columns: minmax(0, var(--max-width));
+			padding: 0;
+		}
+
+		.content {
 			padding: 0 0.75rem;
 		}
 	}

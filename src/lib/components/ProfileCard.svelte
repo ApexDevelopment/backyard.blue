@@ -139,6 +139,13 @@
 		background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
 	}
 
+	@media (max-width: 640px) {
+		.profile-banner {
+			margin-left: -0.75rem;
+			margin-right: -0.75rem;
+		}
+	}
+
 	.profile-info {
 		padding: 0 1rem 1rem;
 	}

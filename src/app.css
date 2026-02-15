@@ -287,6 +287,19 @@ select {
 	box-shadow: var(--shadow-sm);
 }
 
+/* Mobile: flatten cards and collapse feed gaps */
+@media (max-width: 640px) {
+	.card {
+		border: none;
+		border-radius: 0;
+		box-shadow: none;
+		margin-left: -0.75rem;
+		margin-right: -0.75rem;
+		padding-left: 0.75rem;
+		padding-right: 0.75rem;
+	}
+}
+
 /* Form Styles */
 .input {
 	width: 100%;
