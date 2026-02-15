@@ -33,6 +33,16 @@ export async function createNotification(params: {
 }): Promise<void> {
 	if (params.actorDid === params.recipientDid) return;
 
+	// Don't create notifications from/to blocked users
+	const blockExists = await pool.query(
+		`SELECT 1 FROM blocks
+		 WHERE (author_did = $1 AND subject_did = $2)
+		    OR (author_did = $2 AND subject_did = $1)
+		 LIMIT 1`,
+		[params.recipientDid, params.actorDid]
+	);
+	if (blockExists.rows.length > 0) return;
+
 	try {
 		const result = await pool.query(
 			`INSERT INTO notifications (recipient_did, actor_did, type, subject_uri, action_uri, created_at)
@@ -93,7 +103,13 @@ export async function getNotifications(
 				(SELECT LEFT(r.text, 120) FROM reblogs r WHERE r.uri = n.subject_uri)
 			) AS subject_preview
 		 FROM notifications n
-		 WHERE n.recipient_did = $1 ${cursorClause}
+		 WHERE n.recipient_did = $1
+		   AND NOT EXISTS (
+				SELECT 1 FROM blocks
+				WHERE (author_did = $1 AND subject_did = n.actor_did)
+				   OR (author_did = n.actor_did AND subject_did = $1)
+		   )
+		   ${cursorClause}
 		 ORDER BY n.id DESC
 		 LIMIT $2`,
 		params
@@ -158,7 +174,13 @@ export async function markNotificationsRead(
  */
 export async function getUnreadCount(recipientDid: string): Promise<number> {
 	const result = await pool.query(
-		'SELECT COUNT(*)::int AS count FROM notifications WHERE recipient_did = $1 AND read = FALSE',
+		`SELECT COUNT(*)::int AS count FROM notifications
+		 WHERE recipient_did = $1 AND read = FALSE
+		   AND NOT EXISTS (
+				SELECT 1 FROM blocks
+				WHERE (author_did = $1 AND subject_did = notifications.actor_did)
+				   OR (author_did = notifications.actor_did AND subject_did = $1)
+		   )`,
 		[recipientDid]
 	);
 	return result.rows[0]?.count || 0;
