@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types.js';
 import { getAgent } from '$lib/server/oauth.js';
 import { createFollow, deleteRecord } from '$lib/server/repo.js';
 import { isValidDid, isValidAtUri } from '$lib/server/validation.js';
+import { isBlocked } from '$lib/server/feed.js';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.did) {
@@ -34,6 +35,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			await deleteRecord(agent, followUri);
 			return json({ success: true });
 		} else {
+			if (await isBlocked(locals.did, did)) {
+				return json({ error: 'Cannot follow this user' }, { status: 403 });
+			}
 			const res = await createFollow(agent, locals.did, did);
 			return json({ uri: res.uri });
 		}

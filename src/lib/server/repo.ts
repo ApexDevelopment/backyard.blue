@@ -373,6 +373,57 @@ export async function createFollow(
 	return { uri: res.data.uri, cid: res.data.cid };
 }
 
+export async function createBlock(
+	agent: Agent,
+	did: string,
+	subjectDid: string
+): Promise<{ uri: string; cid: string }> {
+	// Return existing block if already blocking this user
+	const existing = await pool.query(
+		'SELECT uri FROM blocks WHERE author_did = $1 AND subject_did = $2',
+		[did, subjectDid]
+	);
+	if (existing.rows[0]) {
+		return { uri: existing.rows[0].uri, cid: '' };
+	}
+
+	const now = new Date().toISOString();
+	const res = await agent.com.atproto.repo.createRecord({
+		repo: did,
+		collection: NSID.BLOCK,
+		record: {
+			$type: NSID.BLOCK,
+			subject: subjectDid,
+			createdAt: now
+		}
+	});
+
+	await pool.query(
+		`INSERT INTO blocks (uri, author_did, subject_did, created_at)
+		 VALUES ($1, $2, $3, $4)
+		 ON CONFLICT (author_did, subject_did) DO UPDATE SET uri = $1`,
+		[res.data.uri, did, subjectDid, now]
+	);
+
+	// Remove the viewer's outgoing follow (PDS + local)
+	const outgoing = await pool.query(
+		'SELECT uri FROM follows WHERE author_did = $1 AND subject_did = $2',
+		[did, subjectDid]
+	);
+	if (outgoing.rows[0]) {
+		deleteRecord(agent, outgoing.rows[0].uri).catch(() => {});
+	}
+
+	// Remove the blocked user's incoming follow from local index only
+	// (we can't delete from their PDS without their auth)
+	await pool.query(
+		'DELETE FROM follows WHERE author_did = $1 AND subject_did = $2',
+		[subjectDid, did]
+	);
+
+	return { uri: res.data.uri, cid: res.data.cid };
+}
+
 /**
  * 
  * @throws Error if the delete operation fails on the PDS side.
@@ -404,6 +455,9 @@ export async function deleteRecord(agent: Agent, uri: string): Promise<void> {
 			break;
 		case NSID.FOLLOW:
 			queryResult = await pool.query('DELETE FROM follows WHERE uri = $1', [uri]);
+			break;
+		case NSID.BLOCK:
+			queryResult = await pool.query('DELETE FROM blocks WHERE uri = $1', [uri]);
 			break;
 	}
 

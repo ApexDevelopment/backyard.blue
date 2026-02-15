@@ -87,6 +87,8 @@ export interface BackyardChainEntry {
 	isRoot: boolean;
 	/** True when the original record has been deleted — renders as a tombstone */
 	deleted?: boolean;
+	/** True when the entry's author has been blocked by the viewer — renders as a tombstone */
+	blocked?: boolean;
 }
 
 export interface BackyardFeedItem {

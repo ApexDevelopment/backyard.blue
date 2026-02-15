@@ -247,6 +247,18 @@ async function indexRecord(did: string, commit: JetstreamCommit): Promise<void> 
 			}
 			break;
 		}
+		case NSID.BLOCK: {
+			const subjectDid = r.subject as string | undefined;
+			if (subjectDid && isValidDid(subjectDid)) {
+				await pool.query(
+					`INSERT INTO blocks (uri, author_did, subject_did, created_at)
+					 VALUES ($1, $2, $3, $4)
+					 ON CONFLICT (author_did, subject_did) DO NOTHING`,
+					[uri, did, subjectDid, safeIsoDate(r.createdAt)]
+				);
+			}
+			break;
+		}
 	}
 }
 
@@ -268,6 +280,9 @@ async function deleteRecord(did: string, commit: JetstreamCommit): Promise<void>
 			break;
 		case NSID.FOLLOW:
 			await pool.query('DELETE FROM follows WHERE uri = $1', [uri]);
+			break;
+		case NSID.BLOCK:
+			await pool.query('DELETE FROM blocks WHERE uri = $1', [uri]);
 			break;
 	}
 }

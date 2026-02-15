@@ -14,7 +14,9 @@ export const NSID = {
 	/** Like of a post, reblog, or comment */
 	LIKE: 'blue.backyard.feed.like',
 	/** Social follow relationship */
-	FOLLOW: 'blue.backyard.graph.follow'
+	FOLLOW: 'blue.backyard.graph.follow',
+	/** Block relationship */
+	BLOCK: 'blue.backyard.graph.block'
 } as const;
 
 /** All collection NSIDs as a set for quick membership checks */

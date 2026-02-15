@@ -1,5 +1,7 @@
 <script lang="ts">
 	import type { BackyardProfile } from '$lib/types.js';
+	import { Ban } from 'lucide-svelte';
+	import ContextMenu from './ContextMenu.svelte';
 
 	interface Props {
 		profile: BackyardProfile;
@@ -8,6 +10,8 @@
 		followUri?: string;
 		postsCount?: number;
 		followsCount?: number;
+		viewerDid?: string;
+		blockedByProfile?: boolean;
 	}
 
 	let {
@@ -16,7 +20,9 @@
 		isFollowing = false,
 		followUri = '',
 		postsCount = 0,
-		followsCount = 0
+		followsCount = 0,
+		viewerDid,
+		blockedByProfile = false
 	}: Props = $props();
 
 	let followLoading = $state(false);
@@ -56,7 +62,22 @@
 			followLoading = false;
 		}
 	}
-</script>
+	let showBlockOption = $derived(viewerDid && !isOwnProfile);
+
+	async function handleBlockUser() {
+		try {
+			const res = await fetch('/api/block', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ did: profile.did })
+			});
+			if (res.ok) {
+				window.location.href = '/';
+			}
+		} catch {
+			// Silently fail
+		}
+	}</script>
 
 <div class="profile-card card">
 	{#if profile.banner}
@@ -77,17 +98,32 @@
 				</div>
 			{/if}
 
-			{#if !isOwnProfile}
-				<button
-					class="btn {isFollowing ? 'btn-secondary' : 'btn-primary'}"
-					onclick={toggleFollow}
-					disabled={followLoading}
-				>
-					{isFollowing ? 'following' : 'follow'}
-				</button>
-			{:else}
-				<a href="/settings/profile" class="btn btn-secondary">edit profile</a>
-			{/if}
+			<div class="profile-actions">
+				{#if blockedByProfile}
+					<!-- No actions available when blocked -->
+				{:else if !isOwnProfile}
+					<button
+						class="btn {isFollowing ? 'btn-secondary' : 'btn-primary'}"
+						onclick={toggleFollow}
+						disabled={followLoading}
+					>
+						{isFollowing ? 'following' : 'follow'}
+					</button>
+				{:else}
+					<a href="/settings/profile" class="btn btn-secondary">edit profile</a>
+				{/if}
+
+				{#if showBlockOption}
+					<ContextMenu>
+						{#snippet children()}
+							<button class="context-item context-item-danger" onclick={handleBlockUser}>
+								<Ban size={16} />
+								<span>block {profile.displayName || profile.handle}</span>
+							</button>
+						{/snippet}
+					</ContextMenu>
+				{/if}
+			</div>
 		</div>
 
 		<div class="profile-names">
@@ -156,6 +192,12 @@
 		justify-content: space-between;
 		margin-top: -2rem;
 		margin-bottom: 0.75rem;
+	}
+
+	.profile-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 	}
 
 	.profile-avatar {

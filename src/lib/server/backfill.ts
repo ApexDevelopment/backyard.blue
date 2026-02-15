@@ -33,7 +33,8 @@ const BACKFILL_COLLECTIONS = [
 	NSID.REBLOG,
 	NSID.COMMENT,
 	NSID.LIKE,
-	NSID.FOLLOW
+	NSID.FOLLOW,
+	NSID.BLOCK
 ] as const;
 
 /** Track in-flight backfills to avoid duplicate work */
@@ -191,6 +192,18 @@ async function indexBackfillRecord(
 					`INSERT INTO follows (uri, author_did, subject_did, created_at)
 					 VALUES ($1, $2, $3, $4)
 					 ON CONFLICT (uri) DO NOTHING`,
+					[uri, did, subjectDid, safeIsoDate(r.createdAt)]
+				);
+			}
+			break;
+		}
+		case NSID.BLOCK: {
+			const subjectDid = r.subject as string | undefined;
+			if (subjectDid && isValidDid(subjectDid)) {
+				await pool.query(
+					`INSERT INTO blocks (uri, author_did, subject_did, created_at)
+					 VALUES ($1, $2, $3, $4)
+					 ON CONFLICT (author_did, subject_did) DO NOTHING`,
 					[uri, did, subjectDid, safeIsoDate(r.createdAt)]
 				);
 			}

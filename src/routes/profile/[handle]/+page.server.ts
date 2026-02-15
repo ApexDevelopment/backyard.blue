@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types.js';
 import { error } from '@sveltejs/kit';
 import { getProfileByHandle, ensureProfile, resolveHandleToDid } from '$lib/server/identity.js';
-import { getAuthorFeed, isFollowing, getProfileStats } from '$lib/server/feed.js';
+import { getAuthorFeed, isFollowing, getProfileStats, isBlocked } from '$lib/server/feed.js';
 import { backfillIfNeeded } from '$lib/server/backfill.js';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
@@ -35,9 +35,15 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
 		const isOwnProfile = locals.did === profile.did;
 
+		// Check if the profile owner has blocked the viewer
+		let blockedByProfile = false;
+		if (locals.did && !isOwnProfile) {
+			blockedByProfile = await isBlocked(locals.did, profile.did);
+		}
+
 		let followingStatus = false;
 		let followUri = '';
-		if (locals.did && !isOwnProfile) {
+		if (locals.did && !isOwnProfile && !blockedByProfile) {
 			const uri = await isFollowing(locals.did, profile.did);
 			if (uri) {
 				followingStatus = true;
@@ -48,13 +54,16 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		const stats = await getProfileStats(profile.did);
 
 		const cursor = url.searchParams.get('cursor') || undefined;
-		const feedResult = await getAuthorFeed(profile.did, locals.did || null, 30, cursor);
+		const feedResult = blockedByProfile
+			? { items: [], cursor: null }
+			: await getAuthorFeed(profile.did, locals.did || null, 30, cursor);
 
 		return {
 			profile,
 			isOwnProfile,
 			isFollowing: followingStatus,
 			followUri,
+			blockedByProfile,
 			postsCount: stats.postsCount,
 			followsCount: stats.followingCount,
 			feed: feedResult.items,

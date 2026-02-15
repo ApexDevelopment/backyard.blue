@@ -1,8 +1,9 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types.js';
 import { getAgent } from '$lib/server/oauth.js';
-import { createLike, deleteRecord } from '$lib/server/repo.js';
+import { createLike, deleteRecord, parseAtUri } from '$lib/server/repo.js';
 import { isValidAtUri, isValidCid } from '$lib/server/validation.js';
+import { isBlocked } from '$lib/server/feed.js';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.did) {
@@ -41,6 +42,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			await deleteRecord(agent, liked);
 			return json({ success: true });
 		} else {
+			const targetDid = parseAtUri(uri).repo;
+			if (await isBlocked(locals.did, targetDid)) {
+				return json({ error: 'Cannot interact with this user' }, { status: 403 });
+			}
 			const res = await createLike(agent, locals.did, uri, cid);
 			return json({ uri: res.uri });
 		}

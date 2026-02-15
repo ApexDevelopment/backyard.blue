@@ -1,21 +1,75 @@
 <script lang="ts">
 	import { theme, themeMode, themeScheme, COLOR_SCHEMES } from '$lib/stores/theme.js';
 	import { fancyProfiles } from '$lib/stores/preferences.js';
-	import { Moon, Sun } from 'lucide-svelte';
+	import { Moon, Sun, X } from 'lucide-svelte';
 	import type { ColorScheme } from '$lib/types.js';
+	import type { PageData } from './$types.js';
 
-	let mode: string;
+	let { data }: { data: PageData } = $props();
+
+	let mode = $state('light');
 	themeMode.subscribe((m) => (mode = m));
 
-	let scheme: string;
+	let scheme = $state('chocoberry');
 	themeScheme.subscribe((s) => (scheme = s));
 
-	let fancy: boolean;
+	let fancy = $state(false);
 	fancyProfiles.subscribe((v) => (fancy = v));
 
 	function handleSchemeChange(e: Event) {
 		const value = (e.target as HTMLSelectElement).value as ColorScheme;
 		theme.setScheme(value);
+	}
+
+	let blockedTags = $state<string[]>([]);
+	$effect(() => {
+		blockedTags = data.blockedTags ?? [];
+	});
+	let tagInput = $state('');
+	let tagLoading = $state(false);
+	let tagInputEl: HTMLInputElement;
+
+	async function addBlockedTag() {
+		const tag = tagInput.trim().toLowerCase();
+		if (!tag || blockedTags.includes(tag)) return;
+
+		tagLoading = true;
+		try {
+			const res = await fetch('/api/block/tag', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ tag })
+			});
+			if (res.ok) {
+				blockedTags = [tag, ...blockedTags];
+				tagInput = '';
+			}
+		} finally {
+			tagLoading = false;
+			tagInputEl?.focus();
+		}
+	}
+
+	async function removeBlockedTag(tag: string) {
+		try {
+			const res = await fetch('/api/block/tag', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ tag, blocked: true })
+			});
+			if (res.ok) {
+				blockedTags = blockedTags.filter((t) => t !== tag);
+			}
+		} catch {
+			// Silently fail
+		}
+	}
+
+	function handleTagKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			addBlockedTag();
+		}
 	}
 </script>
 
@@ -82,6 +136,44 @@
 			</div>
 			<a href="/settings/profile" class="btn btn-secondary">edit</a>
 		</div>
+	</section>
+
+	<section class="settings-section card">
+		<h2>blocked tags</h2>
+
+		<div class="blocked-tags-intro">
+			<span class="setting-description">posts and reblogs with these tags will be hidden from your feeds.</span>
+		</div>
+
+		<div class="blocked-tag-add">
+			<input
+				bind:this={tagInputEl}
+				class="input"
+				type="text"
+				placeholder="tag name"
+				bind:value={tagInput}
+				onkeydown={handleTagKeydown}
+				disabled={tagLoading}
+			/>
+			<button class="btn btn-primary" onclick={addBlockedTag} disabled={tagLoading || !tagInput.trim()}>
+				block
+			</button>
+		</div>
+
+		{#if blockedTags.length > 0}
+			<ul class="blocked-tag-list">
+				{#each blockedTags as tag (tag)}
+					<li class="blocked-tag-item">
+						<span class="blocked-tag-name">#{tag}</span>
+						<button class="blocked-tag-remove" onclick={() => removeBlockedTag(tag)} aria-label="unblock #{tag}">
+							<X size={14} />
+						</button>
+					</li>
+				{/each}
+			</ul>
+		{:else}
+			<p class="setting-description blocked-tags-empty">no blocked tags yet.</p>
+		{/if}
 	</section>
 </div>
 
@@ -189,5 +281,64 @@
 	.mode-toggle-track.dark .mode-toggle-thumb {
 		transform: translateX(calc(1.375rem - 2px));
 		color: var(--accent);
+	}
+
+	/* Blocked tags */
+	.blocked-tags-intro {
+		margin-bottom: 0.25rem;
+	}
+
+	.blocked-tag-add {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.blocked-tag-add .input {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.blocked-tag-list {
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+		gap: 0;
+	}
+
+	.blocked-tag-item {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.5rem 0;
+	}
+
+	.blocked-tag-item + .blocked-tag-item {
+		border-top: 1px solid var(--border-light);
+	}
+
+	.blocked-tag-name {
+		font-size: 0.9375rem;
+		color: var(--text-primary);
+	}
+
+	.blocked-tag-remove {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.5rem;
+		height: 1.5rem;
+		border-radius: var(--radius-sm);
+		color: var(--text-tertiary);
+		transition: color 0.15s ease, background-color 0.15s ease;
+	}
+
+	.blocked-tag-remove:hover {
+		color: var(--danger);
+		background-color: var(--bg-tertiary);
+	}
+
+	.blocked-tags-empty {
+		text-align: center;
+		padding: 0.5rem 0;
 	}
 </style>

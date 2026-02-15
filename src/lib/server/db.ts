@@ -142,6 +142,28 @@ export async function initializeDatabase(): Promise<void> {
 			CREATE INDEX IF NOT EXISTS idx_follows_subject ON follows(subject_did);
 			CREATE UNIQUE INDEX IF NOT EXISTS idx_follows_unique ON follows(author_did, subject_did);
 
+			-- Blocks (blue.backyard.graph.block)
+			CREATE TABLE IF NOT EXISTS blocks (
+				uri TEXT PRIMARY KEY,
+				author_did TEXT NOT NULL,
+				subject_did TEXT NOT NULL,
+				created_at TIMESTAMPTZ NOT NULL
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_blocks_author ON blocks(author_did);
+			CREATE INDEX IF NOT EXISTS idx_blocks_subject ON blocks(subject_did);
+			CREATE UNIQUE INDEX IF NOT EXISTS idx_blocks_unique ON blocks(author_did, subject_did);
+
+			-- Tag blocks (local-only, not committed to PDS)
+			CREATE TABLE IF NOT EXISTS blocked_tags (
+				id BIGSERIAL PRIMARY KEY,
+				author_did TEXT NOT NULL,
+				tag TEXT NOT NULL,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+
+			CREATE UNIQUE INDEX IF NOT EXISTS idx_blocked_tags_unique ON blocked_tags(author_did, tag);
+
 			-- Firehose cursor persistence (Jetstream consumer position)
 			CREATE TABLE IF NOT EXISTS firehose_cursor (
 				id TEXT PRIMARY KEY,

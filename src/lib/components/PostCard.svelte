@@ -1,9 +1,10 @@
 <script lang="ts">
 	import type { BackyardPost, BackyardChainEntry, BackyardReblogInfo, Facet } from '$lib/types.js';
-	import { MessageCircle, Repeat2, Heart, ChevronDown, Trash2, Pencil } from 'lucide-svelte';
+	import { MessageCircle, Repeat2, Heart, ChevronDown, Trash2, Pencil, Ban } from 'lucide-svelte';
 	import { openReblogComposer, openEditComposer } from '$lib/stores/composer.js';
 	import RichTextRenderer from './RichTextRenderer.svelte';
 	import EmbedCard from './EmbedCard.svelte';
+	import ContextMenu from './ContextMenu.svelte';
 
 	/** Extract the first link URL from a set of facets. */
 	function firstLinkUrl(facets?: Facet[]): string | undefined {
@@ -54,7 +55,7 @@
 
 	/** Chain entries that actually have content (text or media), plus tombstones */
 	let contentChain = $derived(
-		chain?.filter((e) => e.deleted || e.text?.trim() || (e.media && e.media.length > 0)) ?? []
+		chain?.filter((e) => e.deleted || e.blocked || e.text?.trim() || (e.media && e.media.length > 0)) ?? []
 	);
 	let needsClipping = $derived(contentChain.length > MAX_VISIBLE && !expanded);
 	let visibleEntries = $derived(
@@ -229,6 +230,27 @@
 			confirmOpen = false;
 		}
 	}
+
+	/** The primary author DID to offer blocking: for reblogs, the reblogger; for posts, the author. */
+	let blockTargetDid = $derived(reblog ? reblog.by.did : post.author.did);
+	let blockTargetName = $derived(reblog ? (reblog.by.displayName || reblog.by.handle) : (post.author.displayName || post.author.handle));
+	/** Don't show block option on own content */
+	let showBlockOption = $derived(viewerDid && blockTargetDid !== viewerDid);
+
+	async function handleBlockUser() {
+		try {
+			const res = await fetch('/api/block', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ did: blockTargetDid })
+			});
+			if (res.ok) {
+				window.location.reload();
+			}
+		} catch {
+			// Silently fail
+		}
+	}
 </script>
 
 {#if deleted}
@@ -256,7 +278,9 @@
 					</button>
 				{/if}
 				<div class="chain-entry" class:chain-entry-last={i === visibleEntries.length - 1}>
-					{#if entry.deleted}
+					{#if entry.blocked}
+						<p class="tombstone">content from a blocked user.</p>
+					{:else if entry.deleted}
 						<p class="tombstone">this post has been deleted by the author.</p>
 					{:else}
 						<div class="chain-entry-header">
@@ -403,6 +427,19 @@
 				<button class="action-btn delete-btn" onclick={handleDeleteClick} title="delete" disabled={deleteLoading}>
 					<Trash2 size={16} />
 				</button>
+			{/if}
+
+			{#if showBlockOption}
+				<div class="action-menu">
+					<ContextMenu>
+						{#snippet children()}
+							<button class="context-item context-item-danger" onclick={handleBlockUser}>
+								<Ban size={16} />
+								<span>block {reblog ? (reblog.by.displayName || reblog.by.handle) : (post.author.displayName || post.author.handle)}</span>
+							</button>
+						{/snippet}
+					</ContextMenu>
+				</div>
 			{/if}
 		</div>
 	{/if}
@@ -728,6 +765,15 @@
 
 	.delete-btn {
 		margin-left: auto;
+	}
+
+	.action-menu {
+		margin-left: auto;
+	}
+
+	/* When delete-btn is also present, don't double-push */
+	.delete-btn + .action-menu {
+		margin-left: 0;
 	}
 
 	.deleted-card {

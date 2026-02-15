@@ -4,6 +4,7 @@ import { getAgent } from '$lib/server/oauth.js';
 import { createReblog, updateReblog, deleteRecord, parseAtUri } from '$lib/server/repo.js';
 import { isValidAtUri, isValidCid, MAX_TEXT_LENGTH, clampTags, sanitizeFormatFacets } from '$lib/server/validation.js';
 import { NSID } from '$lib/lexicon.js';
+import { isBlocked } from '$lib/server/feed.js';
 
 /**
  * Reblog a post (Tumblr-style). Supports quick reblogs (no additions)
@@ -52,6 +53,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			await deleteRecord(agent, reblogged);
 			return json({ success: true });
 		} else {
+			const targetDid = parseAtUri(uri).repo;
+			if (await isBlocked(locals.did, targetDid)) {
+				return json({ error: 'Cannot interact with this user' }, { status: 403 });
+			}
 			const safeTags = clampTags(tags);
 			const safeFacets = sanitizeFormatFacets(formatFacets);
 

@@ -106,6 +106,46 @@ function toIso(val: any): string {
 }
 
 /**
+ * Fetch the viewer's block lists (blocked DIDs + blocked tags).
+ * Includes both directions: users the viewer blocked AND users who blocked the viewer.
+ * Returns empty sets for unauthenticated viewers.
+ */
+async function getViewerBlocks(viewerDid: string | null): Promise<{ blockedDids: Set<string>; blockedTags: Set<string> }> {
+	if (!viewerDid) return { blockedDids: new Set(), blockedTags: new Set() };
+	const [outgoing, incoming, tagsResult] = await Promise.all([
+		pool.query('SELECT subject_did FROM blocks WHERE author_did = $1', [viewerDid]),
+		pool.query('SELECT author_did FROM blocks WHERE subject_did = $1', [viewerDid]),
+		pool.query('SELECT tag FROM blocked_tags WHERE author_did = $1', [viewerDid])
+	]);
+	const blockedDids = new Set<string>();
+	for (const r of outgoing.rows) blockedDids.add(r.subject_did);
+	for (const r of incoming.rows) blockedDids.add(r.author_did);
+	return {
+		blockedDids,
+		blockedTags: new Set(tagsResult.rows.map((r: any) => r.tag))
+	};
+}
+
+/**
+ * Check if a block exists between two users in either direction.
+ */
+export async function isBlocked(didA: string, didB: string): Promise<boolean> {
+	const result = await pool.query(
+		`SELECT 1 FROM blocks
+		 WHERE (author_did = $1 AND subject_did = $2)
+		    OR (author_did = $2 AND subject_did = $1)
+		 LIMIT 1`,
+		[didA, didB]
+	);
+	return result.rows.length > 0;
+}
+
+function hasBlockedTag(tags: string[] | null | undefined, blockedTags: Set<string>): boolean {
+	if (!tags || tags.length === 0 || blockedTags.size === 0) return false;
+	return tags.some((t) => blockedTags.has(t.toLowerCase()));
+}
+
+/**
  * Build reblog chains for a batch of reblog URIs.
  * Uses a recursive CTE to walk backward from each leaf reblog through parent reblogs
  * until reaching the root post.
@@ -237,11 +277,15 @@ export async function buildReblogChains(
 
 /**
  * Post-process raw feed rows into enriched BackyardFeedItems with reblog chains.
+ * Applies block filtering: hides posts from blocked users, tombstones blocked
+ * chain entries, and hides freestanding reblogs of blocked users' posts.
  */
 async function enrichFeedItems(
 	rows: any[],
 	viewerDid: string | null
 ): Promise<BackyardFeedItem[]> {
+	const { blockedDids, blockedTags } = await getViewerBlocks(viewerDid);
+
 	// Gather all DIDs for profile resolution
 	const dids = new Set<string>();
 	for (const row of rows) {
@@ -259,9 +303,19 @@ async function enrichFeedItems(
 	}
 	const chains = await buildReblogChains(reblogUris);
 
-	// Build feed items
+	// Build feed items, applying block filtering
 	const items: BackyardFeedItem[] = [];
 	for (const row of rows) {
+		// --- Block filtering at feed-item level ---
+		if (row.item_type === 'post') {
+			if (blockedDids.has(row.author_did)) continue;
+			if (hasBlockedTag(row.tags, blockedTags)) continue;
+		} else if (row.item_type === 'reblog') {
+			if (blockedDids.has(row.reblog_author_did)) continue;
+			if (hasBlockedTag(row.reblog_tags, blockedTags)) continue;
+			if (hasBlockedTag(row.tags, blockedTags)) continue;
+		}
+
 		const post = enrichPost(row, profiles);
 		const item: BackyardFeedItem = { type: row.item_type, post };
 
@@ -281,6 +335,35 @@ async function enrichFeedItems(
 			const chain = chains.get(row.reblog_uri);
 			if (chain && chain.length > 0) {
 				item.chain = chain;
+			}
+
+			// Tombstone chain entries from blocked users
+			if (item.chain && blockedDids.size > 0) {
+				let rootBlocked = false;
+				for (let i = 0; i < item.chain.length; i++) {
+					const entry = item.chain[i];
+					if (blockedDids.has(entry.author.did)) {
+						if (i === 0) rootBlocked = true;
+						item.chain[i] = {
+							uri: entry.uri,
+							cid: '',
+							author: { did: '', handle: '' },
+							text: '',
+							createdAt: entry.createdAt,
+							isRoot: entry.isRoot,
+							blocked: true
+						};
+					}
+				}
+
+				// If root is blocked and no non-blocked entry has meaningful content,
+				// this is a freestanding reblog of blocked content — hide entirely.
+				if (rootBlocked) {
+					const hasContent = item.chain.slice(1).some(
+						(e) => !e.blocked && (e.text || e.media?.length || e.tags?.length)
+					);
+					if (!hasContent) continue;
+				}
 			}
 		}
 

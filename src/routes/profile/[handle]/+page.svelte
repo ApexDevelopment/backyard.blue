@@ -42,9 +42,15 @@
 		followUri={data.followUri}
 		postsCount={data.postsCount}
 		followsCount={data.followsCount}
+		viewerDid={data.user?.did}
+		blockedByProfile={data.blockedByProfile}
 	/>
 
-	<div class="profile-feed">
+	{#if data.blockedByProfile}
+		<div class="blocked-notice">
+			<p>you cannot view this user's posts.</p>
+		</div>
+	{:else}<div class="profile-feed">
 		<div class="feed-list">
 			{#if data.feed && data.feed.length > 0}
 				{#each data.feed as item (item.post.uri + (item.reblog?.uri || ''))}
@@ -65,6 +71,7 @@
 			</div>
 		{/if}
 	</div>
+	{/if}
 </div>
 
 <style>
@@ -108,5 +115,13 @@
 		display: flex;
 		justify-content: center;
 		padding: 1rem;
+	}
+
+	.blocked-notice {
+		padding: 3rem 1.5rem;
+		text-align: center;
+		color: var(--text-tertiary);
+		font-size: 0.9375rem;
+		font-style: italic;
 	}
 </style>
