@@ -140,6 +140,18 @@ export async function isBlocked(didA: string, didB: string): Promise<boolean> {
 	return result.rows.length > 0;
 }
 
+/**
+ * Check if `authorDid` has an outgoing block against `subjectDid`.
+ * Returns the block URI if found, null otherwise.
+ */
+export async function getOutgoingBlock(authorDid: string, subjectDid: string): Promise<string | null> {
+	const result = await pool.query(
+		'SELECT uri FROM blocks WHERE author_did = $1 AND subject_did = $2 LIMIT 1',
+		[authorDid, subjectDid]
+	);
+	return result.rows[0]?.uri || null;
+}
+
 function hasBlockedTag(tags: string[] | null | undefined, blockedTags: Set<string>): boolean {
 	if (!tags || tags.length === 0 || blockedTags.size === 0) return false;
 	return tags.some((t) => blockedTags.has(t.toLowerCase()));

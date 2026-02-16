@@ -237,15 +237,45 @@
 	/** Don't show block option on own content */
 	let showBlockOption = $derived(viewerDid && blockTargetDid !== viewerDid);
 
-	async function handleBlockUser() {
+	let blockStatus = $state<{ blocking: boolean; blockUri: string | null } | null>(null);
+
+	async function checkBlockStatus() {
+		if (blockStatus) return;
 		try {
-			const res = await fetch('/api/block', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ did: blockTargetDid })
-			});
+			const res = await fetch(`/api/block?did=${encodeURIComponent(blockTargetDid)}`);
 			if (res.ok) {
-				window.location.reload();
+				const data = await res.json();
+				blockStatus = { blocking: data.blocked, blockUri: data.blockUri };
+			}
+		} catch {
+			blockStatus = { blocking: false, blockUri: null };
+		}
+	}
+
+	async function handleBlockUser() {
+		await checkBlockStatus();
+		try {
+			if (blockStatus?.blocking && blockStatus.blockUri) {
+				const res = await fetch('/api/block', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ did: blockTargetDid, blocking: true, blockUri: blockStatus.blockUri })
+				});
+				if (res.ok) {
+					blockStatus = { blocking: false, blockUri: null };
+					window.location.reload();
+				}
+			} else {
+				const res = await fetch('/api/block', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ did: blockTargetDid })
+				});
+				if (res.ok) {
+					const data = await res.json();
+					blockStatus = { blocking: true, blockUri: data.uri };
+					window.location.reload();
+				}
 			}
 		} catch {
 			// Silently fail
@@ -431,11 +461,11 @@
 
 			{#if showBlockOption}
 				<div class="action-menu">
-					<ContextMenu>
+					<ContextMenu onopen={checkBlockStatus}>
 						{#snippet children()}
-							<button class="context-item context-item-danger" onclick={handleBlockUser}>
+							<button class="context-item {blockStatus?.blocking ? '' : 'context-item-danger'}" onclick={handleBlockUser}>
 								<Ban size={16} />
-								<span>block {reblog ? (reblog.by.displayName || reblog.by.handle) : (post.author.displayName || post.author.handle)}</span>
+								<span>{blockStatus?.blocking ? 'unblock' : 'block'} {blockTargetName}</span>
 							</button>
 						{/snippet}
 					</ContextMenu>

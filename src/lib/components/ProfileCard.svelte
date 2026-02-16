@@ -12,6 +12,7 @@
 		followsCount?: number;
 		viewerDid?: string;
 		blockedByProfile?: boolean;
+		viewerBlockUri?: string | null;
 	}
 
 	let {
@@ -22,7 +23,8 @@
 		postsCount = 0,
 		followsCount = 0,
 		viewerDid,
-		blockedByProfile = false
+		blockedByProfile = false,
+		viewerBlockUri = null
 	}: Props = $props();
 
 	let followLoading = $state(false);
@@ -63,21 +65,49 @@
 		}
 	}
 	let showBlockOption = $derived(viewerDid && !isOwnProfile);
+	let isBlocking = $state(false);
+
+	$effect(() => {
+		isBlocking = !!viewerBlockUri;
+	});
+
+	let blockUri = $state<string | null>(null);
+
+	$effect(() => {
+		blockUri = viewerBlockUri ?? null;
+	});
 
 	async function handleBlockUser() {
 		try {
-			const res = await fetch('/api/block', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ did: profile.did })
-			});
-			if (res.ok) {
-				window.location.href = '/';
+			if (isBlocking && blockUri) {
+				const res = await fetch('/api/block', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ did: profile.did, blocking: true, blockUri })
+				});
+				if (res.ok) {
+					isBlocking = false;
+					blockUri = null;
+					window.location.reload();
+				}
+			} else {
+				const res = await fetch('/api/block', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ did: profile.did })
+				});
+				if (res.ok) {
+					const data = await res.json();
+					isBlocking = true;
+					blockUri = data.uri;
+					window.location.reload();
+				}
 			}
 		} catch {
 			// Silently fail
 		}
-	}</script>
+	}
+</script>
 
 <div class="profile-card card">
 	{#if profile.banner}
@@ -116,9 +146,9 @@
 				{#if showBlockOption}
 					<ContextMenu>
 						{#snippet children()}
-							<button class="context-item context-item-danger" onclick={handleBlockUser}>
+							<button class="context-item {isBlocking ? '' : 'context-item-danger'}" onclick={handleBlockUser}>
 								<Ban size={16} />
-								<span>block {profile.displayName || profile.handle}</span>
+								<span>{isBlocking ? 'unblock' : 'block'} {profile.displayName || profile.handle}</span>
 							</button>
 						{/snippet}
 					</ContextMenu>

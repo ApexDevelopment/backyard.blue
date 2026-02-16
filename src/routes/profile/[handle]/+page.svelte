@@ -44,10 +44,11 @@
 		followsCount={data.followsCount}
 		viewerDid={data.user?.did}
 		blockedByProfile={data.blockedByProfile}
+		viewerBlockUri={data.viewerBlockUri}
 	/>
 
 	{#if data.blockedByProfile}
-		<div class="blocked-notice">
+		<div class="profile-empty-card card">
 			<p>you cannot view this user's posts.</p>
 		</div>
 	{:else}<div class="profile-feed">
@@ -57,7 +58,7 @@
 					<PostCard post={item.post} chain={item.chain} reblog={item.reblog} profileHandle={data.profile.handle} viewerDid={data.user?.did} />
 				{/each}
 			{:else}
-				<div class="empty-state">
+				<div class="profile-empty-card card">
 					<p>no posts yet.</p>
 				</div>
 			{/if}
@@ -104,24 +105,18 @@
 		gap: 0.75rem;
 	}
 
-	.empty-state {
-		padding: 3rem 1.5rem;
-		text-align: center;
-		color: var(--text-secondary);
-		font-size: 0.9375rem;
-	}
-
 	.load-more {
 		display: flex;
 		justify-content: center;
 		padding: 1rem;
 	}
 
-	.blocked-notice {
+	.profile-empty-card {
 		padding: 3rem 1.5rem;
 		text-align: center;
 		color: var(--text-tertiary);
 		font-size: 0.9375rem;
 		font-style: italic;
+		z-index: 1;
 	}
 </style>

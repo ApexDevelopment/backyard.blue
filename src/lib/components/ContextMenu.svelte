@@ -6,14 +6,17 @@
 		children: Snippet;
 		/** Alignment of the dropdown relative to the trigger */
 		align?: 'left' | 'right';
+		/** Callback when the menu is opened */
+		onopen?: () => void;
 	}
 
-	let { children, align = 'right' }: Props = $props();
+	let { children, align = 'right', onopen }: Props = $props();
 
 	let open = $state(false);
 
 	function toggle() {
 		open = !open;
+		if (open) onopen?.();
 	}
 
 	function close() {

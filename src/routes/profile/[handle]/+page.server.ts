@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types.js';
 import { error } from '@sveltejs/kit';
 import { getProfileByHandle, ensureProfile, resolveHandleToDid } from '$lib/server/identity.js';
-import { getAuthorFeed, isFollowing, getProfileStats, isBlocked } from '$lib/server/feed.js';
+import { getAuthorFeed, isFollowing, getProfileStats, isBlocked, getOutgoingBlock } from '$lib/server/feed.js';
 import { backfillIfNeeded } from '$lib/server/backfill.js';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
@@ -35,10 +35,14 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
 		const isOwnProfile = locals.did === profile.did;
 
-		// Check if the profile owner has blocked the viewer
+		// Check if a block relationship exists (either direction)
 		let blockedByProfile = false;
+		let viewerBlockUri: string | null = null;
 		if (locals.did && !isOwnProfile) {
-			blockedByProfile = await isBlocked(locals.did, profile.did);
+			[blockedByProfile, viewerBlockUri] = await Promise.all([
+				isBlocked(locals.did, profile.did),
+				getOutgoingBlock(locals.did, profile.did)
+			]);
 		}
 
 		let followingStatus = false;
@@ -64,6 +68,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 			isFollowing: followingStatus,
 			followUri,
 			blockedByProfile,
+			viewerBlockUri,
 			postsCount: stats.postsCount,
 			followsCount: stats.followingCount,
 			feed: feedResult.items,
