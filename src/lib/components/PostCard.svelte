@@ -291,8 +291,12 @@
 <article class="post-card card" class:compact>
 	{#if reblog}
 		<div class="reblog-header">
-			<Repeat2 size={14} />
-			<a href="/profile/{reblog.by.handle}">{reblog.by.displayName || reblog.by.handle}</a> reblogged
+			<span class="reblog-icon-wrapper">
+				<Repeat2 size={14} />
+			</span>
+			<span>
+				<a href="/profile/{reblog.by.handle}">{reblog.by.displayName || reblog.by.handle}</a> reblogged
+			</span>
 		</div>
 	{/if}
 
@@ -506,7 +510,7 @@
 
 	.reblog-header {
 		display: flex;
-		align-items: center;
+		align-items: baseline;
 		gap: 0.375rem;
 		margin-bottom: 0.5rem;
 		font-size: 0.8125rem;

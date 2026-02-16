@@ -287,6 +287,13 @@ select {
 	box-shadow: var(--shadow-sm);
 }
 
+.reblog-icon-wrapper {
+	/* Centers the icon with the text vertically.
+	0.7272em is the cap height of the Inter font,
+	so this will need changing if the font is changed. */
+	transform: translateY(calc(calc(14px - 0.7272em) / 2));
+}
+
 /* Mobile: flatten cards and collapse feed gaps */
 @media (max-width: 640px) {
 	.card {
