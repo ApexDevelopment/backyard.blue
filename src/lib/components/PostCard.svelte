@@ -874,5 +874,9 @@
 		.post-card {
 			padding: 0.75rem;
 		}
+
+		.embed-images {
+			border-radius: 0;
+		}
 	}
 </style>
