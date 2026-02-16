@@ -183,6 +183,8 @@ export async function initializeDatabase(): Promise<void> {
 				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 
+			CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_action_uri
+				ON notifications(action_uri);
 			CREATE INDEX IF NOT EXISTS idx_notifications_recipient
 				ON notifications(recipient_did, id DESC);
 			CREATE INDEX IF NOT EXISTS idx_notifications_unread

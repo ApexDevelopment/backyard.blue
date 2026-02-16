@@ -47,6 +47,7 @@ export async function createNotification(params: {
 		const result = await pool.query(
 			`INSERT INTO notifications (recipient_did, actor_did, type, subject_uri, action_uri, created_at)
 			 VALUES ($1, $2, $3, $4, $5, NOW())
+			 ON CONFLICT (action_uri) DO NOTHING
 			 RETURNING id, created_at`,
 			[params.recipientDid, params.actorDid, params.type, params.subjectUri || null, params.actionUri]
 		);
