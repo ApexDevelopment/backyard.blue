@@ -17,6 +17,9 @@ services:
       - ADMIN_DID=${ADMIN_DID:-}
       # AT Protocol handle resolver URL (a good choice: https://slingshot.microcosm.blue/)
       - HANDLE_RESOLVER_URL=${HANDLE_RESOLVER_URL:-}
+      - BLOB_CACHE_DIR=/data/blob-cache
+    volumes:
+      - blobcache:/data/blob-cache
     depends_on:
       db:
         condition: service_healthy
@@ -41,3 +44,4 @@ services:
 
 volumes:
   pgdata:
+  blobcache:
