@@ -2,8 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types.js';
 import { getAgent } from '$lib/server/oauth.js';
 import { NSID } from '$lib/lexicon.js';
-import { resolveDidDocument, getPdsUrl, blobUrl } from '$lib/server/identity.js';
-import { updateCachedProfile } from '$lib/server/identity.js';
+import { resolveDidDocument, getPdsUrl, blobUrl, updateCachedProfile } from '$lib/server/identity.js';
 
 /**
  * POST /api/onboarding — complete profile onboarding.
@@ -142,10 +141,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				if (bskyRecord.pronouns) updates.pronouns = bskyRecord.pronouns;
 				if (bskyRecord.description) updates.description = bskyRecord.description.slice(0, 2560);
 				if (bskyRecord.avatar?.ref?.$link) {
-					updates.avatar = blobUrl(pdsUrl, did, bskyRecord.avatar.ref.$link);
+					updates.avatar = blobUrl(did, bskyRecord.avatar.ref.$link);
 				}
 				if (bskyRecord.banner?.ref?.$link) {
-					updates.banner = blobUrl(pdsUrl, did, bskyRecord.banner.ref.$link);
+					updates.banner = blobUrl(did, bskyRecord.banner.ref.$link);
 				}
 				await updateCachedProfile(did, updates);
 			}

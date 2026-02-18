@@ -75,10 +75,12 @@ export function getHandle(didDoc: DidDocument): string | undefined {
 }
 
 /**
- * Construct a full URL to a blob stored on a PDS.
+ * Construct a proxy URL for a blob stored on a user's PDS.
+ * Blobs are served through our /api/blob proxy, which handles
+ * PDS resolution and disk caching.
  */
-export function blobUrl(pdsUrl: string, did: string, cid: string): string {
-	return `${pdsUrl}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
+export function blobUrl(did: string, cid: string): string {
+	return `/api/blob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
 }
 
 /**
@@ -150,11 +152,11 @@ export async function getBlueskyProfileRecord(did: string): Promise<{
 		if (record.description) result.description = record.description;
 		if (record.avatar?.ref?.$link) {
 			result.avatarCid = record.avatar.ref.$link;
-			result.avatarUrl = blobUrl(pdsUrl, did, record.avatar.ref.$link);
+			result.avatarUrl = blobUrl(did, record.avatar.ref.$link);
 		}
-		if (record.banner?.ref?.$link) {
+		if (record?.banner?.ref?.$link) {
 			result.bannerCid = record.banner.ref.$link;
-			result.bannerUrl = blobUrl(pdsUrl, did, record.banner.ref.$link);
+			result.bannerUrl = blobUrl(did, record.banner.ref.$link);
 		}
 
 		return result;
@@ -227,10 +229,10 @@ export async function ensureProfile(did: string): Promise<BackyardProfile | null
 					pronouns = record?.pronouns;
 					description = record?.description;
 					if (record?.avatar?.ref?.$link) {
-						avatar = blobUrl(pdsUrl, did, record.avatar.ref.$link);
+						avatar = blobUrl(did, record.avatar.ref.$link);
 					}
 					if (record?.banner?.ref?.$link) {
-						banner = blobUrl(pdsUrl, did, record.banner.ref.$link);
+						banner = blobUrl(did, record.banner.ref.$link);
 					}
 					foundBackyardProfile = true;
 				}
@@ -253,10 +255,10 @@ export async function ensureProfile(did: string): Promise<BackyardProfile | null
 						pronouns = record?.pronouns;
 						description = record?.description;
 						if (record?.avatar?.ref?.$link) {
-							avatar = blobUrl(pdsUrl, did, record.avatar.ref.$link);
+							avatar = blobUrl(did, record.avatar.ref.$link);
 						}
 						if (record?.banner?.ref?.$link) {
-							banner = blobUrl(pdsUrl, did, record.banner.ref.$link);
+							banner = blobUrl(did, record.banner.ref.$link);
 						}
 					}
 				} catch {

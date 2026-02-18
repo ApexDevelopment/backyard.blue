@@ -5,10 +5,9 @@ import { NSID } from '$lib/lexicon.js';
 import {
 	getBackyardProfileRecord,
 	updateCachedProfile,
-	resolveDidDocument,
-	getPdsUrl,
 	blobUrl
 } from '$lib/server/identity.js';
+
 
 const MAX_NAME_LEN = 640;
 const MAX_PRONOUNS_LEN = 640;
@@ -139,29 +138,24 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		});
 
 		// ── Update local profile cache ──────────────────────────────────
-		const didDoc = await resolveDidDocument(did);
-		const pdsUrl = getPdsUrl(didDoc);
-
 		const cacheUpdates: Record<string, string | null | undefined> = {
 			displayName: displayName || null,
 			pronouns: pronouns || null,
 			description: description || null
 		};
 
-		if (pdsUrl) {
-			const avatarBlob = record.avatar as any;
-			if (avatarBlob?.ref?.$link) {
-				cacheUpdates.avatar = blobUrl(pdsUrl, did, avatarBlob.ref.$link);
-			} else if (avatarAction !== 'keep') {
-				cacheUpdates.avatar = null;
-			}
+		const avatarBlob = record.avatar as any;
+		if (avatarBlob?.ref?.$link) {
+			cacheUpdates.avatar = blobUrl(did, avatarBlob.ref.$link);
+		} else if (avatarAction !== 'keep') {
+			cacheUpdates.avatar = null;
+		}
 
-			const bannerBlob = record.banner as any;
-			if (bannerBlob?.ref?.$link) {
-				cacheUpdates.banner = blobUrl(pdsUrl, did, bannerBlob.ref.$link);
-			} else if (bannerAction !== 'keep') {
-				cacheUpdates.banner = null;
-			}
+		const bannerBlob = record.banner as any;
+		if (bannerBlob?.ref?.$link) {
+			cacheUpdates.banner = blobUrl(did, bannerBlob.ref.$link);
+		} else if (bannerAction !== 'keep') {
+			cacheUpdates.banner = null;
 		}
 
 		await updateCachedProfile(did, cacheUpdates as any);

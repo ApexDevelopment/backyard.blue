@@ -57,18 +57,15 @@ async function resolveProfiles(dids: string[]): Promise<Map<string, BackyardProf
  * Stored format: [{ blob: { ref: { $link: "cid..." }, ... }, mimeType, alt, aspectRatio }, ...]
  * Output format: [{ url, mimeType, alt, width, height }, ...]
  */
-function resolveMedia(media: any, authorDid: string, profiles: Map<string, BackyardProfile>): BackyardMedia[] | undefined {
+function resolveMedia(media: any, authorDid: string): BackyardMedia[] | undefined {
 	if (!media || !Array.isArray(media) || media.length === 0) return undefined;
-	const profile = profiles.get(authorDid);
-	const pdsUrl = profile?.pdsUrl;
-	if (!pdsUrl) return undefined;
 
 	const resolved: BackyardMedia[] = [];
 	for (const item of media) {
 		const cid = item?.blob?.ref?.$link || item?.blob?.ref;
 		if (!cid || typeof cid !== 'string') continue;
 		resolved.push({
-			url: blobUrl(pdsUrl, authorDid, cid),
+			url: blobUrl(authorDid, cid),
 			mimeType: item.mimeType || 'image/jpeg',
 			alt: item.alt || undefined,
 			width: item.aspectRatio?.width || undefined,
@@ -89,7 +86,7 @@ function enrichPost(
 		author: profiles.get(row.author_did) || { did: row.author_did, handle: row.author_did },
 		text: row.text,
 		facets: row.facets || undefined,
-		media: resolveMedia(row.media, row.author_did, profiles),
+		media: resolveMedia(row.media, row.author_did),
 		tags: row.tags || undefined,
 		likeCount: parseInt(row.like_count, 10) || 0,
 		commentCount: parseInt(row.comment_count, 10) || 0,
@@ -249,7 +246,7 @@ export async function buildReblogChains(
 				author: profiles.get(rootPost.author_did) || { did: rootPost.author_did, handle: rootPost.author_did },
 				text: rootPost.text || '',
 				facets: rootPost.facets || undefined,
-				media: resolveMedia(rootPost.media, rootPost.author_did, profiles),
+				media: resolveMedia(rootPost.media, rootPost.author_did),
 				tags: rootPost.tags || undefined,
 				createdAt: toIso(rootPost.created_at),
 				isRoot: true
@@ -274,7 +271,7 @@ export async function buildReblogChains(
 				author: profiles.get(entry.author_did) || { did: entry.author_did, handle: entry.author_did },
 				text: entry.text || '',
 				facets: entry.facets || undefined,
-				media: resolveMedia(entry.media, entry.author_did, profiles),
+				media: resolveMedia(entry.media, entry.author_did),
 				tags: entry.tags || undefined,
 				createdAt: toIso(entry.created_at),
 				isRoot: false
@@ -338,7 +335,7 @@ async function enrichFeedItems(
 				by: profiles.get(row.reblog_author_did) || { did: row.reblog_author_did, handle: row.reblog_author_did },
 				text: row.reblog_text || undefined,
 				facets: row.reblog_facets || undefined,
-				media: resolveMedia(row.reblog_media, row.reblog_author_did, profiles),
+				media: resolveMedia(row.reblog_media, row.reblog_author_did),
 				tags: row.reblog_tags || undefined,
 				createdAt: toIso(row.created_at)
 			};
