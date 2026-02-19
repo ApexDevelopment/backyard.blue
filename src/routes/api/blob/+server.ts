@@ -12,12 +12,13 @@ import { isValidDid } from '$lib/server/validation.js';
 import pool from '$lib/server/db.js';
 import { resolveDidDocument, getPdsUrl } from '$lib/server/identity.js';
 import { env } from '$env/dynamic/private';
-import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, access, readdir, stat, rename, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const CACHE_DIR = env.BLOB_CACHE_DIR || './blob-cache';
 const MAX_BLOB_SIZE = 5 * 1024 * 1024;
 const CID_RE = /^[a-zA-Z0-9_-]+$/;
+const MAX_CACHE_BYTES = parseInt(env.BLOB_CACHE_MAX_BYTES || '', 10) || 2 * 1024 * 1024 * 1024; // 2 GB default
 
 let cacheReady = false;
 
@@ -33,6 +34,52 @@ async function fileExists(path: string): Promise<boolean> {
 		return true;
 	} catch {
 		return false;
+	}
+}
+
+async function listCacheFiles(): Promise<{ path: string; mtimeMs: number; size: number }[]> {
+	const entries = await readdir(CACHE_DIR);
+	const files: { path: string; mtimeMs: number; size: number }[] = [];
+	for (const name of entries) {
+		if (name.endsWith('.tmp')) continue;
+		const p = join(CACHE_DIR, name);
+		try {
+			const s = await stat(p);
+			if (s.isFile()) files.push({ path: p, mtimeMs: s.mtimeMs, size: s.size });
+		} catch {
+			continue;
+		}
+	}
+	return files;
+}
+
+async function pruneCacheIfNeeded(requiredSpace: number): Promise<void> {
+	if (MAX_CACHE_BYTES <= 0) return;
+	try {
+		const files = await listCacheFiles();
+		let total = files.reduce((a, b) => a + b.size, 0);
+		if (total + requiredSpace <= MAX_CACHE_BYTES) return;
+
+		// Sort by oldest mtime first
+		files.sort((a, b) => a.mtimeMs - b.mtimeMs);
+
+		for (const f of files) {
+			try {
+				await unlink(f.path);
+				total -= f.size;
+				// Also attempt to remove corresponding .ct file if present
+				if (!f.path.endsWith('.ct')) {
+					const ct = `${f.path}.ct`;
+					try {
+						await unlink(ct);
+					} catch {}
+				}
+				if (total + requiredSpace <= MAX_CACHE_BYTES) break;
+			} catch {}
+		}
+	} catch (err) {
+		// Non-fatal
+		console.error('Cache prune error:', err);
 	}
 }
 
@@ -118,8 +165,19 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		return new Response('Blob exceeds size limit', { status: 502 });
 	}
 
-	// Cache to disk (fire-and-forget)
-	Promise.all([writeFile(blobPath, data), writeFile(ctPath, contentType)]).catch(() => {});
+	// Prune cache if needed, then write atomically
+	try {
+		await pruneCacheIfNeeded(data.length + Buffer.byteLength(contentType || ''));
+		const tmpBlob = `${blobPath}.tmp-${Date.now()}`;
+		const tmpCt = `${ctPath}.tmp-${Date.now()}`;
+		await writeFile(tmpBlob, data);
+		await writeFile(tmpCt, contentType);
+		await rename(tmpBlob, blobPath);
+		await rename(tmpCt, ctPath);
+	} catch (err) {
+		// Non-fatal — cache best-effort
+		console.error('Failed to write blob cache:', err);
+	}
 
 	return new Response(data.buffer as ArrayBuffer, {
 		headers: { 'Content-Type': contentType, ...CACHE_HEADERS }
