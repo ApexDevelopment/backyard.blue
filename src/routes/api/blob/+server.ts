@@ -7,7 +7,7 @@
  * content-addressed, so they never change).
  */
 
-import type { RequestHandler } from '@sveltejs/kit';
+import { json, type RequestHandler } from '@sveltejs/kit';
 import { isValidDid } from '$lib/server/validation.js';
 import pool from '$lib/server/db.js';
 import { resolveDidDocument, getPdsUrl } from '$lib/server/identity.js';
@@ -53,7 +53,11 @@ const CACHE_HEADERS = {
 	'X-Content-Type-Options': 'nosniff'
 } as const;
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
+	if (!locals.did) {
+		return json({ error: 'Authentication required' }, { status: 401 });
+	}
+
 	const did = url.searchParams.get('did');
 	const cid = url.searchParams.get('cid');
 
