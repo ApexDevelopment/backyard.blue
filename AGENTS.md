@@ -12,7 +12,7 @@ Upon first reading this document, agents must read `notes/architecture.md` and `
 
 ## Vibecode Smell
 
-LLMs tend to converge on a specific style of web development that is not necessarily the best fit for every project. **Agents should be wary of and avoid these common pitfalls:**
+This is important! LLMs tend to converge on a specific style of web development that is not necessarily the best fit for every project. **Agents should be wary of and avoid these common pitfalls:**
 - Overuse of pill-shaped UI elements
 - Overuse of the "card" UI component metaphor
 - Duplicating the same logic in multiple places
@@ -23,4 +23,8 @@ LLMs tend to converge on a specific style of web development that is not necessa
 
 Backyard has its own established style and patterns. **Agents should strive to match the existing style and patterns by reading existing code** rather than writing best-guess CSS that "feels right" but does not look like the rest of the application.
 
-After making any changes, agents must run `npx svelte-check`. Warnings are not acceptable and should be resolved before considering the task complete.
+## Important Information
+
+1. All API routes must require authentication unless they are explicitly public.
+2. If any new environment variables are added, they must be documented and added to `.env.example`.
+3. After making any changes, agents must run `npx svelte-check`. Warnings are not acceptable and should be resolved before considering the task complete.
