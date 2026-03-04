@@ -200,7 +200,19 @@ export async function ensureProfile(did: string): Promise<BackyardProfile | null
 		// If the cached profile has meaningful data and isn't stale, return it.
 		// Otherwise, treat it as stale and re-resolve from the network.
 		if ((p.display_name || p.avatar) && !isStale) {
-			return mapRowToProfile(p);
+			const profile = mapRowToProfile(p);
+
+			// Ensure trust has been evaluated at least once
+			if (!profile.mediaTrusted) {
+				try {
+					const trust = await getTrustStatus(did);
+					profile.mediaTrusted = trust.mediaTrusted;
+				} catch (err) {
+					console.error(`Trust evaluation failed for ${did}:`, err);
+				}
+			}
+
+			return profile;
 		}
 	}
 
@@ -286,19 +298,14 @@ export async function ensureProfile(did: string): Promise<BackyardProfile | null
 			[did, handle, displayName, pronouns, description, avatar, banner, pdsUrl]
 		);
 
-		// Evaluate trust in the background so the profile return isn't delayed
-		const trustStatus = getTrustStatus(did).catch((err) => {
+		let mediaTrusted = false;
+		try {
+			const trust = await getTrustStatus(did);
+			mediaTrusted = trust.mediaTrusted;
+		} catch (err) {
 			console.error(`Trust evaluation failed for ${did}:`, err);
-			return null;
-		});
+		}
 
-		// Await briefly — if trust is already cached this is instant
-		const trust = await Promise.race([
-			trustStatus,
-			new Promise<null>((resolve) => setTimeout(() => resolve(null), 200))
-		]);
-
-		const mediaTrusted = trust?.mediaTrusted ?? false;
 		return { did, handle, displayName, pronouns, description, avatar, banner, pdsUrl, mediaTrusted };
 	} catch (err) {
 		console.error(`Failed to resolve profile for ${did}:`, err);

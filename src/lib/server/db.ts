@@ -183,6 +183,10 @@ export async function initializeDatabase(): Promise<void> {
 				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 
+			-- Deduplicate notifications before creating unique index (keeps the row with the lowest id)
+			DELETE FROM notifications a USING notifications b
+				WHERE a.action_uri = b.action_uri AND a.id > b.id;
+
 			CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_action_uri
 				ON notifications(action_uri);
 			CREATE INDEX IF NOT EXISTS idx_notifications_recipient
