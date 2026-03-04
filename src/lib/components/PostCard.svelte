@@ -349,11 +349,20 @@
 						{/if}
 						{#if entry.media && entry.media.length > 0}
 							<div class="post-embed">
-								<div class="embed-images" class:single={entry.media.length === 1} class:grid={entry.media.length > 1}>
-									{#each entry.media as media}
-										<img src={media.url} alt={media.alt || ''} class="embed-image" loading="lazy" />
-									{/each}
-								</div>
+								{#if entry.author.mediaTrusted !== false}
+									<div class="embed-images" class:single={entry.media.length === 1} class:grid={entry.media.length > 1}>
+										{#each entry.media as media}
+											{#if media.mimeType?.startsWith('video/')}
+												<!-- svelte-ignore a11y_media_has_caption -->
+												<video src={media.url} class="embed-image" controls playsinline preload="metadata"></video>
+											{:else}
+												<img src={media.url} alt={media.alt || ''} class="embed-image" loading="lazy" />
+											{/if}
+										{/each}
+									</div>
+								{:else}
+									<p class="media-hidden-notice">media hidden — this account is pending automatic verification</p>
+								{/if}
 							</div>
 						{/if}
 						{@const entryLink = firstLinkUrl(entry.facets)}
@@ -408,11 +417,20 @@
 
 		{#if post.media && post.media.length > 0}
 			<div class="post-embed">
-				<div class="embed-images" class:single={post.media.length === 1} class:grid={post.media.length > 1}>
-					{#each post.media as media}
-						<img src={media.url} alt={media.alt || ''} class="embed-image" loading="lazy" />
-					{/each}
-				</div>
+				{#if post.author.mediaTrusted !== false}
+					<div class="embed-images" class:single={post.media.length === 1} class:grid={post.media.length > 1}>
+						{#each post.media as media}
+							{#if media.mimeType?.startsWith('video/')}
+								<!-- svelte-ignore a11y_media_has_caption -->
+								<video src={media.url} class="embed-image" controls playsinline preload="metadata"></video>
+							{:else}
+								<img src={media.url} alt={media.alt || ''} class="embed-image" loading="lazy" />
+							{/if}
+						{/each}
+					</div>
+				{:else}
+					<p class="media-hidden-notice">media hidden — this account is pending automatic verification</p>
+				{/if}
 			</div>
 		{/if}
 
@@ -738,6 +756,11 @@
 		object-fit: cover;
 	}
 
+	video.embed-image {
+		object-fit: contain;
+		background-color: var(--bg-secondary, #000);
+	}
+
 	/* ── Action bar ──────────────────────────────────────── */
 
 	.post-actions {
@@ -818,6 +841,16 @@
 		color: var(--text-tertiary);
 		font-size: 0.875rem;
 		font-style: italic;
+	}
+
+	.media-hidden-notice {
+		color: var(--text-tertiary);
+		font-size: 0.8125rem;
+		font-style: italic;
+		padding: 0.75rem;
+		border: 1px dashed var(--border-light);
+		border-radius: var(--radius-md);
+		text-align: center;
 	}
 
 	/* ── Delete confirmation modal ────────────────────── */

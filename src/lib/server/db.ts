@@ -197,6 +197,20 @@ export async function initializeDatabase(): Promise<void> {
 				added_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 
+			-- Account trust evaluation cache
+			CREATE TABLE IF NOT EXISTS account_trust (
+				did TEXT PRIMARY KEY,
+				trust_score INTEGER NOT NULL DEFAULT 0,
+				manually_approved BOOLEAN NOT NULL DEFAULT FALSE,
+				account_created_at TIMESTAMPTZ,
+				has_external_records BOOLEAN NOT NULL DEFAULT FALSE,
+				post_count_30d INTEGER NOT NULL DEFAULT 0,
+				evaluated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+
+			-- Denormalised trust flag on profiles for fast feed rendering
+			ALTER TABLE profiles ADD COLUMN IF NOT EXISTS media_trusted BOOLEAN NOT NULL DEFAULT FALSE;
+
 			-- Embed preview cache (OpenGraph / Twitter Card metadata)
 			CREATE TABLE IF NOT EXISTS embed_cache (
 				url TEXT PRIMARY KEY,

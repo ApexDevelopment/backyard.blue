@@ -110,8 +110,45 @@ Tables map to AT Protocol record types:
 | `reblogs` | `blue.backyard.feed.reblog` | Tumblr-style reblogs with optional text/media additions |
 | `likes` | `blue.backyard.feed.like` | Subject is a strongRef (URI + CID) |
 | `follows` | `blue.backyard.graph.follow` | Unique constraint on (author_did, subject_did) |
+| `account_trust` | — | Trust evaluation cache: score, manual approval, signals |
+
+The `profiles` table also includes a denormalised `media_trusted` boolean column, updated by the trust evaluation system for fast feed rendering.
 
 Expired OAuth state is cleaned up inline during schema initialization.
+
+## User Trust System
+
+`src/lib/server/trust.ts` implements account trust evaluation that determines whether uploaded media is rendered.
+
+### Trust Score (0–100)
+
+| Signal | Max Points | Source |
+|--------|-----------|--------|
+| Account age (on PDS) | 40 | PLC directory audit log (`did:plc:`) or local first-seen |
+| External AT Protocol records | 30 | `com.atproto.repo.listRecords` for `app.bsky.*` collections |
+| Posting frequency (anti-spam) | 30 | Local `posts` table, 30-day window |
+
+Threshold: **50** — accounts at or above are "media trusted".
+
+No preferential treatment is given to any particular PDS.
+
+### Evaluation Lifecycle
+
+- Trust is first evaluated when `ensureProfile()` resolves a user from the network
+- Results are cached in `account_trust` with a 6-hour TTL
+- Stale evaluations are refreshed in the background (non-blocking)
+- The `profiles.media_trusted` column is kept in sync for fast feed joins
+
+### Admin Override
+
+`POST /api/admin/trust` — manually approve a user (sets score to 100)
+`DELETE /api/admin/trust` — revoke manual approval (re-evaluates organically)
+`GET /api/admin/trust?did=...` — inspect trust evaluation details
+
+### UI Integration
+
+- **PostCard**: media from untrusted authors shows a dashed-border placeholder ("media hidden — this account is pending automatic verification")
+- **PostComposer**: untrusted users see an accent-coloured notice explaining their media will be temporarily hidden
 
 ## Path Aliases
 

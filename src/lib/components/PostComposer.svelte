@@ -105,8 +105,23 @@
 	let fileInput: HTMLInputElement | undefined = $state();
 	let dragging = $state(false);
 
-	const ALLOWED_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
-	const MAX_FILE_SIZE = 1_000_000; // 1 MB
+	const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif']);
+	const VIDEO_TYPES = new Set(['video/mp4', 'video/webm']);
+	const ALLOWED_TYPES = new Set([...IMAGE_TYPES, ...VIDEO_TYPES]);
+	const MAX_IMAGE_SIZE = 10_000_000; // 10 MB
+	const MAX_VIDEO_SIZE = 50_000_000; // 50 MB
+
+	function isVideo(mimeType: string): boolean {
+		return VIDEO_TYPES.has(mimeType);
+	}
+
+	function maxSizeForType(mimeType: string): number {
+		return isVideo(mimeType) ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
+	}
+
+	function formatSize(bytes: number): string {
+		return bytes >= 1_000_000 ? `${bytes / 1_000_000} MB` : `${bytes / 1_000} KB`;
+	}
 
 	function addFiles(files: FileList | File[]) {
 		const remaining = MAX_IMAGES - images.length;
@@ -118,11 +133,12 @@
 		const toAdd = Array.from(files).slice(0, remaining);
 		for (const file of toAdd) {
 			if (!ALLOWED_TYPES.has(file.type)) {
-				error = `unsupported file type: ${file.type}. use PNG, JPEG, GIF, or WebP.`;
+				error = `unsupported file type: ${file.type}. use PNG, JPEG, GIF, WebP, AVIF, MP4, or WebM.`;
 				return;
 			}
-			if (file.size > MAX_FILE_SIZE) {
-				error = `"${file.name}" exceeds the 1 MB size limit.`;
+			const limit = maxSizeForType(file.type);
+			if (file.size > limit) {
+				error = `"${file.name}" exceeds the ${formatSize(limit)} size limit.`;
 				return;
 			}
 		}
@@ -353,6 +369,10 @@
 				<p class="composer-error">{error}</p>
 			{/if}
 
+			{#if user.mediaTrusted === false}
+				<p class="composer-trust-notice">your account is still being verified &mdash; any images you upload will be temporarily hidden from other users. this happens automatically and no action is needed on your part.</p>
+			{/if}
+
 			{#if isReblog && reblogChain && reblogChain.length > 0}
 				<!-- Read-only chain preview -->
 				<div class="reblog-preview">
@@ -399,7 +419,12 @@
 						<div class="image-previews">
 							{#each images as img, i}
 								<div class="image-preview">
-									<img src={img.previewUrl} alt={img.alt || 'attachment preview'} class="preview-thumb" />
+									{#if isVideo(img.mimeType)}
+										<!-- svelte-ignore a11y_media_has_caption -->
+										<video src={img.previewUrl} class="preview-thumb" muted loop playsinline></video>
+									{:else}
+										<img src={img.previewUrl} alt={img.alt || 'attachment preview'} class="preview-thumb" />
+									{/if}
 									<button
 										type="button"
 										class="preview-remove"
@@ -428,7 +453,7 @@
 			<div class="composer-footer">
 				<input
 					type="file"
-					accept="image/png,image/jpeg,image/gif,image/webp"
+					accept="image/png,image/jpeg,image/gif,image/webp,image/avif,video/mp4,video/webm"
 					multiple
 					class="sr-only"
 					bind:this={fileInput}
@@ -437,7 +462,7 @@
 				<button
 					type="button"
 					class="image-btn"
-					title="attach images"
+					title="attach media"
 					disabled={images.length >= MAX_IMAGES || submitting || uploading}
 					onclick={() => fileInput?.click()}
 				>
@@ -620,6 +645,17 @@
 		padding: 0.5rem 1rem 0;
 	}
 
+	.composer-trust-notice {
+		font-size: 0.8125rem;
+		color: var(--text-secondary);
+		background-color: color-mix(in srgb, var(--accent) 8%, transparent);
+		border-left: 3px solid var(--accent);
+		padding: 0.5rem 1rem;
+		margin: 0.5rem 1rem 0;
+		line-height: 1.45;
+		border-radius: 0 var(--radius-sm, 4px) var(--radius-sm, 4px) 0;
+	}
+
 	.composer-footer {
 		display: flex;
 		align-items: center;
@@ -733,7 +769,7 @@
 	/* ── Drag-and-drop overlay ──────────────────────── */
 
 	.modal-backdrop.dragging::after {
-		content: 'drop images here';
+		content: 'drop media here';
 		position: fixed;
 		inset: 0;
 		z-index: 210;

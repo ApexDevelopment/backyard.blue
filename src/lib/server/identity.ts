@@ -6,6 +6,7 @@
 import pool from './db.js';
 import type { BackyardProfile } from '$lib/types.js';
 import { escapeLike, isValidDid } from './validation.js';
+import { getTrustStatus } from './trust.js';
 
 interface DidDocument {
 	id: string;
@@ -177,7 +178,8 @@ export function mapRowToProfile(p: any): BackyardProfile {
 		description: p.description || undefined,
 		avatar: p.avatar || undefined,
 		banner: p.banner || undefined,
-		pdsUrl: p.pds_url || undefined
+		pdsUrl: p.pds_url || undefined,
+		mediaTrusted: p.media_trusted === true
 	};
 }
 
@@ -284,7 +286,20 @@ export async function ensureProfile(did: string): Promise<BackyardProfile | null
 			[did, handle, displayName, pronouns, description, avatar, banner, pdsUrl]
 		);
 
-		return { did, handle, displayName, pronouns, description, avatar, banner, pdsUrl };
+		// Evaluate trust in the background so the profile return isn't delayed
+		const trustStatus = getTrustStatus(did).catch((err) => {
+			console.error(`Trust evaluation failed for ${did}:`, err);
+			return null;
+		});
+
+		// Await briefly — if trust is already cached this is instant
+		const trust = await Promise.race([
+			trustStatus,
+			new Promise<null>((resolve) => setTimeout(() => resolve(null), 200))
+		]);
+
+		const mediaTrusted = trust?.mediaTrusted ?? false;
+		return { did, handle, displayName, pronouns, description, avatar, banner, pdsUrl, mediaTrusted };
 	} catch (err) {
 		console.error(`Failed to resolve profile for ${did}:`, err);
 		return null;

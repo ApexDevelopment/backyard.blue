@@ -13,6 +13,8 @@ export interface BackyardProfile {
 	avatar?: string;
 	banner?: string;
 	pdsUrl?: string;
+	/** Whether this account's media should be rendered (trust score >= threshold or admin-approved) */
+	mediaTrusted?: boolean;
 }
 
 export interface BackyardMedia {
@@ -135,7 +137,7 @@ export interface BackyardNotification {
 }
 
 export type ThemeMode = 'light' | 'dark';
-export type ColorScheme = 'chocoberry' | 'potpourri';
+export type ColorScheme = 'chocoberry' | 'potpourri' | 'atmosphere';
 export type Theme = `${ColorScheme}-${ThemeMode}`;
 
 /**

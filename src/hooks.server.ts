@@ -94,6 +94,7 @@ const WRITE_PATHS = new Set([
 	'/api/onboarding',
 	'/api/onboarding/follows',
 	'/api/admin/allowlist',
+	'/api/admin/trust',
 	'/api/upload'
 ]);
 
