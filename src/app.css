@@ -147,24 +147,24 @@
 /* ── Atmosphere ── */
 
 [data-theme='atmosphere-light'] {
-	--bg-primary: #dce8f5;
-	--bg-secondary: #e0ecf7;
-	--bg-tertiary: #c8d9eb;
-	--bg-card: #f4f9fe;
-	--bg-hover: #d0e2f0;
+	--bg-primary: #f0f4fc;
+	--bg-secondary: #f5f8fe;
+	--bg-tertiary: #dde7f7;
+	--bg-card: #ffffff;
+	--bg-hover: #e6eefb;
 
-	--text-primary: #1a2e42;
-	--text-secondary: #3d607a;
-	--text-tertiary: #7098b2;
-	--text-link: #2264a8;
-	--text-link-hover: #1a4d85;
+	--text-primary: #0e1f38;
+	--text-secondary: #2a4870;
+	--text-tertiary: #5878a8;
+	--text-link: #1550be;
+	--text-link-hover: #0d3a98;
 
-	--border-color: #c0d4e8;
-	--border-light: #d4e5f3;
+	--border-color: #c4d4ed;
+	--border-light: #d8e6f6;
 
-	--accent: #2264a8;
-	--accent-hover: #1a4d85;
-	--accent-light: #d0e4f7;
+	--accent: #1550be;
+	--accent-hover: #0d3a98;
+	--accent-light: #dae6f8;
 	--accent-text: #ffffff;
 
 	--danger: #c44040;
@@ -172,30 +172,30 @@
 	--success: #4a9960;
 	--warning: #c49030;
 
-	--shadow-sm: 0 1px 3px rgba(20, 40, 70, 0.06);
-	--shadow-md: 0 2px 8px rgba(20, 40, 70, 0.08);
-	--shadow-lg: 0 4px 16px rgba(20, 40, 70, 0.1);
+	--shadow-sm: 0 1px 3px rgba(14, 31, 56, 0.07);
+	--shadow-md: 0 2px 8px rgba(14, 31, 56, 0.1);
+	--shadow-lg: 0 4px 16px rgba(14, 31, 56, 0.13);
 }
 
 [data-theme='atmosphere-dark'] {
-	--bg-primary: #0d1620;
-	--bg-secondary: #111c28;
-	--bg-tertiary: #1e3245;
-	--bg-card: #182535;
-	--bg-hover: #1e3245;
+	--bg-primary: #0e1118;
+	--bg-secondary: #13181f;
+	--bg-tertiary: #252c38;
+	--bg-card: #1a2130;
+	--bg-hover: #252c38;
 
-	--text-primary: #d3e6f6;
-	--text-secondary: #7fafc9;
-	--text-tertiary: #456880;
-	--text-link: #6aa8d9;
-	--text-link-hover: #90c2ec;
+	--text-primary: #e8edf5;
+	--text-secondary: #a8b4c4;
+	--text-tertiary: #5a6678;
+	--text-link: #7ab0e8;
+	--text-link-hover: #a2c8f4;
 
-	--border-color: #254460;
-	--border-light: #1e3245;
+	--border-color: #2a3344;
+	--border-light: #222a38;
 
-	--accent: #4a8ec4;
-	--accent-hover: #6aa8d9;
-	--accent-light: #142030;
+	--accent: #4a88d4;
+	--accent-hover: #6aa4e8;
+	--accent-light: #161e2c;
 	--accent-text: #ffffff;
 
 	--danger: #d45050;
@@ -203,9 +203,9 @@
 	--success: #5aad70;
 	--warning: #d4a040;
 
-	--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-	--shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
-	--shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.5);
+	--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+	--shadow-md: 0 2px 8px rgba(0, 0, 0, 0.45);
+	--shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.55);
 }
 
 /* Reset & Base */
