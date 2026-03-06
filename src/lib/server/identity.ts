@@ -110,6 +110,31 @@ export async function getBackyardProfileRecord(did: string): Promise<Record<stri
 }
 
 /**
+ * Fetch the raw app.bsky.actor.profile record from a user's PDS.
+ * Returns the raw record value (with blob refs intact) or null.
+ */
+export async function getBlueskyProfileRawRecord(did: string): Promise<Record<string, unknown> | null> {
+	try {
+		const didDoc = await resolveDidDocument(did);
+		const pdsUrl = getPdsUrl(didDoc);
+		if (!pdsUrl) return null;
+
+		const res = await fetch(
+			`${pdsUrl}/xrpc/com.atproto.repo.getRecord?` +
+				`repo=${encodeURIComponent(did)}&` +
+				`collection=app.bsky.actor.profile&rkey=self`
+		);
+		if (res.ok) {
+			const data = await res.json();
+			return data.value || null;
+		}
+		return null;
+	} catch {
+		return null;
+	}
+}
+
+/**
  * Fetch a user's Bluesky (app.bsky.actor.profile) from their PDS.
  * Returns the profile data or null.
  */

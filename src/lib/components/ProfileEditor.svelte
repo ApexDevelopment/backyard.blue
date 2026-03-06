@@ -15,9 +15,11 @@
 			avatar?: string;
 			banner?: string;
 		};
+		/** True when the user has no backyard profile and data is mirrored from Bluesky */
+		isMirror?: boolean;
 	}
 
-	let { mode, handle, initialData }: Props = $props();
+	let { mode, handle, initialData, isMirror = false }: Props = $props();
 
 	// ── Form state ──────────────────────────────────────────────────────
 	/* svelte-ignore state_referenced_locally */
@@ -78,6 +80,9 @@
 			bannerFile = file;
 			bannerAction = 'upload';
 		}
+
+		// Reset input so selecting the same file again still triggers change
+		input.value = '';
 	}
 
 	function removeImage(type: 'avatar' | 'banner') {
@@ -235,6 +240,13 @@
 
 	<!-- Form -->
 	<div class="editor-form">
+		{#if isMirror}
+			<div class="mirror-warning">
+				your profile is currently mirrored from Bluesky. saving will create a
+				separate backyard profile that will not stay in sync with your Bluesky one.
+			</div>
+		{/if}
+
 		{#if errorMsg}
 			<div class="error-msg">{errorMsg}</div>
 		{/if}
@@ -424,6 +436,15 @@
 		padding: 0.75rem;
 		background-color: color-mix(in srgb, var(--danger) 10%, transparent);
 		color: var(--danger);
+		border-radius: var(--radius-sm);
+		font-size: 0.875rem;
+		margin-bottom: 1rem;
+	}
+
+	.mirror-warning {
+		padding: 0.75rem;
+		background-color: color-mix(in srgb, var(--warning) 10%, transparent);
+		color: var(--warning);
 		border-radius: var(--radius-sm);
 		font-size: 0.875rem;
 		margin-bottom: 1rem;

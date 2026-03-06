@@ -26,6 +26,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	return {
 		handle: profile.handle,
+		hasBackyardProfile: rawRecord !== null,
 		initialData: {
 			displayName: (rawRecord?.displayName as string) || profile.displayName || '',
 			pronouns: (rawRecord?.pronouns as string) || profile.pronouns || '',

@@ -4,6 +4,7 @@ import { getAgent } from '$lib/server/oauth.js';
 import { NSID } from '$lib/lexicon.js';
 import {
 	getBackyardProfileRecord,
+	getBlueskyProfileRawRecord,
 	updateCachedProfile,
 	blobUrl
 } from '$lib/server/identity.js';
@@ -97,6 +98,25 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		let existing: Record<string, unknown> | null = null;
 		if (avatarAction === 'keep' || bannerAction === 'keep') {
 			existing = await getBackyardProfileRecord(did);
+
+			// If the Backyard record is missing a blob ref that we need to keep,
+			// fall back to the Bluesky (app.bsky) profile — the blob lives on
+			// the same PDS and can be referenced directly.
+			const needAvatarFallback = avatarAction === 'keep' && !existing?.avatar;
+			const needBannerFallback = bannerAction === 'keep' && !existing?.banner;
+			if (needAvatarFallback || needBannerFallback) {
+				const bskyRecord = await getBlueskyProfileRawRecord(did);
+				if (bskyRecord) {
+					if (needAvatarFallback && bskyRecord.avatar) {
+						existing = existing || {};
+						existing.avatar = bskyRecord.avatar;
+					}
+					if (needBannerFallback && bskyRecord.banner) {
+						existing = existing || {};
+						existing.banner = bskyRecord.banner;
+					}
+				}
+			}
 		}
 
 		const record: Record<string, unknown> = {

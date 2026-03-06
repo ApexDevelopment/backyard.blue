@@ -12,7 +12,7 @@
 <div class="edit-page">
 	<h1>edit your profile</h1>
 
-	<ProfileEditor mode="edit" handle={data.handle} initialData={data.initialData} />
+	<ProfileEditor mode="edit" handle={data.handle} initialData={data.initialData} isMirror={!data.hasBackyardProfile} />
 </div>
 
 <style>
