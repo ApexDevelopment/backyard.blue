@@ -9,24 +9,24 @@
 			<rect x="0" y="0" width="200" height="200" fill="black"/>
 
 			<ellipse
-				cx="100"
-				cy="110"
-				rx="92"
-				ry="72"
+				cx="96"
+				cy="100"
+				rx="88"
+				ry="68"
 				fill="white"
-				transform="rotate(-22 100 110)"
+				transform="rotate(-28 96 100)"
 			/>
 
 			<path
-				d="M50 89
-				   L100 49
-				   L150 89
-				   L150 169
-				   L115 169
-				   L115 119
-				   L85 119
-				   L85 169
-				   L50 169
+				d="M50 79
+				   L100 39
+				   L150 79
+				   L150 159
+				   L115 159
+				   L115 109
+				   L85 109
+				   L85 159
+				   L50 159
 				   Z"
 				fill="black"
 			/>

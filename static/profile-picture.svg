@@ -35,7 +35,9 @@
 
 	<g clip-path="url(#rounded)">
 		<rect x="0" y="0" width="200" height="200" fill="white"/>
-		<rect x="0" y="0" width="200" height="200" fill="#8b3a4a" mask="url(#cutout)"/>
+		<g transform="translate(20, 20) scale(0.8)">
+			<rect x="0" y="0" width="200" height="200" fill="#8b3a4a" mask="url(#cutout)"/>
+		</g>
 	</g>
 
 </svg>
