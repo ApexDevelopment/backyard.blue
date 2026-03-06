@@ -340,6 +340,15 @@ export async function createFollow(
 	subjectDid: string,
 	opts?: { silent?: boolean }
 ): Promise<{ uri: string; cid: string }> {
+	// Prevent duplicate follow records on the PDS
+	const existing = await pool.query(
+		'SELECT uri FROM follows WHERE author_did = $1 AND subject_did = $2',
+		[did, subjectDid]
+	);
+	if (existing.rows.length > 0) {
+		return { uri: existing.rows[0].uri, cid: '' };
+	}
+
 	const now = new Date().toISOString();
 	const res = await agent.com.atproto.repo.createRecord({
 		repo: did,
@@ -354,7 +363,7 @@ export async function createFollow(
 	await pool.query(
 		`INSERT INTO follows (uri, author_did, subject_did, created_at)
 		 VALUES ($1, $2, $3, $4)
-		 ON CONFLICT (uri) DO NOTHING`,
+		 ON CONFLICT (author_did, subject_did) DO NOTHING`,
 		[res.data.uri, did, subjectDid, now]
 	);
 
