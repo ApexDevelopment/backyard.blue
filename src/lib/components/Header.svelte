@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ThemeToggle from './ThemeToggle.svelte';
+	import BackyardLogo from './BackyardLogo.svelte';
 	import { theme, themeMode } from '$lib/stores/theme.js';
 	import { toggleMobileNav } from '$lib/stores/mobileNav.js';
 	import type { BackyardProfile } from '$lib/types.js';
@@ -40,7 +41,7 @@
 			<Menu size={20} />
 		</button>
 		<a href="/" class="logo">
-			<img src="/backyard-logo.svg" alt="backyard logo" width="24" height="24" />
+			<BackyardLogo size={24} />
 			<span class="logo-text">backyard</span>
 		</a>
 
@@ -148,6 +149,10 @@
 		font-weight: 700;
 		font-size: 1.125rem;
 		text-decoration: none;
+	}
+
+	.logo :global(svg) {
+		color: var(--accent);
 	}
 
 	.logo:hover {
