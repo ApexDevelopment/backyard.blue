@@ -24,6 +24,7 @@ RUN npm ci --omit=dev
 # (e.g. via docker-compose environment or docker run -e)
 ENV NODE_ENV=${NODE_ENV:-production}
 ENV PORT=3000
+ENV BODY_SIZE_LIMIT=52428800
 
 EXPOSE 3000
 
