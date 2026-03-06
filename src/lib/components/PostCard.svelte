@@ -472,23 +472,26 @@
 				{/if}
 			</button>
 
-			{#if canDelete}
-				<button class="action-btn edit-btn" onclick={handleEditClick} title="edit">
-					<Pencil size={16} />
-				</button>
-				<button class="action-btn delete-btn" onclick={handleDeleteClick} title="delete" disabled={deleteLoading}>
-					<Trash2 size={16} />
-				</button>
-			{/if}
-
-			{#if showBlockOption}
+			{#if canDelete || showBlockOption}
 				<div class="action-menu">
-					<ContextMenu onopen={checkBlockStatus}>
+					<ContextMenu onopen={showBlockOption ? checkBlockStatus : undefined}>
 						{#snippet children()}
-							<button class="context-item {blockStatus?.blocking ? '' : 'context-item-danger'}" onclick={handleBlockUser}>
-								<Ban size={16} />
-								<span>{blockStatus?.blocking ? 'unblock' : 'block'} {blockTargetName}</span>
-							</button>
+							{#if canDelete}
+								<button class="context-item" onclick={handleEditClick}>
+									<Pencil size={16} />
+									<span>edit</span>
+								</button>
+								<button class="context-item context-item-danger" onclick={handleDeleteClick} disabled={deleteLoading}>
+									<Trash2 size={16} />
+									<span>delete</span>
+								</button>
+							{/if}
+							{#if showBlockOption}
+								<button class="context-item {blockStatus?.blocking ? '' : 'context-item-danger'}" onclick={handleBlockUser}>
+									<Ban size={16} />
+									<span>{blockStatus?.blocking ? 'unblock' : 'block'} {blockTargetName}</span>
+								</button>
+							{/if}
 						{/snippet}
 					</ContextMenu>
 				</div>
@@ -785,6 +788,8 @@
 		cursor: pointer;
 		background: none;
 		border: none;
+		min-width: 3.25rem;
+		font-variant-numeric: tabular-nums;
 	}
 
 	.action-btn:hover {
@@ -816,21 +821,8 @@
 		font-size: 0.875rem;
 	}
 
-	.delete-btn:hover {
-		color: var(--danger);
-	}
-
-	.delete-btn {
-		margin-left: auto;
-	}
-
 	.action-menu {
 		margin-left: auto;
-	}
-
-	/* When delete-btn is also present, don't double-push */
-	.delete-btn + .action-menu {
-		margin-left: 0;
 	}
 
 	.deleted-card {
