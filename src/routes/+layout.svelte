@@ -2,6 +2,8 @@
 	import '../app.css';
 	import { page } from '$app/stores';
 	import { onDestroy } from 'svelte';
+	import { browser } from '$app/environment';
+	import { goto } from '$app/navigation';
 	import Header from '$lib/components/Header.svelte';
 	import SideNav from '$lib/components/SideNav.svelte';
 	import NewsPanel from '$lib/components/NewsPanel.svelte';
@@ -15,6 +17,24 @@
 	import type { LayoutData } from './$types.js';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
+
+	// Intercept 401 responses from API calls and redirect to login
+	if (browser) {
+		const originalFetch = window.fetch;
+		let redirecting = false;
+		window.fetch = async function (...args: Parameters<typeof fetch>) {
+			const response = await originalFetch.apply(this, args);
+			if (response.status === 401 && !redirecting) {
+				const url = typeof args[0] === 'string' ? args[0] : args[0] instanceof Request ? args[0].url : '';
+				if (url.includes('/api/') && !url.includes('/api/auth/')) {
+					redirecting = true;
+					await fetch('/logout', { method: 'POST' });
+					goto('/login', { replaceState: true });
+				}
+			}
+			return response;
+		};
+	}
 
 	let hideChrome = $derived(
 		$page.url.pathname.startsWith('/onboarding')

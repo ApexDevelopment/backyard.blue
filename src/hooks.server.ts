@@ -1,7 +1,9 @@
 import type { Handle } from '@sveltejs/kit';
-import { getSessionData } from '$lib/server/session.js';
+import { redirect } from '@sveltejs/kit';
+import { getSessionData, clearSession } from '$lib/server/session.js';
 import { initializeDatabase, startOAuthStateCleanup } from '$lib/server/db.js';
 import { startFirehose } from '$lib/server/firehose.js';
+import pool from '$lib/server/db.js';
 
 /**
  * Promise-based singleton so concurrent requests during startup await the
@@ -130,10 +132,25 @@ export const handle: Handle = async ({ event, resolve }) => {
 	try {
 		const session = getSessionData(event.cookies);
 		if (session.did) {
-			event.locals.did = session.did;
-			event.locals.needsOnboarding = session.needsOnboarding || false;
+			// Verify the OAuth session still exists in the database
+			const oauthCheck = await pool.query(
+				'SELECT 1 FROM oauth_session WHERE did = $1',
+				[session.did]
+			);
+			if (oauthCheck.rows.length === 0) {
+				clearSession(event.cookies);
+				// For page navigations, redirect to login immediately
+				if (!path.startsWith('/api/') && !path.startsWith('/login') && !path.startsWith('/logout') && !path.startsWith('/oauth/')) {
+					redirect(303, '/login');
+				}
+			} else {
+				event.locals.did = session.did;
+				event.locals.needsOnboarding = session.needsOnboarding || false;
+			}
 		}
-	} catch {
+	} catch (err) {
+		// Re-throw redirects (SvelteKit uses thrown responses)
+		if (err && typeof err === 'object' && 'status' in err && 'location' in err) throw err;
 	}
 
 	const response = await resolve(event, {
