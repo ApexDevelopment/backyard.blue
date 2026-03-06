@@ -104,6 +104,9 @@
 	let uploading = $state(false);
 	let fileInput: HTMLInputElement | undefined = $state();
 	let dragging = $state(false);
+	let altEditIndex: number | null = $state(null);
+	let altEditValue = $state('');
+	let altTextarea: HTMLTextAreaElement | undefined = $state();
 
 	const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif']);
 	const VIDEO_TYPES = new Set(['video/mp4', 'video/webm']);
@@ -157,6 +160,25 @@
 	function removeImage(index: number) {
 		const removed = images.splice(index, 1);
 		if (removed[0]) URL.revokeObjectURL(removed[0].previewUrl);
+		if (altEditIndex === index) altEditIndex = null;
+		else if (altEditIndex !== null && altEditIndex > index) altEditIndex--;
+	}
+
+	function openAltEditor(index: number) {
+		altEditIndex = index;
+		altEditValue = images[index].alt;
+		requestAnimationFrame(() => altTextarea?.focus());
+	}
+
+	function saveAlt() {
+		if (altEditIndex !== null && images[altEditIndex]) {
+			images[altEditIndex].alt = altEditValue;
+		}
+		altEditIndex = null;
+	}
+
+	function cancelAlt() {
+		altEditIndex = null;
 	}
 
 	function handleFileSelect(e: Event) {
@@ -219,7 +241,11 @@
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') {
-			onClose();
+			if (altEditIndex !== null) {
+				cancelAlt();
+			} else {
+				onClose();
+			}
 		}
 	}
 
@@ -419,12 +445,21 @@
 						<div class="image-previews">
 							{#each images as img, i}
 								<div class="image-preview">
-									{#if isVideo(img.mimeType)}
-										<!-- svelte-ignore a11y_media_has_caption -->
-										<video src={img.previewUrl} class="preview-thumb" muted loop playsinline></video>
-									{:else}
-										<img src={img.previewUrl} alt={img.alt || 'attachment preview'} class="preview-thumb" />
-									{/if}
+									<button
+										type="button"
+										class="preview-thumb-btn"
+										onclick={() => openAltEditor(i)}
+										title="edit alt text"
+										disabled={submitting || uploading}
+									>
+										{#if isVideo(img.mimeType)}
+											<!-- svelte-ignore a11y_media_has_caption -->
+											<video src={img.previewUrl} class="preview-thumb" muted loop playsinline></video>
+										{:else}
+											<img src={img.previewUrl} alt={img.alt || 'attachment preview'} class="preview-thumb" />
+										{/if}
+										<span class="alt-badge" class:alt-set={img.alt.length > 0}>ALT</span>
+									</button>
 									<button
 										type="button"
 										class="preview-remove"
@@ -434,13 +469,6 @@
 									>
 										<X size={14} />
 									</button>
-									<input
-										type="text"
-										class="preview-alt"
-										placeholder="alt text"
-										bind:value={img.alt}
-										disabled={submitting || uploading}
-									/>
 								</div>
 							{/each}
 						</div>
@@ -491,6 +519,49 @@
 			</div>
 		</form>
 	</div>
+
+	{#if altEditIndex !== null && images[altEditIndex]}
+		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+		<div
+			class="alt-backdrop"
+			role="dialog"
+			tabindex="-1"
+			aria-modal="true"
+			aria-label="edit alt text"
+			onclick={(e) => { if ((e.target as HTMLElement).classList.contains('alt-backdrop')) cancelAlt(); }}
+			onkeydown={(e) => { if (e.key === 'Escape') cancelAlt(); }}
+		>
+			<div class="alt-modal card">
+				<div class="alt-modal-header">
+					<h3>edit alt text</h3>
+					<button type="button" class="modal-close" onclick={cancelAlt} aria-label="close">
+						<X size={20} />
+					</button>
+				</div>
+				<div class="alt-modal-body">
+					<div class="alt-preview-large">
+						{#if isVideo(images[altEditIndex].mimeType)}
+							<!-- svelte-ignore a11y_media_has_caption -->
+							<video src={images[altEditIndex].previewUrl} class="alt-preview-media" muted loop playsinline controls></video>
+						{:else}
+							<img src={images[altEditIndex].previewUrl} alt="" class="alt-preview-media" />
+						{/if}
+					</div>
+					<textarea
+						class="alt-textarea"
+						placeholder="describe this media for people who use screen readers…"
+						bind:value={altEditValue}
+						bind:this={altTextarea}
+						maxlength="1000"
+					></textarea>
+					<div class="alt-modal-footer">
+						<span class="alt-char-count">{altEditValue.length}/1000</span>
+						<button type="button" class="btn btn-primary" onclick={saveAlt}>save</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	{/if}
 {/if}
 
 <style>
@@ -719,9 +790,20 @@
 	.image-preview {
 		position: relative;
 		width: 96px;
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
+		height: 96px;
+	}
+
+	.preview-thumb-btn {
+		position: relative;
+		display: block;
+		width: 96px;
+		height: 96px;
+		padding: 0;
+		border: none;
+		background: none;
+		cursor: pointer;
+		border-radius: var(--radius-sm, 6px);
+		overflow: hidden;
 	}
 
 	.preview-thumb {
@@ -730,6 +812,33 @@
 		object-fit: cover;
 		border-radius: var(--radius-sm, 6px);
 		border: 1px solid var(--border-light);
+		display: block;
+	}
+
+	.preview-thumb-btn:hover .preview-thumb,
+	.preview-thumb-btn:focus-visible .preview-thumb {
+		filter: brightness(0.85);
+	}
+
+	.alt-badge {
+		position: absolute;
+		bottom: 4px;
+		left: 4px;
+		padding: 1px 5px;
+		font-size: 0.625rem;
+		font-weight: 700;
+		line-height: 1.4;
+		border-radius: 4px;
+		background-color: rgba(0, 0, 0, 0.55);
+		color: rgba(255, 255, 255, 0.75);
+		pointer-events: none;
+		text-transform: uppercase;
+		letter-spacing: 0.02em;
+	}
+
+	.alt-badge.alt-set {
+		background-color: var(--accent);
+		color: white;
 	}
 
 	.preview-remove {
@@ -752,17 +861,94 @@
 		background-color: rgba(0, 0, 0, 0.8);
 	}
 
-	.preview-alt {
-		width: 100%;
-		font-size: 0.6875rem;
-		padding: 0.125rem 0.25rem;
-		border: 1px solid var(--border-light);
-		border-radius: var(--radius-sm, 4px);
-		background: var(--bg-primary, var(--bg));
-		color: var(--text-secondary);
+	/* ── Alt text modal ─────────────────────────────── */
+
+	.alt-backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: 300;
+		background-color: rgba(0, 0, 0, 0.6);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 1rem;
+		animation: fadeIn 0.15s ease;
 	}
 
-	.preview-alt::placeholder {
+	.alt-modal {
+		width: 100%;
+		max-width: 480px;
+		padding: 0;
+		overflow: hidden;
+		animation: slideIn 0.2s ease;
+	}
+
+	.alt-modal-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.75rem 1rem;
+		border-bottom: 1px solid var(--border-light);
+	}
+
+	.alt-modal-header h3 {
+		font-size: 1rem;
+		font-weight: 700;
+	}
+
+	.alt-modal-body {
+		padding: 1rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.alt-preview-large {
+		display: flex;
+		justify-content: center;
+		background-color: var(--bg-secondary, var(--bg-hover));
+		border-radius: var(--radius-sm, 6px);
+		overflow: hidden;
+	}
+
+	.alt-preview-media {
+		max-width: 100%;
+		max-height: 240px;
+		object-fit: contain;
+	}
+
+	.alt-textarea {
+		width: 100%;
+		min-height: 80px;
+		padding: 0.625rem;
+		font-size: 0.875rem;
+		line-height: 1.5;
+		border: 1px solid var(--border-light);
+		border-radius: var(--radius-sm, 6px);
+		background: var(--bg-primary, var(--bg));
+		color: var(--text-primary);
+		resize: vertical;
+		font-family: inherit;
+	}
+
+	.alt-textarea::placeholder {
+		color: var(--text-tertiary);
+	}
+
+	.alt-textarea:focus {
+		outline: none;
+		border-color: var(--accent);
+	}
+
+	.alt-modal-footer {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 0.75rem;
+	}
+
+	.alt-char-count {
+		font-size: 0.75rem;
 		color: var(--text-tertiary);
 	}
 
