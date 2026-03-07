@@ -38,7 +38,7 @@ function parseDataUrl(dataUrl: string): { mimeType: string; bytes: Uint8Array } 
  */
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.did) {
-		return json({ error: 'Not authenticated' }, { status: 401 });
+		return json({ error: 'Authentication required' }, { status: 401 });
 	}
 
 	const did = locals.did;

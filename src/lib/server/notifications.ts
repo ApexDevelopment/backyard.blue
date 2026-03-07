@@ -71,6 +71,34 @@ export async function createNotification(params: {
 }
 
 /**
+ * Look up the author of a post, reblog, or comment by its AT URI
+ * and create a notification for them. Fire-and-forget — errors are
+ * silently swallowed since notifications are non-critical.
+ */
+export function notifySubjectAuthor(
+	actorDid: string,
+	subjectUri: string,
+	type: NotificationType,
+	actionUri: string
+): void {
+	(async () => {
+		const result = await pool.query(
+			`SELECT author_did FROM posts WHERE uri = $1
+			 UNION ALL
+			 SELECT author_did FROM reblogs WHERE uri = $1
+			 UNION ALL
+			 SELECT author_did FROM comments WHERE uri = $1
+			 LIMIT 1`,
+			[subjectUri]
+		);
+		const recipientDid = result.rows[0]?.author_did;
+		if (recipientDid) {
+			await createNotification({ recipientDid, actorDid, type, subjectUri, actionUri });
+		}
+	})().catch(() => {});
+}
+
+/**
  * Subscribe to live notification events for a DID.
  * Returns an unsubscribe function.
  */

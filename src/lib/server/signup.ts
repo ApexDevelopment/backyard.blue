@@ -33,6 +33,12 @@ export function getAdminDid(): string | null {
 	return env.ADMIN_DID?.trim() || null;
 }
 
+export function isAdmin(did?: string): boolean {
+	if (!did) return false;
+	const adminDid = getAdminDid();
+	return !!adminDid && did === adminDid;
+}
+
 /**
  * Check whether a DID is a returning user (has an existing session).
  */

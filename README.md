@@ -40,11 +40,16 @@ Copy `.env.example` to `.env` and set the required values:
 | `OAUTH_PRIVATE_KEY_1` | Yes | ES256 (P-256) private key in JWK format (see step 1). |
 | `OAUTH_PRIVATE_KEY_2` | No | Additional key for rotation. |
 | `OAUTH_PRIVATE_KEY_3` | No | Additional key for rotation. |
+| `BODY_SIZE_LIMIT` | No | Maximum request body size in bytes. Defaults to `52428800` (50 MB) to support media uploads. |
+| `BLOB_CACHE_DIR` | No | Filesystem path for caching fetched blobs. Defaults to `./blob-cache`. Use an absolute path in Docker (e.g. `/data/blob-cache`). |
+| `BLOB_CACHE_MAX_BYTES` | No | Maximum total size of the blob cache in bytes. Defaults to `2147483648` (2 GiB). |
 | `JETSTREAM_URL` | No | Custom Jetstream WebSocket URL. Defaults to `wss://jetstream2.us-east.bsky.network/subscribe`. |
 | `FIREHOSE_DISABLED` | No | Set to `true` to disable the Jetstream firehose consumer. |
 | `SIGNUP_MODE` | No | `open` (default), `allowlist`, or `closed`. Controls who can create new sessions. |
 | `ADMIN_DID` | No | DID of the instance admin. Required for `/api/admin/*` endpoints. |
 | `HANDLE_RESOLVER_URL` | No | XRPC-compatible endpoint for resolving handles to DIDs. Falls back to `https://public.api.bsky.app`. A good choice is `https://slingshot.microcosm.blue/`. |
+| `NEWS_DID` | No | DID of the account whose posts populate the news panel. If unset, resolves `NEWS_HANDLE` via the handle resolver. |
+| `NEWS_HANDLE` | No | Handle of the news account. Defaults to `backyard.blue`. |
 
 In production, the app will refuse to start if `SESSION_SECRET` uses a default value or if no OAuth private key is configured.
 

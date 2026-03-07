@@ -147,48 +147,34 @@ export async function getBlueskyProfileRecord(did: string): Promise<{
 	avatarUrl?: string;
 	bannerUrl?: string;
 } | null> {
-	try {
-		const didDoc = await resolveDidDocument(did);
-		const pdsUrl = getPdsUrl(didDoc);
-		if (!pdsUrl) return null;
+	const record = await getBlueskyProfileRawRecord(did);
+	if (!record) return null;
 
-		const res = await fetch(
-			`${pdsUrl}/xrpc/com.atproto.repo.getRecord?` +
-				`repo=${encodeURIComponent(did)}&` +
-				`collection=app.bsky.actor.profile&rkey=self`
-		);
-		if (!res.ok) return null;
+	const result: {
+		displayName?: string;
+		pronouns?: string;
+		description?: string;
+		avatarCid?: string;
+		bannerCid?: string;
+		avatarUrl?: string;
+		bannerUrl?: string;
+	} = {};
 
-		const data = await res.json();
-		const record = data.value;
-		if (!record) return null;
-
-		const result: {
-			displayName?: string;
-			pronouns?: string;
-			description?: string;
-			avatarCid?: string;
-			bannerCid?: string;
-			avatarUrl?: string;
-			bannerUrl?: string;
-		} = {};
-
-		if (record.displayName) result.displayName = record.displayName;
-		if (record.pronouns) result.pronouns = record.pronouns;
-		if (record.description) result.description = record.description;
-		if (record.avatar?.ref?.$link) {
-			result.avatarCid = record.avatar.ref.$link;
-			result.avatarUrl = blobUrl(did, record.avatar.ref.$link);
-		}
-		if (record?.banner?.ref?.$link) {
-			result.bannerCid = record.banner.ref.$link;
-			result.bannerUrl = blobUrl(did, record.banner.ref.$link);
-		}
-
-		return result;
-	} catch {
-		return null;
+	if (record.displayName) result.displayName = record.displayName as string;
+	if (record.pronouns) result.pronouns = record.pronouns as string;
+	if (record.description) result.description = record.description as string;
+	const avatar = record.avatar as any;
+	if (avatar?.ref?.$link) {
+		result.avatarCid = avatar.ref.$link;
+		result.avatarUrl = blobUrl(did, avatar.ref.$link);
 	}
+	const banner = record.banner as any;
+	if (banner?.ref?.$link) {
+		result.bannerCid = banner.ref.$link;
+		result.bannerUrl = blobUrl(did, banner.ref.$link);
+	}
+
+	return result;
 }
 
 /**

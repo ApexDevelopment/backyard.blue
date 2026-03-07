@@ -16,7 +16,7 @@ import { env } from '$env/dynamic/private';
 import { NSID, ALL_NSIDS } from '$lib/lexicon.js';
 import pool from './db.js';
 import { ensureProfile } from './identity.js';
-import { createNotification } from './notifications.js';
+import { createNotification, notifySubjectAuthor } from './notifications.js';
 import {
 	clampText,
 	clampTags,
@@ -83,33 +83,6 @@ async function saveCursor(cursorUs: number): Promise<void> {
 
 function buildAtUri(did: string, collection: string, rkey: string): string {
 	return `at://${did}/${collection}/${rkey}`;
-}
-
-/**
- * Look up the author of a post/reblog/comment and notify them.
- * Fire-and-forget — errors are silently swallowed.
- */
-function notifySubjectAuthorFirehose(
-	actorDid: string,
-	subjectUri: string,
-	type: 'like' | 'comment' | 'reblog',
-	actionUri: string
-): void {
-	(async () => {
-		const result = await pool.query(
-			`SELECT author_did FROM posts WHERE uri = $1
-			 UNION ALL
-			 SELECT author_did FROM reblogs WHERE uri = $1
-			 UNION ALL
-			 SELECT author_did FROM comments WHERE uri = $1
-			 LIMIT 1`,
-			[subjectUri]
-		);
-		const recipientDid = result.rows[0]?.author_did;
-		if (recipientDid) {
-			await createNotification({ recipientDid, actorDid, type, subjectUri, actionUri });
-		}
-	})().catch(() => {}); // Notification errors are non-critical and have eventual consistency
 }
 
 /**
@@ -181,7 +154,7 @@ async function indexRecord(did: string, commit: JetstreamCommit): Promise<void> 
 				]
 			);
 			if (subject?.uri) {
-				notifySubjectAuthorFirehose(did, subject.uri, 'comment', uri);
+				notifySubjectAuthor(did, subject.uri, 'comment', uri);
 			}
 			break;
 		}
@@ -211,7 +184,7 @@ async function indexRecord(did: string, commit: JetstreamCommit): Promise<void> 
 				]
 			);
 			if (subjectUri) {
-				notifySubjectAuthorFirehose(did, subjectUri, 'reblog', uri);
+				notifySubjectAuthor(did, subjectUri, 'reblog', uri);
 			}
 			break;
 		}
@@ -224,7 +197,7 @@ async function indexRecord(did: string, commit: JetstreamCommit): Promise<void> 
 				[uri, cid, did, subject?.uri || '', safeIsoDate(r.createdAt)]
 			);
 			if (subject?.uri) {
-				notifySubjectAuthorFirehose(did, subject.uri, 'like', uri);
+				notifySubjectAuthor(did, subject.uri, 'like', uri);
 			}
 			break;
 		}

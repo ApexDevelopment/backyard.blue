@@ -1,12 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types.js';
-import { getAdminDid, getAllowlist, addToAllowlist, removeFromAllowlist } from '$lib/server/signup.js';
-
-function isAdmin(did?: string): boolean {
-	if (!did) return false;
-	const adminDid = getAdminDid();
-	return !!adminDid && did === adminDid;
-}
+import { isAdmin, getAllowlist, addToAllowlist, removeFromAllowlist } from '$lib/server/signup.js';
 
 /**
  * GET /api/admin/allowlist — list all allowlisted identifiers.

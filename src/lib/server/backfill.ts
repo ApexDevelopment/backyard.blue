@@ -191,7 +191,7 @@ async function indexBackfillRecord(
 				await pool.query(
 					`INSERT INTO follows (uri, author_did, subject_did, created_at)
 					 VALUES ($1, $2, $3, $4)
-					 ON CONFLICT (uri) DO NOTHING`,
+					 ON CONFLICT (author_did, subject_did) DO NOTHING`,
 					[uri, did, subjectDid, safeIsoDate(r.createdAt)]
 				);
 			}

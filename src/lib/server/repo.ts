@@ -9,8 +9,7 @@ import { NSID } from '$lib/lexicon.js';
 import pool from './db.js';
 import { ensureProfile } from './identity.js';
 import { resolveRootPostUri, getReblogDepth, MAX_REBLOG_DEPTH } from './validation.js';
-import { createNotification } from './notifications.js';
-import type { NotificationType } from '$lib/types.js';
+import { createNotification, notifySubjectAuthor } from './notifications.js';
 import type { QueryResult } from 'pg';
 
 /** Parse an AT URI into its components */
@@ -18,33 +17,6 @@ export function parseAtUri(uri: string): { repo: string; collection: string; rke
 	const stripped = uri.replace('at://', '');
 	const [repo, collection, rkey] = stripped.split('/');
 	return { repo, collection, rkey };
-}
-
-/**
- * Look up the author of a post, reblog, or comment by its AT URI
- * and create a notification for them. Fire-and-forget.
- */
-function notifySubjectAuthor(
-	actorDid: string,
-	subjectUri: string,
-	type: NotificationType,
-	actionUri: string
-): void {
-	(async () => {
-		const result = await pool.query(
-			`SELECT author_did FROM posts WHERE uri = $1
-			 UNION ALL
-			 SELECT author_did FROM reblogs WHERE uri = $1
-			 UNION ALL
-			 SELECT author_did FROM comments WHERE uri = $1
-			 LIMIT 1`,
-			[subjectUri]
-		);
-		const recipientDid = result.rows[0]?.author_did;
-		if (recipientDid) {
-			await createNotification({ recipientDid, actorDid, type, subjectUri, actionUri });
-		}
-	})().catch(() => {});
 }
 
 export async function createPost(

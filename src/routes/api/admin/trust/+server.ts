@@ -1,14 +1,8 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { getAdminDid } from '$lib/server/signup.js';
+import { isAdmin } from '$lib/server/signup.js';
 import { isValidDid } from '$lib/server/validation.js';
 import { getTrustStatus, setManualApproval } from '$lib/server/trust.js';
-
-function isAdmin(did?: string): boolean {
-	if (!did) return false;
-	const adminDid = getAdminDid();
-	return !!adminDid && did === adminDid;
-}
 
 /**
  * GET /api/admin/trust?did=... — get trust evaluation for a user.

@@ -15,7 +15,7 @@ import { resolveDidDocument, getPdsUrl, blobUrl, updateCachedProfile } from '$li
  */
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.did) {
-		return json({ error: 'Not authenticated' }, { status: 401 });
+		return json({ error: 'Authentication required' }, { status: 401 });
 	}
 
 	let body: any;

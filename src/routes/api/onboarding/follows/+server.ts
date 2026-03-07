@@ -62,7 +62,7 @@ const BATCH_SIZE = 10;
  */
 export const POST: RequestHandler = async ({ locals, cookies, request }) => {
 	if (!locals.did) {
-		return json({ error: 'Not authenticated' }, { status: 401 });
+		return json({ error: 'Authentication required' }, { status: 401 });
 	}
 
 	let body: any;
