@@ -5,6 +5,7 @@
 
 import pool from './db.js';
 import { mapRowToProfile, ensureProfile, blobUrl } from './identity.js';
+import { escapeLike } from './validation.js';
 import type {
 	BackyardPost,
 	BackyardFeedItem,
@@ -870,6 +871,7 @@ export async function searchTags(
 	query: string,
 	limit = 30
 ): Promise<{ tag: string; count: number }[]> {
+	const escaped = escapeLike(query);
 	const result = await pool.query(
 		`SELECT tag, COUNT(*) as cnt
 		 FROM (
@@ -877,11 +879,11 @@ export async function searchTags(
 			UNION ALL
 			SELECT unnest(tags) as tag FROM reblogs WHERE tags IS NOT NULL
 		 ) t
-		 WHERE tag ILIKE $1
+		 WHERE tag ILIKE $1 ESCAPE '\\'
 		 GROUP BY tag
 		 ORDER BY cnt DESC, tag ASC
 		 LIMIT $2`,
-		[`%${query}%`, limit]
+		[`%${escaped}%`, limit]
 	);
 
 	return result.rows.map((r) => ({
