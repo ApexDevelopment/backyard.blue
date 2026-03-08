@@ -187,7 +187,7 @@
 	.profile-card {
 		z-index: 1;
 		overflow: hidden;
-		margin-bottom: 0.5rem;
+		margin-bottom: 0.75rem;
 	}
 
 	.profile-banner {
