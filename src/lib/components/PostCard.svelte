@@ -755,7 +755,6 @@
 
 	.embed-image {
 		width: 100%;
-		max-height: 400px;
 		object-fit: cover;
 	}
 
