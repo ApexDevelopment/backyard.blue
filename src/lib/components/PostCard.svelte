@@ -53,6 +53,27 @@
 	const MAX_VISIBLE = 3;
 	let expanded = $state(false);
 
+	/** Height-based collapse for tall posts (large images, etc.) */
+	const MAX_POST_HEIGHT = 800; // ~one screenful in px
+	let contentEl: HTMLDivElement | undefined = $state();
+	let heightCollapsed = $state(false);
+	let heightExpanded = $state(false);
+
+	$effect(() => {
+		if (!contentEl) return;
+		// Re-check after images/video load
+		const check = () => {
+			if (heightExpanded) return;
+			heightCollapsed = contentEl!.scrollHeight > MAX_POST_HEIGHT;
+		};
+		check();
+		const observer = new ResizeObserver(check);
+		observer.observe(contentEl);
+		return () => observer.disconnect();
+	});
+
+	let isTall = $derived(heightCollapsed && !heightExpanded);
+
 	/** Chain entries that actually have content (text or media), plus tombstones */
 	let contentChain = $derived(
 		chain?.filter((e) => e.deleted || e.blocked || e.text?.trim() || (e.media && e.media.length > 0)) ?? []
@@ -300,6 +321,7 @@
 		</div>
 	{/if}
 
+	<div class="post-body" class:post-body-collapsed={isTall} style:--max-post-height="{MAX_POST_HEIGHT}px" bind:this={contentEl}>
 	{#if contentChain.length > 1}
 		<!-- CHAIN VIEW: Tumblr-style stacked entries -->
 		<div class="chain">
@@ -376,13 +398,6 @@
 			{/each}
 		</div>
 
-		{#if cardTags && cardTags.length > 0}
-			<div class="post-tags">
-				{#each cardTags as tag}
-					<a href={tagHref(tag)} class="tag">#{tag}</a>
-				{/each}
-			</div>
-		{/if}
 	{:else}
 		<!-- SINGLE POST VIEW (no chain or chain has only one entry) -->
 		<div class="post-header">
@@ -440,13 +455,22 @@
 			</div>
 		{/if}
 
-		{#if cardTags && cardTags.length > 0}
-			<div class="post-tags">
-				{#each cardTags as tag}
-					<a href={tagHref(tag)} class="tag">#{tag}</a>
-				{/each}
-			</div>
-		{/if}
+	{/if}
+	</div>
+
+	{#if cardTags && cardTags.length > 0}
+		<div class="post-tags">
+			{#each cardTags as tag}
+				<a href={tagHref(tag)} class="tag">#{tag}</a>
+			{/each}
+		</div>
+	{/if}
+
+	{#if isTall}
+		<button class="show-more-btn" onclick={() => (heightExpanded = true)}>
+			<ChevronDown size={14} />
+			show more
+		</button>
 	{/if}
 
 	{#if showActions}
@@ -714,6 +738,42 @@
 		line-height: 1.5;
 		white-space: pre-wrap;
 		word-wrap: break-word;
+	}
+
+	/* ── Height collapse ──────────────────────────────────── */
+
+	.post-body {
+		position: relative;
+	}
+
+	.post-body-collapsed {
+		max-height: var(--max-post-height);
+		overflow: hidden;
+		-webkit-mask-image: linear-gradient(to bottom, black calc(100% - 4rem), transparent 100%);
+		mask-image: linear-gradient(to bottom, black calc(100% - 4rem), transparent 100%);
+	}
+
+	.show-more-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.375rem;
+		width: 100%;
+		padding: 0.375rem;
+		margin-top: 0.25rem;
+		border: 1px dashed var(--border-color);
+		border-radius: var(--radius-sm);
+		background: none;
+		color: var(--text-tertiary);
+		font-size: 0.8125rem;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.show-more-btn:hover {
+		color: var(--text-secondary);
+		background-color: var(--bg-hover);
+		border-color: var(--text-tertiary);
 	}
 
 	.post-embed {
