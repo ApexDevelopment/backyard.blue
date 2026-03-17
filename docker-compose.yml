@@ -13,10 +13,13 @@ services:
       - OAUTH_PRIVATE_KEY_3=${OAUTH_PRIVATE_KEY_3:-}
       - JETSTREAM_URL=${JETSTREAM_URL:-}
       - FIREHOSE_DISABLED=${FIREHOSE_DISABLED:-}
+      - BODY_SIZE_LIMIT=${BODY_SIZE_LIMIT:-52428800}
       - SIGNUP_MODE=${SIGNUP_MODE:-open}
-      - ADMIN_DID=${ADMIN_DID:-}
-      # AT Protocol handle resolver URL (a good choice: https://slingshot.microcosm.blue/)
+      - ADMIN_DIDS=${ADMIN_DIDS:-}
+      - RELAY_URL=${RELAY_URL:-}
       - HANDLE_RESOLVER_URL=${HANDLE_RESOLVER_URL:-}
+      - NEWS_DID=${NEWS_DID:-}
+      - NEWS_HANDLE=${NEWS_HANDLE:-}
       - BLOB_CACHE_DIR=${BLOB_CACHE_DIR:-/data/blob-cache}
       - BLOB_CACHE_MAX_BYTES=${BLOB_CACHE_MAX_BYTES:-2147483648}
     volumes:
