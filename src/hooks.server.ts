@@ -3,6 +3,7 @@ import { redirect } from '@sveltejs/kit';
 import { getSessionData, clearSession } from '$lib/server/session.js';
 import { initializeDatabase, startOAuthStateCleanup } from '$lib/server/db.js';
 import { startFirehose } from '$lib/server/firehose.js';
+import { discoverAndBackfill } from '$lib/server/backfill.js';
 import pool from '$lib/server/db.js';
 
 /**
@@ -17,6 +18,9 @@ function doInit(): Promise<void> {
 		startOAuthStateCleanup();
 		startFirehose().catch((err) => {
 			console.error('Failed to start firehose:', err);
+		});
+		discoverAndBackfill().catch((err) => {
+			console.error('Failed to run discovery backfill:', err);
 		});
 	})();
 }

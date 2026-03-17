@@ -12,8 +12,8 @@ import type {
 	BackyardComment,
 	BackyardProfile,
 	BackyardChainEntry,
-	BackyardMedia,
-	BackyardReblogPreview
+	BackyardReblogPreview,
+	ContentBlock
 } from '$lib/types.js';
 
 /**
@@ -52,28 +52,35 @@ async function resolveProfiles(dids: string[]): Promise<Map<string, BackyardProf
 }
 
 /**
- * Convert raw media blob refs (as stored in the DB from AT Protocol records)
- * into BackyardMedia objects with resolved URLs.
- *
- * Stored format: [{ blob: { ref: { $link: "cid..." }, ... }, mimeType, alt, aspectRatio }, ...]
- * Output format: [{ url, mimeType, alt, width, height }, ...]
+ * Build ContentBlock[] from the DB content JSONB column.
  */
-function resolveMedia(media: any, authorDid: string): BackyardMedia[] | undefined {
-	if (!media || !Array.isArray(media) || media.length === 0) return undefined;
+function resolveContentBlocks(row: any, authorDid: string): ContentBlock[] {
+	if (!row.content || !Array.isArray(row.content) || row.content.length === 0) return [];
 
-	const resolved: BackyardMedia[] = [];
-	for (const item of media) {
-		const cid = item?.blob?.ref?.$link || item?.blob?.ref;
-		if (!cid || typeof cid !== 'string') continue;
-		resolved.push({
-			url: blobUrl(authorDid, cid),
-			mimeType: item.mimeType || 'image/jpeg',
-			alt: item.alt || undefined,
-			width: item.aspectRatio?.width || undefined,
-			height: item.aspectRatio?.height || undefined
-		});
+	const blocks: ContentBlock[] = [];
+	for (const block of row.content) {
+		const blockType = block.$type || block.type;
+		if (blockType === 'blue.backyard.feed.post#textBlock' || blockType === 'text') {
+			blocks.push({ type: 'text', text: block.text || '', facets: block.facets || undefined });
+		} else if (blockType === 'blue.backyard.feed.post#imageBlock' || blockType === 'image') {
+			const cid = block.blob?.ref?.$link || block.blob?.ref;
+			if (cid && typeof cid === 'string') {
+				blocks.push({
+					type: 'image',
+					image: {
+						url: blobUrl(authorDid, cid),
+						mimeType: block.mimeType || 'image/jpeg',
+						alt: block.alt || undefined,
+						width: block.aspectRatio?.width || undefined,
+						height: block.aspectRatio?.height || undefined
+					}
+				});
+			}
+		} else if (blockType === 'blue.backyard.feed.post#embedBlock' || blockType === 'embed') {
+			blocks.push({ type: 'embed', url: block.url });
+		}
 	}
-	return resolved.length > 0 ? resolved : undefined;
+	return blocks;
 }
 
 /** Enrich a raw post row with counts and viewer state. */
@@ -85,9 +92,7 @@ function enrichPost(
 		uri: row.uri,
 		cid: row.cid,
 		author: profiles.get(row.author_did) || { did: row.author_did, handle: row.author_did },
-		text: row.text,
-		facets: row.facets || undefined,
-		media: resolveMedia(row.media, row.author_did),
+		content: resolveContentBlocks(row, row.author_did),
 		tags: row.tags || undefined,
 		likeCount: parseInt(row.like_count, 10) || 0,
 		commentCount: parseInt(row.comment_count, 10) || 0,
@@ -174,7 +179,7 @@ export async function buildReblogChains(
 			SELECT
 				r.uri as leaf_uri,
 				r.uri, r.cid, r.author_did, r.subject_uri,
-				r.text, r.facets, r.media, r.tags, r.created_at,
+				r.tags, r.content, r.created_at,
 				0 as depth
 			FROM reblogs r WHERE r.uri = ANY($1)
 
@@ -183,7 +188,7 @@ export async function buildReblogChains(
 			SELECT
 				c.leaf_uri,
 				r.uri, r.cid, r.author_did, r.subject_uri,
-				r.text, r.facets, r.media, r.tags, r.created_at,
+				r.tags, r.content, r.created_at,
 				c.depth + 1
 			FROM chain c
 			JOIN reblogs r ON r.uri = c.subject_uri
@@ -245,9 +250,7 @@ export async function buildReblogChains(
 				uri: rootPost.uri,
 				cid: rootPost.cid,
 				author: profiles.get(rootPost.author_did) || { did: rootPost.author_did, handle: rootPost.author_did },
-				text: rootPost.text || '',
-				facets: rootPost.facets || undefined,
-				media: resolveMedia(rootPost.media, rootPost.author_did),
+				content: resolveContentBlocks(rootPost, rootPost.author_did),
 				tags: rootPost.tags || undefined,
 				createdAt: toIso(rootPost.created_at),
 				isRoot: true
@@ -257,7 +260,7 @@ export async function buildReblogChains(
 				uri: rootUri,
 				cid: '',
 				author: { did: '', handle: '' },
-				text: '',
+				content: [],
 				createdAt: '',
 				isRoot: true,
 				deleted: true
@@ -270,9 +273,7 @@ export async function buildReblogChains(
 				uri: entry.uri,
 				cid: entry.cid,
 				author: profiles.get(entry.author_did) || { did: entry.author_did, handle: entry.author_did },
-				text: entry.text || '',
-				facets: entry.facets || undefined,
-				media: resolveMedia(entry.media, entry.author_did),
+				content: resolveContentBlocks(entry, entry.author_did),
 				tags: entry.tags || undefined,
 				createdAt: toIso(entry.created_at),
 				isRoot: false
@@ -334,9 +335,7 @@ async function enrichFeedItems(
 				uri: row.reblog_uri,
 				cid: row.reblog_cid,
 				by: profiles.get(row.reblog_author_did) || { did: row.reblog_author_did, handle: row.reblog_author_did },
-				text: row.reblog_text || undefined,
-				facets: row.reblog_facets || undefined,
-				media: resolveMedia(row.reblog_media, row.reblog_author_did),
+				content: resolveContentBlocks({ content: row.reblog_content }, row.reblog_author_did),
 				tags: row.reblog_tags || undefined,
 				createdAt: toIso(row.created_at)
 			};
@@ -358,7 +357,7 @@ async function enrichFeedItems(
 							uri: entry.uri,
 							cid: '',
 							author: { did: '', handle: '' },
-							text: '',
+							content: [],
 							createdAt: entry.createdAt,
 							isRoot: entry.isRoot,
 							blocked: true
@@ -370,7 +369,7 @@ async function enrichFeedItems(
 				// this is a freestanding reblog of blocked content — hide entirely.
 				if (rootBlocked) {
 					const hasContent = item.chain.slice(1).some(
-						(e) => !e.blocked && (e.text || e.media?.length || e.tags?.length)
+						(e) => !e.blocked && (e.content?.length || e.tags?.length)
 					);
 					if (!hasContent) continue;
 				}
@@ -402,11 +401,11 @@ export async function getTimeline(
 		feed AS (
 			SELECT
 				'post' as item_type,
-				p.uri, p.cid, p.author_did, p.text, p.facets, p.media, p.tags,
+				p.uri, p.cid, p.author_did, p.tags, p.content,
 				p.created_at, p.indexed_at,
 				NULL::text as reblog_uri, NULL::text as reblog_cid,
-				NULL::text as reblog_author_did, NULL::text as reblog_text,
-				NULL::jsonb as reblog_facets, NULL::jsonb as reblog_media, NULL::text[] as reblog_tags,
+				NULL::text as reblog_author_did, NULL::text[] as reblog_tags,
+				NULL::jsonb as reblog_content,
 				p.uri as post_uri
 			FROM posts p
 			WHERE (p.author_did = $1 OR p.author_did IN (SELECT subject_did FROM followed))
@@ -416,16 +415,16 @@ export async function getTimeline(
 
 			SELECT
 				'reblog' as item_type,
-				p.uri, p.cid, p.author_did, p.text, p.facets, p.media, p.tags,
+				p.uri, p.cid, p.author_did, p.tags, p.content,
 				r.created_at, r.indexed_at,
 				r.uri as reblog_uri, r.cid as reblog_cid,
-				r.author_did as reblog_author_did, r.text as reblog_text,
-				r.facets as reblog_facets, r.media as reblog_media, r.tags as reblog_tags,
+				r.author_did as reblog_author_did, r.tags as reblog_tags,
+				r.content as reblog_content,
 				p.uri as post_uri
 			FROM reblogs r
 			JOIN posts p ON p.uri = COALESCE(r.root_post_uri, r.subject_uri)
 			WHERE (r.author_did = $1 OR r.author_did IN (SELECT subject_did FROM followed))
-				AND NOT (r.author_did = $1 AND p.author_did = $1 AND (r.text IS NULL OR r.text = '') AND (r.tags IS NULL OR array_length(r.tags, 1) IS NULL))
+				AND NOT (r.author_did = $1 AND p.author_did = $1 AND (r.content IS NULL) AND (r.tags IS NULL OR array_length(r.tags, 1) IS NULL))
 				${cursorClauseReblog}
 
 			ORDER BY created_at DESC
@@ -494,11 +493,11 @@ export async function getAuthorFeed(
 		WITH feed AS (
 			SELECT
 				'post' as item_type,
-				p.uri, p.cid, p.author_did, p.text, p.facets, p.media, p.tags,
+				p.uri, p.cid, p.author_did, p.tags, p.content,
 				p.created_at, p.indexed_at,
 				NULL::text as reblog_uri, NULL::text as reblog_cid,
-				NULL::text as reblog_author_did, NULL::text as reblog_text,
-				NULL::jsonb as reblog_facets, NULL::jsonb as reblog_media, NULL::text[] as reblog_tags,
+				NULL::text as reblog_author_did, NULL::text[] as reblog_tags,
+				NULL::jsonb as reblog_content,
 				p.uri as post_uri
 			FROM posts p
 			WHERE p.author_did = $1
@@ -508,11 +507,11 @@ export async function getAuthorFeed(
 
 			SELECT
 				'reblog' as item_type,
-				p.uri, p.cid, p.author_did, p.text, p.facets, p.media, p.tags,
+				p.uri, p.cid, p.author_did, p.tags, p.content,
 				r.created_at, r.indexed_at,
 				r.uri as reblog_uri, r.cid as reblog_cid,
-				r.author_did as reblog_author_did, r.text as reblog_text,
-				r.facets as reblog_facets, r.media as reblog_media, r.tags as reblog_tags,
+				r.author_did as reblog_author_did, r.tags as reblog_tags,
+				r.content as reblog_content,
 				p.uri as post_uri
 			FROM reblogs r
 			JOIN posts p ON p.uri = COALESCE(r.root_post_uri, r.subject_uri)
@@ -700,11 +699,11 @@ export async function getPostsByTag(
 		WITH feed AS (
 			SELECT
 				'post' as item_type,
-				p.uri, p.cid, p.author_did, p.text, p.facets, p.media, p.tags,
+				p.uri, p.cid, p.author_did, p.tags, p.content,
 				p.created_at, p.indexed_at,
 				NULL::text as reblog_uri, NULL::text as reblog_cid,
-				NULL::text as reblog_author_did, NULL::text as reblog_text,
-				NULL::jsonb as reblog_facets, NULL::jsonb as reblog_media, NULL::text[] as reblog_tags,
+				NULL::text as reblog_author_did, NULL::text[] as reblog_tags,
+				NULL::jsonb as reblog_content,
 				p.uri as post_uri
 			FROM posts p
 			WHERE $1 = ANY(p.tags)
@@ -714,11 +713,11 @@ export async function getPostsByTag(
 
 			SELECT
 				'reblog' as item_type,
-				p.uri, p.cid, p.author_did, p.text, p.facets, p.media, p.tags,
+				p.uri, p.cid, p.author_did, p.tags, p.content,
 				r.created_at, r.indexed_at,
 				r.uri as reblog_uri, r.cid as reblog_cid,
-				r.author_did as reblog_author_did, r.text as reblog_text,
-				r.facets as reblog_facets, r.media as reblog_media, r.tags as reblog_tags,
+				r.author_did as reblog_author_did, r.tags as reblog_tags,
+				r.content as reblog_content,
 				p.uri as post_uri
 			FROM reblogs r
 			JOIN posts p ON p.uri = COALESCE(r.root_post_uri, r.subject_uri)
@@ -792,11 +791,11 @@ export async function getPostsByTagAndAuthor(
 		WITH feed AS (
 			SELECT
 				'post' as item_type,
-				p.uri, p.cid, p.author_did, p.text, p.facets, p.media, p.tags,
+				p.uri, p.cid, p.author_did, p.tags, p.content,
 				p.created_at, p.indexed_at,
 				NULL::text as reblog_uri, NULL::text as reblog_cid,
-				NULL::text as reblog_author_did, NULL::text as reblog_text,
-				NULL::jsonb as reblog_facets, NULL::jsonb as reblog_media, NULL::text[] as reblog_tags,
+				NULL::text as reblog_author_did, NULL::text[] as reblog_tags,
+				NULL::jsonb as reblog_content,
 				p.uri as post_uri
 			FROM posts p
 			WHERE $1 = ANY(p.tags) AND p.author_did = $2
@@ -806,11 +805,11 @@ export async function getPostsByTagAndAuthor(
 
 			SELECT
 				'reblog' as item_type,
-				p.uri, p.cid, p.author_did, p.text, p.facets, p.media, p.tags,
+				p.uri, p.cid, p.author_did, p.tags, p.content,
 				r.created_at, r.indexed_at,
 				r.uri as reblog_uri, r.cid as reblog_cid,
-				r.author_did as reblog_author_did, r.text as reblog_text,
-				r.facets as reblog_facets, r.media as reblog_media, r.tags as reblog_tags,
+				r.author_did as reblog_author_did, r.tags as reblog_tags,
+				r.content as reblog_content,
 				p.uri as post_uri
 			FROM reblogs r
 			JOIN posts p ON p.uri = COALESCE(r.root_post_uri, r.subject_uri)

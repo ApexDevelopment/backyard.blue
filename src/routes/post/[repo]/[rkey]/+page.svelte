@@ -46,7 +46,7 @@
 </script>
 
 <svelte:head>
-	<title>{data.post.author.displayName || `@${data.post.author.handle}`}: "{data.post.text.slice(0, 50)}" — backyard</title>
+	<title>{data.post.author.displayName || `@${data.post.author.handle}`}: "{(data.post.content?.[0]?.type === 'text' ? data.post.content[0].text : '').slice(0, 50)}" — backyard</title>
 </svelte:head>
 
 <div class="thread-page">

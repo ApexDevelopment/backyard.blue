@@ -111,21 +111,17 @@ async function indexRecord(did: string, commit: JetstreamCommit): Promise<void> 
 		}
 		case NSID.POST: {
 			await ensureProfile(did).catch(() => {});
-			const postText = clampText(r.text, MAX_TEXT_LENGTH);
 			await pool.query(
-				`INSERT INTO posts (uri, cid, author_did, text, facets, media, tags, created_at)
-				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+				`INSERT INTO posts (uri, cid, author_did, tags, content, created_at)
+				 VALUES ($1, $2, $3, $4, $5, $6)
 				 ON CONFLICT (uri) DO UPDATE SET
-				   cid = EXCLUDED.cid, text = EXCLUDED.text, facets = EXCLUDED.facets,
-				   media = EXCLUDED.media, tags = EXCLUDED.tags`,
+				   cid = EXCLUDED.cid, tags = EXCLUDED.tags, content = EXCLUDED.content`,
 				[
 					uri,
 					cid,
 					did,
-					postText,
-					clampJson(r.facets),
-					clampJson(r.media),
 					clampTags(r.tags),
+					clampJson(r.content),
 					safeIsoDate(r.createdAt)
 				]
 			);
@@ -166,20 +162,19 @@ async function indexRecord(did: string, commit: JetstreamCommit): Promise<void> 
 			const rootPostUri = await resolveRootPostUri(subjectUri);
 
 			await pool.query(
-				`INSERT INTO reblogs (uri, cid, author_did, subject_uri, root_post_uri, text, facets, tags, created_at)
-				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+				`INSERT INTO reblogs (uri, cid, author_did, subject_uri, root_post_uri, tags, content, created_at)
+				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 				 ON CONFLICT (uri) DO UPDATE SET
-				   cid = EXCLUDED.cid, text = EXCLUDED.text, facets = EXCLUDED.facets,
-				   tags = EXCLUDED.tags, root_post_uri = EXCLUDED.root_post_uri`,
+				   cid = EXCLUDED.cid, tags = EXCLUDED.tags, content = EXCLUDED.content,
+				   root_post_uri = EXCLUDED.root_post_uri`,
 				[
 					uri,
 					cid,
 					did,
 					subjectUri,
 					rootPostUri,
-					clampText(r.text, MAX_TEXT_LENGTH) || null,
-					clampJson(r.facets),
 					clampTags(r.tags),
+					clampJson(r.content),
 					safeIsoDate(r.createdAt)
 				]
 			);

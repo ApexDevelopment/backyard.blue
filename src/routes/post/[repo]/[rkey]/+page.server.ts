@@ -53,9 +53,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 							uri: leaf.uri,
 							cid: leaf.cid,
 							by: leaf.author,
-							text: leaf.text,
-							facets: leaf.facets,
-							media: leaf.media,
+							content: leaf.content,
 							tags: leaf.tags,
 							createdAt: leaf.createdAt
 						};

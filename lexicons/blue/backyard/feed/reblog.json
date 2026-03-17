@@ -16,27 +16,17 @@
             "ref": "com.atproto.repo.strongRef",
             "description": "The post or reblog being reblogged."
           },
-          "text": {
-            "type": "string",
-            "maxLength": 30000,
-            "maxGraphemes": 3000,
-            "description": "Optional addition / commentary added by the reblogger."
-          },
-          "facets": {
+          "content": {
             "type": "array",
-            "description": "Annotations of text (mentions, URLs, hashtags).",
+            "description": "Optional addition content blocks (text, images, embeds) added by the reblogger.",
+            "maxLength": 20,
             "items": {
-              "type": "ref",
-              "ref": "blue.backyard.richtext.facet"
-            }
-          },
-          "media": {
-            "type": "array",
-            "description": "Optional media added by the reblogger.",
-            "maxLength": 4,
-            "items": {
-              "type": "ref",
-              "ref": "blue.backyard.feed.post#mediaEmbed"
+              "type": "union",
+              "refs": [
+                "blue.backyard.feed.post#textBlock",
+                "blue.backyard.feed.post#imageBlock",
+                "blue.backyard.feed.post#embedBlock"
+              ]
             }
           },
           "tags": {

@@ -13,6 +13,17 @@
 	let { children, align = 'right', onopen }: Props = $props();
 
 	let open = $state(false);
+	let flipped = $state(false);
+	let dropdownEl: HTMLElement | undefined = $state(undefined);
+
+	$effect(() => {
+		if (open && dropdownEl) {
+			const rect = dropdownEl.getBoundingClientRect();
+			flipped = rect.bottom > window.innerHeight;
+		} else if (!open) {
+			flipped = false;
+		}
+	});
 
 	function toggle() {
 		open = !open;
@@ -39,7 +50,7 @@
 
 	{#if open}
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div class="context-dropdown" class:align-left={align === 'left'} onclick={close} onkeydown={() => {}}>
+		<div class="context-dropdown" class:align-left={align === 'left'} class:flipped bind:this={dropdownEl} onclick={close} onkeydown={() => {}}>
 			{@render children()}
 		</div>
 	{/if}
@@ -91,6 +102,16 @@
 		right: auto;
 		left: 0;
 		transform-origin: top left;
+	}
+
+	.context-dropdown.flipped {
+		top: auto;
+		bottom: calc(100% + 0.25rem);
+		transform-origin: bottom right;
+	}
+
+	.context-dropdown.align-left.flipped {
+		transform-origin: bottom left;
 	}
 
 	@keyframes contextFadeIn {

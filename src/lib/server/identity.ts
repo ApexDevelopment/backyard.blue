@@ -218,6 +218,9 @@ export async function ensureProfile(did: string): Promise<BackyardProfile | null
 				try {
 					const trust = await getTrustStatus(did);
 					profile.mediaTrusted = trust.mediaTrusted;
+					if (trust.mediaTrusted) {
+						await pool.query('UPDATE profiles SET media_trusted = TRUE WHERE did = $1', [did]);
+					}
 				} catch (err) {
 					console.error(`Trust evaluation failed for ${did}:`, err);
 				}
@@ -313,6 +316,7 @@ export async function ensureProfile(did: string): Promise<BackyardProfile | null
 		try {
 			const trust = await getTrustStatus(did);
 			mediaTrusted = trust.mediaTrusted;
+			await pool.query('UPDATE profiles SET media_trusted = $2 WHERE did = $1', [did, mediaTrusted]);
 		} catch (err) {
 			console.error(`Trust evaluation failed for ${did}:`, err);
 		}

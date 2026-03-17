@@ -1,12 +1,17 @@
 /**
- * Per-user repo backfill.
+ * Backfill module — discovers and indexes blue.backyard.* records.
  *
- * Uses `com.atproto.repo.listRecords` to fetch all blue.backyard.* records
- * from a user's PDS and index them locally. This restores data after a
- * database wipe or brings in a new user's full history.
+ * Two modes:
  *
- * Backfill is idempotent — all DB writes use upsert semantics — so it is
- * safe to call repeatedly.
+ * 1. **Network discovery** — queries a relay (e.g. relay1.us-east.bsky.network)
+ *    via `com.atproto.sync.listReposByCollection` to find every DID that has
+ *    records in our collections, then backfills each one. Called at startup.
+ *
+ * 2. **Per-user** — uses `com.atproto.repo.listRecords` to fetch all records
+ *    from a single user's PDS. Called on login and on-demand profile views.
+ *
+ * All DB writes use upsert semantics — backfill is idempotent and safe to
+ * call repeatedly.
  */
 
 import pool from './db.js';
@@ -21,6 +26,8 @@ import {
 	isValidDid,
 	MAX_TEXT_LENGTH
 } from './validation.js';
+
+const RELAY_URL = process.env.RELAY_URL || 'https://relay1.us-east.bsky.network';
 
 /**
  * Collections to backfill, in dependency order.
@@ -107,21 +114,17 @@ async function indexBackfillRecord(
 			break;
 		}
 		case NSID.POST: {
-			const postText = clampText(r.text, MAX_TEXT_LENGTH);
 			await pool.query(
-				`INSERT INTO posts (uri, cid, author_did, text, facets, media, tags, created_at)
-				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+				`INSERT INTO posts (uri, cid, author_did, tags, content, created_at)
+				 VALUES ($1, $2, $3, $4, $5, $6)
 				 ON CONFLICT (uri) DO UPDATE SET
-				   cid = EXCLUDED.cid, text = EXCLUDED.text, facets = EXCLUDED.facets,
-				   media = EXCLUDED.media, tags = EXCLUDED.tags`,
+				   cid = EXCLUDED.cid, tags = EXCLUDED.tags, content = EXCLUDED.content`,
 				[
 					uri,
 					cid,
 					did,
-					postText,
-					clampJson(r.facets),
-					clampJson(r.media),
 					clampTags(r.tags),
+					clampJson(r.content),
 					safeIsoDate(r.createdAt)
 				]
 			);
@@ -156,20 +159,19 @@ async function indexBackfillRecord(
 			const rootPostUri = await resolveRootPostUri(subjectUri);
 
 			await pool.query(
-				`INSERT INTO reblogs (uri, cid, author_did, subject_uri, root_post_uri, text, facets, tags, created_at)
-				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+				`INSERT INTO reblogs (uri, cid, author_did, subject_uri, root_post_uri, tags, content, created_at)
+				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 				 ON CONFLICT (uri) DO UPDATE SET
-				   cid = EXCLUDED.cid, text = EXCLUDED.text, facets = EXCLUDED.facets,
-				   tags = EXCLUDED.tags, root_post_uri = EXCLUDED.root_post_uri`,
+				   cid = EXCLUDED.cid, tags = EXCLUDED.tags, content = EXCLUDED.content,
+				   root_post_uri = EXCLUDED.root_post_uri`,
 				[
 					uri,
 					cid,
 					did,
 					subjectUri,
 					rootPostUri,
-					clampText(r.text, MAX_TEXT_LENGTH) || null,
-					clampJson(r.facets),
 					clampTags(r.tags),
+					clampJson(r.content),
 					safeIsoDate(r.createdAt)
 				]
 			);
@@ -294,5 +296,90 @@ export async function backfillIfNeeded(did: string): Promise<void> {
 		backfillUser(did).catch((err) => {
 			console.error(`Background backfill error for ${did}:`, err);
 		});
+	}
+}
+
+/* ── Relay-based network discovery ─────────────────────── */
+
+interface ListReposByCollectionResponse {
+	repos: { did: string }[];
+	cursor?: string;
+}
+
+/**
+ * Query a relay for all DIDs that have records in the given collection
+ * via `com.atproto.sync.listReposByCollection`. Paginates through all pages.
+ */
+async function listReposByCollection(collection: string): Promise<string[]> {
+	const dids: string[] = [];
+	let cursor: string | undefined;
+	const limit = 2000;
+
+	do {
+		const url = new URL(`${RELAY_URL}/xrpc/com.atproto.sync.listReposByCollection`);
+		url.searchParams.set('collection', collection);
+		url.searchParams.set('limit', limit.toString());
+		if (cursor) url.searchParams.set('cursor', cursor);
+
+		const res = await fetch(url.toString());
+		if (!res.ok) {
+			console.error(`listReposByCollection ${collection} returned ${res.status}`);
+			break;
+		}
+
+		const data = (await res.json()) as ListReposByCollectionResponse;
+		for (const repo of data.repos) {
+			dids.push(repo.did);
+		}
+		cursor = data.cursor;
+	} while (cursor);
+
+	return dids;
+}
+
+/** Track whether a network-wide discovery is already running */
+let discoveryRunning = false;
+
+/**
+ * Discover all repos with blue.backyard.* records via the relay and
+ * backfill each one. Intended to run at startup to populate a fresh or
+ * stale database. Runs in the background — does not block the caller.
+ */
+export async function discoverAndBackfill(): Promise<void> {
+	if (discoveryRunning) return;
+	discoveryRunning = true;
+
+	try {
+		console.info(`🔍 Discovering repos from relay ${RELAY_URL}…`);
+
+		// Collect unique DIDs across all collections
+		const allDids = new Set<string>();
+		for (const collection of Object.values(NSID)) {
+			if (collection === NSID.PROFILE) continue;
+			try {
+				const dids = await listReposByCollection(collection);
+				for (const did of dids) allDids.add(did);
+			} catch (err) {
+				console.error(`Discovery: failed to list repos for ${collection}:`, err);
+			}
+		}
+
+		console.info(`🔍 Found ${allDids.size} repos with Backyard records, starting backfill…`);
+
+		let completed = 0;
+		for (const did of allDids) {
+			try {
+				const count = await backfillUser(did);
+				if (count > 0) completed++;
+			} catch (err) {
+				console.error(`Discovery backfill error for ${did}:`, err);
+			}
+		}
+
+		console.info(`✅ Discovery backfill complete: ${completed}/${allDids.size} repos indexed`);
+	} catch (err) {
+		console.error('Discovery backfill failed:', err);
+	} finally {
+		discoveryRunning = false;
 	}
 }

@@ -1,21 +1,10 @@
 <script lang="ts">
-	import type { BackyardPost, BackyardChainEntry, BackyardReblogInfo, Facet } from '$lib/types.js';
+	import type { BackyardPost, BackyardChainEntry, BackyardReblogInfo, ContentBlock } from '$lib/types.js';
 	import { MessageCircle, Repeat2, Heart, ChevronDown, Trash2, Pencil, Ban } from 'lucide-svelte';
 	import { openReblogComposer, openEditComposer } from '$lib/stores/composer.js';
 	import RichTextRenderer from './RichTextRenderer.svelte';
 	import EmbedCard from './EmbedCard.svelte';
 	import ContextMenu from './ContextMenu.svelte';
-
-	/** Extract the first link URL from a set of facets. */
-	function firstLinkUrl(facets?: Facet[]): string | undefined {
-		if (!facets) return undefined;
-		for (const f of facets) {
-			for (const feat of f.features) {
-				if (feat.$type === 'app.bsky.richtext.facet#link' && feat.uri) return feat.uri;
-			}
-		}
-		return undefined;
-	}
 
 	interface Props {
 		post: BackyardPost;
@@ -76,7 +65,7 @@
 
 	/** Chain entries that actually have content (text or media), plus tombstones */
 	let contentChain = $derived(
-		chain?.filter((e) => e.deleted || e.blocked || e.text?.trim() || (e.media && e.media.length > 0)) ?? []
+		chain?.filter((e) => e.deleted || e.blocked || (e.content && e.content.length > 0)) ?? []
 	);
 	let needsClipping = $derived(contentChain.length > MAX_VISIBLE && !expanded);
 	let visibleEntries = $derived(
@@ -133,9 +122,6 @@
 	let ownsReblog = $derived(reblog ? viewerDid === reblog.by.did : false);
 	let canDelete = $derived(viewerDid ? (reblog ? ownsReblog : ownsPost) : false);
 
-	/** First link URL found in the post's facets, used for embed preview. */
-	let postEmbedUrl = $derived(firstLinkUrl(post.facets));
-
 	async function handleLike() {
 		if (likeLoading) return;
 		likeLoading = true;
@@ -189,9 +175,7 @@
 					uri: post.uri,
 					cid: post.cid,
 					author: post.author,
-					text: post.text,
-					facets: post.facets,
-					media: post.media,
+					content: post.content,
 					tags: post.tags,
 					createdAt: post.createdAt,
 					isRoot: true
@@ -206,20 +190,16 @@
 				uri: reblog.uri,
 				cid: reblog.cid,
 				collection: 'reblog',
-				text: reblog.text || '',
-				facets: reblog.facets,
-				tags: reblog.tags,
-				media: reblog.media
+				content: reblog.content,
+				tags: reblog.tags
 			});
 		} else if (ownsPost) {
 			openEditComposer({
 				uri: post.uri,
 				cid: post.cid,
 				collection: 'post',
-				text: post.text,
-				facets: post.facets,
-				tags: post.tags,
-				media: post.media
+				content: post.content,
+				tags: post.tags
 			});
 		}
 	}
@@ -364,34 +344,31 @@
 								{formatDate(entry.createdAt)}
 							</time>
 						</div>
-						{#if entry.text}
-							<div class="chain-entry-content">
-								<p><RichTextRenderer text={entry.text} facets={entry.facets} /></p>
-							</div>
-						{/if}
-						{#if entry.media && entry.media.length > 0}
-							<div class="post-embed">
-								{#if entry.author.mediaTrusted !== false}
-									<div class="embed-images" class:single={entry.media.length === 1} class:grid={entry.media.length > 1}>
-										{#each entry.media as media}
-											{#if media.mimeType?.startsWith('video/')}
-												<!-- svelte-ignore a11y_media_has_caption -->
-												<video src={media.url} class="embed-image" controls playsinline preload="metadata"></video>
-											{:else}
-												<img src={media.url} alt={media.alt || ''} class="embed-image" loading="lazy" />
-											{/if}
-										{/each}
+						{#if entry.content && entry.content.length > 0}
+							{#each entry.content as block}
+								{#if block.type === 'text'}
+									<div class="chain-entry-content">
+										<p><RichTextRenderer text={block.text} facets={block.facets} /></p>
 									</div>
-								{:else}
-									<p class="media-hidden-notice">media hidden — this account is pending automatic verification</p>
+								{:else if block.type === 'image'}
+									<div class="post-embed">
+										{#if entry.author.mediaTrusted !== false}
+											{#if block.image.mimeType?.startsWith('video/')}
+												<!-- svelte-ignore a11y_media_has_caption -->
+												<video src={block.image.url} class="embed-image single" controls playsinline preload="metadata"></video>
+											{:else}
+												<img src={block.image.url} alt={block.image.alt || ''} class="embed-image single" loading="lazy" />
+											{/if}
+										{:else}
+											<p class="media-hidden-notice">media hidden — this account is pending automatic verification</p>
+										{/if}
+									</div>
+								{:else if block.type === 'embed'}
+									<div class="post-embed">
+										<EmbedCard url={block.url} />
+									</div>
 								{/if}
-							</div>
-						{/if}
-						{@const entryLink = firstLinkUrl(entry.facets)}
-						{#if entryLink}
-							<div class="post-embed">
-								<EmbedCard url={entryLink} />
-							</div>
+							{/each}
 						{/if}
 					{/if}
 				</div>
@@ -427,33 +404,29 @@
 		</div>
 
 		<div class="post-content">
-			<p><RichTextRenderer text={post.text} facets={post.facets} /></p>
-		</div>
-
-		{#if post.media && post.media.length > 0}
-			<div class="post-embed">
-				{#if post.author.mediaTrusted !== false}
-					<div class="embed-images" class:single={post.media.length === 1} class:grid={post.media.length > 1}>
-						{#each post.media as media}
-							{#if media.mimeType?.startsWith('video/')}
+			{#each post.content as block}
+				{#if block.type === 'text'}
+					<p><RichTextRenderer text={block.text} facets={block.facets} /></p>
+				{:else if block.type === 'image'}
+					<div class="post-embed">
+						{#if post.author.mediaTrusted !== false}
+							{#if block.image.mimeType?.startsWith('video/')}
 								<!-- svelte-ignore a11y_media_has_caption -->
-								<video src={media.url} class="embed-image" controls playsinline preload="metadata"></video>
+								<video src={block.image.url} class="embed-image single" controls playsinline preload="metadata"></video>
 							{:else}
-								<img src={media.url} alt={media.alt || ''} class="embed-image" loading="lazy" />
+								<img src={block.image.url} alt={block.image.alt || ''} class="embed-image single" loading="lazy" />
 							{/if}
-						{/each}
+						{:else}
+							<p class="media-hidden-notice">media hidden — this account is pending automatic verification</p>
+						{/if}
 					</div>
-				{:else}
-					<p class="media-hidden-notice">media hidden — this account is pending automatic verification</p>
+				{:else if block.type === 'embed'}
+					<div class="post-embed">
+						<EmbedCard url={block.url} />
+					</div>
 				{/if}
-			</div>
-		{/if}
-
-		{#if postEmbedUrl}
-			<div class="post-embed">
-				<EmbedCard url={postEmbedUrl} />
-			</div>
-		{/if}
+			{/each}
+		</div>
 
 	{/if}
 	</div>
@@ -637,7 +610,7 @@
 	}
 
 	.chain-entry-content {
-		margin-bottom: 0.375rem;
+		margin-bottom: 0.5rem;
 		font-size: 0.9375rem;
 		line-height: 1.5;
 		white-space: pre-wrap;
@@ -740,6 +713,14 @@
 		word-wrap: break-word;
 	}
 
+	.post-content > p {
+		margin: 0 0 0.5rem;
+	}
+
+	.post-content > p:last-child {
+		margin-bottom: 0;
+	}
+
 	/* ── Height collapse ──────────────────────────────────── */
 
 	.post-body {
@@ -802,20 +783,10 @@
 		text-decoration: none;
 	}
 
-	.embed-images {
-		border-radius: var(--radius-md);
-		overflow: hidden;
-	}
-
-	.embed-images.grid {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 2px;
-	}
-
 	.embed-image {
 		width: 100%;
 		object-fit: cover;
+		border-radius: var(--radius-sm);
 	}
 
 	video.embed-image {
@@ -959,9 +930,13 @@
 			padding: 0.75rem;
 		}
 
-		.embed-images {
+		.post-embed {
+			margin-left: -0.75rem;
+			margin-right: -0.75rem;
+		}
+
+		.embed-image {
 			border-radius: 0;
-			margin: 0 -0.75rem 0 -0.75rem;
 		}
 	}
 </style>

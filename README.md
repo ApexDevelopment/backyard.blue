@@ -1,13 +1,13 @@
 # Backyard
 
-Backyard is a social blogging platform built on the [AT Protocol](https://atproto.com/). It uses its own lexicon namespace (`blue.backyard.*`) for posts, comments, reblogs, likes, and follows, storing all user data in their AT Protocol PDS. Users log in via AT Protocol OAuth with scoped permissions.
+Backyard is a social blogging platform built on the [AT Protocol](https://atproto.com/). It uses its own lexicon namespace (`blue.backyard.*`) for posts, comments, reblogs, likes, and follows, storing all user data in their PDS. Users log in via OAuth with scoped permissions.
 
-Built with SvelteKit, PostgreSQL (as a local cache/index), and Docker.
+Built with SvelteKit, PostgreSQL, and Docker.
 
 ## Requirements
 
 - Node.js 22+
-- PostgreSQL 16+ (with `pg_trgm` extension available)
+- PostgreSQL 16+ (with `pg_trgm` extension)
 - An internet-accessible domain with HTTPS (for OAuth callbacks)
 
 ## Quick Start (Docker)
@@ -45,7 +45,7 @@ Copy `.env.example` to `.env` and set the required values:
 | `BLOB_CACHE_MAX_BYTES` | No | Maximum total size of the blob cache in bytes. Defaults to `2147483648` (2 GiB). |
 | `JETSTREAM_URL` | No | Custom Jetstream WebSocket URL. Defaults to `wss://jetstream2.us-east.bsky.network/subscribe`. |
 | `FIREHOSE_DISABLED` | No | Set to `true` to disable the Jetstream firehose consumer. |
-| `SIGNUP_MODE` | No | `open` (default), `allowlist`, or `closed`. Controls who can create new sessions. |
+| `SIGNUP_MODE` | No | `open` (default), `allowlist`, or `closed`. Controls who can sign in to the instance. |
 | `ADMIN_DID` | No | DID of the instance admin. Required for `/api/admin/*` endpoints. |
 | `HANDLE_RESOLVER_URL` | No | XRPC-compatible endpoint for resolving handles to DIDs. Falls back to `https://public.api.bsky.app`. A good choice is `https://slingshot.microcosm.blue/`. |
 | `NEWS_DID` | No | DID of the account whose posts populate the news panel. If unset, resolves `NEWS_HANDLE` via the handle resolver. |
@@ -91,7 +91,7 @@ No environment configuration is needed for local development. The app will use d
 
 ## Architecture
 
-Backyard is a SvelteKit application using `adapter-node` for production. It does not store user content itself -- all posts, comments, reblogs, likes, and follows are AT Protocol records written to each user's PDS.
+Backyard is a SvelteKit application using `adapter-node` for production. It does not store user content itself -- all posts, comments, reblogs, likes, and follows are atproto records written to each user's PDS.
 
 PostgreSQL serves as a local index/cache. Records arrive via two paths:
 - **Jetstream firehose**: real-time WebSocket stream of all `blue.backyard.*` events across the network.
@@ -116,7 +116,7 @@ Lexicon schemas are in the `lexicons/` directory.
 
 ### OAuth
 
-Authentication uses AT Protocol OAuth with scoped permissions. The app requests access only to the `blue.backyard.*` collections and blob uploads -- it does not request full account access. Key endpoints:
+Authentication uses OAuth with scoped permissions. The app requests access only to the `blue.backyard.*` collections and blob uploads -- it does not request full account access. Key endpoints:
 
 - `/oauth/client-metadata.json` -- OAuth client metadata document
 - `/oauth/jwks.json` -- Public keys for `private_key_jwt` auth
@@ -160,9 +160,9 @@ The application includes a basic in-memory rate limiter (60 writes/min, 300 read
 
 Backyard supports three signup modes, controlled by the `SIGNUP_MODE` environment variable:
 
-- **`open`** (default) — anyone with an AT Protocol account can sign in.
-- **`allowlist`** — only DIDs or handles listed in the allowlist can create new sessions. Returning users (who have signed in before) are always allowed.
-- **`closed`** — no new signups. Only users with an existing session can sign in.
+- **`open`** (default) -- anyone with an atproto account can sign in.
+- **`allowlist`** -- only DIDs or handles listed in the allowlist can create new sessions. Returning users (who have signed in before) are always allowed.
+- **`closed`** -- no new signups. Only users with an existing session can sign in.
 
 The login page adapts its messaging automatically based on the current mode.
 

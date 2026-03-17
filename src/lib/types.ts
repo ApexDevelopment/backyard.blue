@@ -30,13 +30,33 @@ export interface Facet {
 	features: Array<{ $type: string; uri?: string; did?: string }>;
 }
 
+/* ── Content blocks ───────────────────────────────────── */
+
+export interface ContentTextBlock {
+	type: 'text';
+	text: string;
+	facets?: Facet[];
+}
+
+export interface ContentImageBlock {
+	type: 'image';
+	image: BackyardMedia;
+}
+
+export interface ContentEmbedBlock {
+	type: 'embed';
+	url: string;
+}
+
+export type ContentBlock = ContentTextBlock | ContentImageBlock | ContentEmbedBlock;
+
+/* ── Posts and feed items ─────────────────────────────── */
+
 export interface BackyardPost {
 	uri: string;
 	cid: string;
 	author: BackyardProfile;
-	text: string;
-	facets?: Facet[];
-	media?: BackyardMedia[];
+	content: ContentBlock[];
 	tags?: string[];
 	likeCount: number;
 	commentCount: number;
@@ -65,24 +85,20 @@ export interface BackyardReblogInfo {
 	uri: string;
 	cid: string;
 	by: BackyardProfile;
-	text?: string;
-	facets?: Facet[];
-	media?: BackyardMedia[];
+	content?: ContentBlock[];
 	tags?: string[];
 	createdAt: string;
 }
 
 /**
  * A single entry in a reblog chain, displayed top-down (original post first,
- * each subsequent addition below). Entries without text or media are "silent reblogs."
+ * each subsequent addition below). Entries without content are "silent reblogs."
  */
 export interface BackyardChainEntry {
 	uri: string;
 	cid: string;
 	author: BackyardProfile;
-	text: string;
-	facets?: Facet[];
-	media?: BackyardMedia[];
+	content: ContentBlock[];
 	tags?: string[];
 	createdAt: string;
 	/** Whether this entry is the original post (true) or a reblog addition (false) */

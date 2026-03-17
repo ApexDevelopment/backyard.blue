@@ -70,23 +70,19 @@
 </script>
 
 <div class="tag-input-container" class:disabled>
-	{#if tags.length > 0}
-		<div class="tag-chips">
-			{#each tags as tag, i (tag)}
-				<span class="tag-chip">
-					#{tag}
-					{#if !disabled}
-						<button
-							type="button"
-							class="tag-remove"
-							onclick={() => removeTag(i)}
-							aria-label="Remove tag {tag}"
-						>×</button>
-					{/if}
-				</span>
-			{/each}
-		</div>
-	{/if}
+	{#each tags as tag, i (tag)}
+		<span class="tag-chip">
+			#{tag}
+			{#if !disabled}
+				<button
+					type="button"
+					class="tag-remove"
+					onclick={() => removeTag(i)}
+					aria-label="Remove tag {tag}"
+				>×</button>
+			{/if}
+		</span>
+	{/each}
 
 	{#if !disabled && tags.length < max}
 		<input
@@ -105,13 +101,18 @@
 
 <style>
 	.tag-input-container {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.125rem 0.375rem;
 		border: 1px solid var(--border-color);
 		border-radius: var(--radius-sm);
-		padding: 0.375rem 0.5rem;
-		min-height: 2.125rem;
+		padding: 0.25rem 0.5rem;
+		min-height: 2rem;
 		background-color: var(--bg-primary);
 		transition: border-color 0.15s ease;
 		cursor: text;
+		overflow: hidden;
 	}
 
 	.tag-input-container:focus-within {
@@ -124,24 +125,18 @@
 		cursor: default;
 	}
 
-	.tag-chips {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.375rem;
-		margin-bottom: 0.375rem;
-	}
-
 	.tag-chip {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.25rem;
-		padding: 0.125rem 0.5rem;
+		padding: 0.0625rem 0.5rem;
 		background-color: color-mix(in srgb, var(--accent) 12%, transparent);
 		color: var(--accent);
 		border-radius: var(--radius-full);
-		font-size: 0.8125rem;
+		font-size: 0.75rem;
 		font-weight: 500;
 		line-height: 1.5;
+		white-space: nowrap;
 	}
 
 	.tag-remove {
@@ -168,13 +163,15 @@
 	}
 
 	.tag-text-input {
-		width: 100%;
+		flex: 1;
+		min-width: 80px;
 		border: none;
 		outline: none;
 		background: none;
 		color: var(--text-primary);
-		font-size: 0.875rem;
-		padding: 0.125rem 0;
+		font-size: 0.8125rem;
+		padding: 0;
+		line-height: 1.5;
 	}
 
 	.tag-text-input::placeholder {

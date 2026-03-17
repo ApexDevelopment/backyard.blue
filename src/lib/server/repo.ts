@@ -22,14 +22,12 @@ export function parseAtUri(uri: string): { repo: string; collection: string; rke
 export async function createPost(
 	agent: Agent,
 	did: string,
-	data: { text: string; facets?: any[]; media?: any[]; tags?: string[]; langs?: string[] }
+	data: { content: any[]; tags?: string[]; langs?: string[] }
 ): Promise<{ uri: string; cid: string }> {
 	const now = new Date().toISOString();
 	const record = {
 		$type: NSID.POST,
-		text: data.text,
-		facets: data.facets,
-		media: data.media,
+		content: data.content,
 		tags: data.tags,
 		langs: data.langs,
 		createdAt: now
@@ -42,17 +40,15 @@ export async function createPost(
 	});
 
 	await pool.query(
-		`INSERT INTO posts (uri, cid, author_did, text, facets, media, tags, created_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		`INSERT INTO posts (uri, cid, author_did, tags, content, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6)
 		 ON CONFLICT (uri) DO NOTHING`,
 		[
 			res.data.uri,
 			res.data.cid,
 			did,
-			data.text,
-			data.facets ? JSON.stringify(data.facets) : null,
-			data.media ? JSON.stringify(data.media) : null,
 			data.tags || null,
+			JSON.stringify(data.content),
 			now
 		]
 	);
@@ -64,7 +60,7 @@ export async function updatePost(
 	agent: Agent,
 	did: string,
 	uri: string,
-	data: { text: string; facets?: any[]; media?: any[]; tags?: string[] }
+	data: { content: any[]; tags?: string[] }
 ): Promise<{ uri: string; cid: string }> {
 	const { rkey } = parseAtUri(uri);
 
@@ -77,10 +73,11 @@ export async function updatePost(
 
 	const record = {
 		...existing.data.value as Record<string, unknown>,
-		text: data.text,
-		facets: data.facets || undefined,
-		media: data.media || undefined,
-		tags: data.tags || undefined
+		content: data.content,
+		tags: data.tags || undefined,
+		text: undefined,
+		facets: undefined,
+		media: undefined
 	};
 
 	const res = await agent.com.atproto.repo.putRecord({
@@ -91,14 +88,12 @@ export async function updatePost(
 	});
 
 	await pool.query(
-		`UPDATE posts SET cid = $1, text = $2, facets = $3, media = $4, tags = $5
-		 WHERE uri = $6 AND author_did = $7`,
+		`UPDATE posts SET cid = $1, tags = $2, content = $3
+		 WHERE uri = $4 AND author_did = $5`,
 		[
 			res.data.cid,
-			data.text,
-			data.facets ? JSON.stringify(data.facets) : null,
-			data.media ? JSON.stringify(data.media) : null,
 			data.tags || null,
+			JSON.stringify(data.content),
 			uri,
 			did
 		]
@@ -111,7 +106,7 @@ export async function updateReblog(
 	agent: Agent,
 	did: string,
 	uri: string,
-	data: { text?: string; facets?: any[]; tags?: string[] }
+	data: { content?: any[]; tags?: string[] }
 ): Promise<{ uri: string; cid: string }> {
 	const { rkey } = parseAtUri(uri);
 
@@ -123,9 +118,11 @@ export async function updateReblog(
 
 	const record = {
 		...existing.data.value as Record<string, unknown>,
-		text: data.text || undefined,
-		facets: data.facets || undefined,
-		tags: data.tags || undefined
+		content: data.content || undefined,
+		tags: data.tags || undefined,
+		text: undefined,
+		facets: undefined,
+		media: undefined
 	};
 
 	const res = await agent.com.atproto.repo.putRecord({
@@ -136,13 +133,12 @@ export async function updateReblog(
 	});
 
 	await pool.query(
-		`UPDATE reblogs SET cid = $1, text = $2, facets = $3, tags = $4
-		 WHERE uri = $5 AND author_did = $6`,
+		`UPDATE reblogs SET cid = $1, tags = $2, content = $3
+		 WHERE uri = $4 AND author_did = $5`,
 		[
 			res.data.cid,
-			data.text || null,
-			data.facets ? JSON.stringify(data.facets) : null,
 			data.tags || null,
+			data.content ? JSON.stringify(data.content) : null,
 			uri,
 			did
 		]
@@ -212,8 +208,7 @@ export async function createReblog(
 	data: {
 		subjectUri: string;
 		subjectCid: string;
-		text?: string;
-		facets?: any[];
+		content?: any[];
 		tags?: string[];
 	}
 ): Promise<{ uri: string; cid: string }> {
@@ -223,8 +218,7 @@ export async function createReblog(
 		subject: { uri: data.subjectUri, cid: data.subjectCid },
 		createdAt: now
 	};
-	if (data.text) record.text = data.text;
-	if (data.facets) record.facets = data.facets;
+	if (data.content && data.content.length > 0) record.content = data.content;
 	if (data.tags) record.tags = data.tags;
 
 	// Enforce reblog chain depth limit at write time
@@ -243,8 +237,8 @@ export async function createReblog(
 	});
 
 	await pool.query(
-		`INSERT INTO reblogs (uri, cid, author_did, subject_uri, root_post_uri, text, facets, tags, created_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		`INSERT INTO reblogs (uri, cid, author_did, subject_uri, root_post_uri, tags, content, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		 ON CONFLICT (uri) DO NOTHING`,
 		[
 			res.data.uri,
@@ -252,9 +246,8 @@ export async function createReblog(
 			did,
 			data.subjectUri,
 			rootPostUri,
-			data.text || null,
-			data.facets ? JSON.stringify(data.facets) : null,
 			data.tags || null,
+			data.content ? JSON.stringify(data.content) : null,
 			now
 		]
 	);

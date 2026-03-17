@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { BackyardChainEntry, BackyardMedia, Facet } from '$lib/types.js';
+import type { BackyardChainEntry, ContentBlock } from '$lib/types.js';
 
 export interface ComposerState {
 	open: boolean;
@@ -17,10 +17,8 @@ export interface ComposerState {
 		cid: string;
 		/** 'post' or 'reblog' — determines which API endpoint to call */
 		collection: 'post' | 'reblog';
-		text: string;
-		facets?: Facet[];
+		content?: ContentBlock[];
 		tags?: string[];
-		media?: BackyardMedia[];
 	};
 }
 
@@ -42,10 +40,8 @@ export function openEditComposer(params: {
 	uri: string;
 	cid: string;
 	collection: 'post' | 'reblog';
-	text: string;
-	facets?: Facet[];
+	content?: ContentBlock[];
 	tags?: string[];
-	media?: BackyardMedia[];
 }) {
 	composer.set({
 		open: true,

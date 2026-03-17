@@ -60,9 +60,7 @@ export async function initializeDatabase(): Promise<void> {
 				uri TEXT PRIMARY KEY,
 				cid TEXT NOT NULL,
 				author_did TEXT NOT NULL,
-				text TEXT NOT NULL,
-				facets JSONB,
-				media JSONB,
+				content JSONB,
 				tags TEXT[],
 				created_at TIMESTAMPTZ NOT NULL,
 				indexed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -98,9 +96,7 @@ export async function initializeDatabase(): Promise<void> {
 				author_did TEXT NOT NULL,
 				subject_uri TEXT NOT NULL,
 				root_post_uri TEXT,
-				text TEXT,
-				facets JSONB,
-				media JSONB,
+				content JSONB,
 				tags TEXT[],
 				created_at TIMESTAMPTZ NOT NULL,
 				indexed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

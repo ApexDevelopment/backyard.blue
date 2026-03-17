@@ -127,9 +127,11 @@ export async function getNotifications(
 		`SELECT
 			n.id, n.actor_did, n.type, n.subject_uri, n.action_uri, n.read, n.created_at,
 			COALESCE(
-				(SELECT LEFT(p.text, 120) FROM posts p WHERE p.uri = n.subject_uri),
+				(SELECT LEFT(elem->>'text', 120) FROM posts p, jsonb_array_elements(p.content) elem
+				 WHERE p.uri = n.subject_uri AND elem->>'type' = 'text' LIMIT 1),
 				(SELECT LEFT(c.text, 120) FROM comments c WHERE c.uri = n.subject_uri),
-				(SELECT LEFT(r.text, 120) FROM reblogs r WHERE r.uri = n.subject_uri)
+				(SELECT LEFT(elem->>'text', 120) FROM reblogs r, jsonb_array_elements(r.content) elem
+				 WHERE r.uri = n.subject_uri AND elem->>'type' = 'text' LIMIT 1)
 			) AS subject_preview
 		 FROM notifications n
 		 WHERE n.recipient_did = $1

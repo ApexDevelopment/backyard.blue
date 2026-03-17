@@ -1,4 +1,4 @@
-# Per-User Repo Backfill
+# Backfill
 
 ## Problem
 
@@ -16,10 +16,13 @@ This means the local cache can become empty or incomplete when:
 
 ## Solution
 
-Rather than attempting a full network-wide backfill (which would be slow and
-wasteful), Backyard uses **on-demand per-user backfill** via the standard AT
-Protocol `com.atproto.repo.listRecords` XRPC endpoint. This fetches all
-records in a given collection directly from a user's PDS.
+Backyard uses a two-layer approach:
+
+1. **Relay discovery** — at startup, query a relay via
+   `com.atproto.sync.listReposByCollection` to find every DID that has
+   records in any `blue.backyard.*` collection, then backfill each one.
+2. **Per-user backfill** — on-demand via `com.atproto.repo.listRecords`
+   from a user's PDS, triggered on login and profile views.
 
 ### Implementation
 
@@ -76,9 +79,19 @@ without risk of data corruption or duplication.
 
 ## Triggers
 
-Backfill is triggered automatically at two points:
+Backfill is triggered automatically at three points:
 
-### 1. After OAuth Login
+### 1. Server Startup (Relay Discovery)
+
+**File**: `src/hooks.server.ts`
+
+On startup, `discoverAndBackfill()` queries the configured relay via
+`com.atproto.sync.listReposByCollection` to find every DID with records in
+any `blue.backyard.*` collection. It then backfills each discovered DID
+sequentially. This ensures the database is populated even after a fresh
+deploy or database wipe, without waiting for users to log in.
+
+### 2. After OAuth Login
 
 **File**: `src/routes/oauth/callback/+server.ts`
 
@@ -89,7 +102,7 @@ follows, and comments are available by the time they land on the home page.
 This is the most important trigger — it guarantees that the logged-in user
 always has their data visible, even on a freshly deployed instance.
 
-### 2. On Profile View
+### 3. On Profile View
 
 **File**: `src/routes/profile/[handle]/+page.server.ts`
 
@@ -105,19 +118,25 @@ the first profile view may show an empty feed, but subsequent page loads
 
 Backfill and the firehose are complementary:
 
-| Mechanism       | Scope            | Timing       | Data Source        |
-| --------------- | ---------------- | ------------ | ------------------ |
-| Jetstream       | All known users  | Real-time    | Network firehose   |
-| Backfill        | Single user      | On-demand    | User's PDS         |
+| Mechanism          | Scope            | Timing       | Data Source                    |
+| ------------------ | ---------------- | ------------ | ------------------------------ |
+| Jetstream          | All known users  | Real-time    | Network firehose               |
+| Relay discovery    | All Backyard users | On startup | Relay → per-user PDS           |
+| Per-user backfill  | Single user      | On-demand    | User's PDS                     |
 
-After a database wipe, the firehose picks up new activity from its live
-cursor, while backfill restores historical data for users as they log in
-or are viewed. Together, they ensure the local cache converges on a
-complete picture without the cost of a full network scan.
+At startup, the relay discovery queries `com.atproto.sync.listReposByCollection`
+to find every DID that has records in any `blue.backyard.*` collection, then
+backfills each one via their PDS. After startup, the firehose picks up new
+activity in real time, and per-user backfill handles on-demand cases (login,
+profile views).
 
 ## Configuration
 
-The backfill module has no dedicated environment variables. It relies on:
+| Variable     | Default                                | Purpose                                                      |
+| ------------ | -------------------------------------- | ------------------------------------------------------------ |
+| `RELAY_URL`  | `https://relay1.us-east.bsky.network`  | Relay host for `com.atproto.sync.listReposByCollection`      |
+
+The backfill module also relies on:
 
 - The user's PDS URL, resolved from their DID document.
 - The standard `com.atproto.repo.listRecords` XRPC endpoint, which is
