@@ -1057,6 +1057,12 @@
 		opacity: 1;
 	}
 
+	@media (hover: none) {
+		.block-insert-controls {
+			opacity: 1;
+		}
+	}
+
 	.block-insert-btn {
 		display: flex;
 		align-items: center;
