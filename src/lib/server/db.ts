@@ -219,6 +219,28 @@ export async function initializeDatabase(): Promise<void> {
 				fetched_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 
+			-- Appview-level bans (hides user content from feeds, blocks API writes)
+			CREATE TABLE IF NOT EXISTS appview_bans (
+				did TEXT PRIMARY KEY,
+				reason TEXT,
+				banned_by TEXT NOT NULL,
+				banned_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+
+			-- Posts queued for user-initiated deletion (hidden from feeds immediately,
+			-- shown to the author as a "violation" modal on next login)
+			CREATE TABLE IF NOT EXISTS pending_deletions (
+				id BIGSERIAL PRIMARY KEY,
+				uri TEXT UNIQUE NOT NULL,
+				author_did TEXT NOT NULL,
+				reason TEXT,
+				queued_by TEXT NOT NULL,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_pending_deletions_author
+				ON pending_deletions(author_did);
+
 			-- Housekeeping: clean up expired OAuth state
 			DELETE FROM oauth_state WHERE created_at < NOW() - INTERVAL '1 hour';
 			-- Housekeeping: clean up stale negative embed cache entries (older than 1 hour)

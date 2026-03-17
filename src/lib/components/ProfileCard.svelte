@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { BackyardProfile } from '$lib/types.js';
-	import { Ban } from 'lucide-svelte';
+	import { Ban, ShieldX } from 'lucide-svelte';
 	import ContextMenu from './ContextMenu.svelte';
 
 	interface Props {
@@ -13,6 +13,7 @@
 		viewerDid?: string;
 		blockedByProfile?: boolean;
 		viewerBlockUri?: string | null;
+		isAdmin?: boolean;
 	}
 
 	let {
@@ -24,7 +25,8 @@
 		followsCount = 0,
 		viewerDid,
 		blockedByProfile = false,
-		viewerBlockUri = null
+		viewerBlockUri = null,
+		isAdmin = false
 	}: Props = $props();
 
 	let followLoading = $state(false);
@@ -107,6 +109,26 @@
 			// Silently fail
 		}
 	}
+
+	let showAdminActions = $derived(isAdmin && !isOwnProfile);
+	let adminBanLoading = $state(false);
+
+	async function handleAdminBan() {
+		if (adminBanLoading) return;
+		adminBanLoading = true;
+		try {
+			const res = await fetch('/api/admin/ban', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ did: profile.did, reason: 'Banned via profile page' })
+			});
+			if (res.ok) {
+				window.location.reload();
+			}
+		} finally {
+			adminBanLoading = false;
+		}
+	}
 </script>
 
 <div class="profile-card card">
@@ -143,13 +165,21 @@
 					<a href="/settings/profile" class="btn btn-secondary">edit profile</a>
 				{/if}
 
-				{#if showBlockOption}
+				{#if showBlockOption || showAdminActions}
 					<ContextMenu>
 						{#snippet children()}
-							<button class="context-item {isBlocking ? '' : 'context-item-danger'}" onclick={handleBlockUser}>
-								<Ban size={16} />
-								<span>{isBlocking ? 'unblock' : 'block'} {profile.displayName || profile.handle}</span>
-							</button>
+							{#if showBlockOption}
+								<button class="context-item {isBlocking ? '' : 'context-item-danger'}" onclick={handleBlockUser}>
+									<Ban size={16} />
+									<span>{isBlocking ? 'unblock' : 'block'} {profile.displayName || profile.handle}</span>
+								</button>
+							{/if}
+							{#if showAdminActions}
+								<button class="context-item context-item-danger" onclick={handleAdminBan} disabled={adminBanLoading}>
+									<ShieldX size={16} />
+									<span>ban {profile.displayName || profile.handle}</span>
+								</button>
+							{/if}
 						{/snippet}
 					</ContextMenu>
 				{/if}

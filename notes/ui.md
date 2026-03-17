@@ -52,16 +52,36 @@ All icons use the `lucide-svelte` library. Components used:
 
 | Icon | Component | Usage |
 |------|-----------|-------|
-| `House` | Header | Home link |
+| `House` | SideNav | Home link |
 | `Plus` | Header | Compose button |
 | `Search` | Header | Search link |
 | `LogOut` | Header | Logout button |
 | `Moon` / `Sun` | ThemeToggle | Theme switcher |
+| `Bell` | SideNav | Notifications/activity link |
+| `User` | SideNav | Profile link |
+| `Settings` | SideNav | Settings link |
+| `Menu` | Header | Mobile menu toggle |
 | `MessageCircle` | PostCard | Comment count |
 | `Repeat2` | PostCard | Reblog count/button |
 | `Heart` | PostCard | Like count/button |
-| `ChevronLeft` | Various pages | Back navigation |
-| `X` / `XCircle` | Various | Close/dismiss actions |
+| `ChevronDown` | PostCard | Context menu toggle |
+| `Ellipsis` | PostCard, ProfileCard | More actions menu |
+| `ChevronLeft` / `ArrowLeft` | Various pages | Back navigation |
+| `X` | Various | Close/dismiss actions |
+| `Trash2` | PostCard, ViolationModal | Delete actions |
+| `Pencil` | PostCard | Edit actions |
+| `ShieldAlert` | PostCard | Admin: flag post for deletion |
+| `ShieldX` | PostCard, ProfileCard | Admin: ban user |
+| `Ban` | Various | Block user |
+| `Bold` / `Italic` / `Underline` / `Strikethrough` | RichTextEditor | Text formatting toolbar |
+| `ImagePlus` | RichTextEditor | Insert image |
+| `Link` | RichTextEditor | Insert link |
+| `Type` | RichTextEditor | Text block |
+| `Camera` | ProfileEditor | Avatar/banner upload |
+| `Hash` | TagInput | Tag indicator |
+| `UserPlus` | ProfileCard | Follow button |
+| `RefreshCw` | PullToRefresh | Refresh indicator |
+| `Save` | ProfileEditor, Settings | Save action |
 
 ## Post Composer
 
@@ -79,11 +99,20 @@ The post composer is a **modal overlay** (not an inline text box). It is trigger
 |-----------|-------------|
 | `Header.svelte` | Top navigation bar with home, compose, search, logout |
 | `SideNav.svelte` | Left-column navigation: home, notifications, profile, settings. Sticky, collapses to icons on medium screens, hidden on mobile. |
-| `NewsPanel.svelte` | Right-column placeholder for news/announcements. Hidden below 1100px. |
-| `PostCard.svelte` | Displays a post or reblog with actions (like, comment, reblog) |
-| `PostComposer.svelte` | Modal for creating new posts |
-| `ProfileCard.svelte` | Profile banner, avatar, stats, follow button |
+| `NewsPanel.svelte` | Right-column news panel showing `site.standard.document` entries. Hidden below 1100px. |
+| `PostCard.svelte` | Displays a post or reblog with actions (like, comment, reblog). Supports admin moderation actions. |
+| `PostComposer.svelte` | Modal for creating new posts with block-based content (text, images, embeds) |
+| `ProfileCard.svelte` | Profile banner, avatar, stats, follow/block buttons. Admin ban action. |
+| `ProfileEditor.svelte` | Profile editing form (display name, bio, avatar, banner, colors) |
 | `ThemeToggle.svelte` | Light/dark theme switcher |
+| `RichTextEditor.svelte` | Rich text input with formatting toolbar (bold, italic, links, mentions) |
+| `RichTextRenderer.svelte` | Renders rich text with facets (mentions, links, tags) as interactive elements |
+| `ContextMenu.svelte` | Reusable dropdown context menu with icon support |
+| `EmbedCard.svelte` | OpenGraph/Twitter Card link preview card |
+| `TagInput.svelte` | Tag entry component with add/remove support |
+| `PullToRefresh.svelte` | Mobile pull-to-refresh gesture handler |
+| `ViolationModal.svelte` | Full-screen blocking modal for pending post deletion violations |
+| `BackyardLogo.svelte` | SVG logo component |
 
 ## Three-Column Layout
 

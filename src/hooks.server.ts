@@ -1,9 +1,10 @@
 import type { Handle } from '@sveltejs/kit';
-import { redirect } from '@sveltejs/kit';
+import { redirect, json } from '@sveltejs/kit';
 import { getSessionData, clearSession } from '$lib/server/session.js';
 import { initializeDatabase, startOAuthStateCleanup } from '$lib/server/db.js';
 import { startFirehose } from '$lib/server/firehose.js';
 import { discoverAndBackfill } from '$lib/server/backfill.js';
+import { isAdmin } from '$lib/server/signup.js';
 import pool from '$lib/server/db.js';
 
 /**
@@ -101,6 +102,8 @@ const WRITE_PATHS = new Set([
 	'/api/onboarding/follows',
 	'/api/admin/allowlist',
 	'/api/admin/trust',
+	'/api/admin/ban',
+	'/api/admin/delete-post',
 	'/api/upload',
 	'/api/block',
 	'/api/block/tag'
@@ -152,11 +155,35 @@ export const handle: Handle = async ({ event, resolve }) => {
 			} else {
 				event.locals.did = session.did;
 				event.locals.needsOnboarding = session.needsOnboarding || false;
+				event.locals.isAdmin = isAdmin(session.did);
+
+				// Check ban and pending deletion status
+				const [banCheck, pendingCheck] = await Promise.all([
+					pool.query('SELECT 1 FROM appview_bans WHERE did = $1', [session.did]),
+					pool.query('SELECT 1 FROM pending_deletions WHERE author_did = $1 LIMIT 1', [session.did])
+				]);
+				event.locals.isBanned = banCheck.rows.length > 0;
+				event.locals.hasPendingDeletions = pendingCheck.rows.length > 0;
 			}
 		}
 	} catch (err) {
 		// Re-throw redirects (SvelteKit uses thrown responses)
 		if (err && typeof err === 'object' && 'status' in err && 'location' in err) throw err;
+	}
+
+	// Enforce bans and pending deletions: block user-facing write API calls.
+	// Admin routes are exempt so admins can still manage the instance.
+	if (event.locals.did && path.startsWith('/api/') && !path.startsWith('/api/admin/') && !path.startsWith('/api/auth/')) {
+		const method = event.request.method;
+		if (event.locals.isBanned && method !== 'GET') {
+			return json({ error: 'Your account has been suspended' }, { status: 403 });
+		}
+		if (event.locals.hasPendingDeletions && method !== 'GET') {
+			// Allow post deletion so users can resolve their violations
+			if (!(path === '/api/post' && method === 'DELETE')) {
+				return json({ error: 'You have pending post violations that must be resolved' }, { status: 403 });
+			}
+		}
 	}
 
 	const response = await resolve(event, {

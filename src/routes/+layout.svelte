@@ -9,6 +9,7 @@
 	import NewsPanel from '$lib/components/NewsPanel.svelte';
 	import PostComposer from '$lib/components/PostComposer.svelte';
 	import PullToRefresh from '$lib/components/PullToRefresh.svelte';
+	import ViolationModal from '$lib/components/ViolationModal.svelte';
 	import { theme } from '$lib/stores/theme.js';
 	import { fancyProfiles } from '$lib/stores/preferences.js';
 	import { composer, openComposer, closeComposer } from '$lib/stores/composer.js';
@@ -116,6 +117,10 @@
 		reblogChain={$composer.reblogSubject?.chain}
 		editSubject={$composer.editSubject}
 	/>
+{/if}
+
+{#if data.user && data.hasPendingDeletions}
+	<ViolationModal />
 {/if}
 
 <style>

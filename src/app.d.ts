@@ -6,6 +6,9 @@ declare global {
 		interface Locals {
 			did?: string;
 			needsOnboarding?: boolean;
+			isAdmin?: boolean;
+			isBanned?: boolean;
+			hasPendingDeletions?: boolean;
 		}
 	}
 }

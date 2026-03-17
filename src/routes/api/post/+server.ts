@@ -5,6 +5,7 @@ import { RichText } from '@atproto/api';
 import { createPost, updatePost, deleteRecord, parseAtUri } from '$lib/server/repo.js';
 import { MAX_TEXT_LENGTH, clampTags, sanitizeFormatFacets, isValidAtUri } from '$lib/server/validation.js';
 import { NSID } from '$lib/lexicon.js';
+import pool from '$lib/server/db.js';
 
 const MAX_CONTENT_BLOCKS = 20;
 
@@ -188,6 +189,8 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 
 	try {
 		await deleteRecord(agent, uri);
+		// Clear any pending deletion entry for this URI
+		await pool.query('DELETE FROM pending_deletions WHERE uri = $1', [uri]);
 		return json({ success: true });
 	} catch (err) {
 		console.error('Delete error:', err);

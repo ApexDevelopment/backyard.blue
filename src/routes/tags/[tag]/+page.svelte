@@ -25,7 +25,7 @@
 						reblogged
 					</div>
 				{/if}
-				<PostCard post={item.post} chain={item.chain} viewerDid={data.user?.did} />
+				<PostCard post={item.post} chain={item.chain} viewerDid={data.user?.did} isAdmin={data.isAdmin} />
 			{/each}
 		{:else}
 			<div class="empty-state card">

@@ -45,6 +45,7 @@
 		viewerDid={data.user?.did}
 		blockedByProfile={data.blockedByProfile}
 		viewerBlockUri={data.viewerBlockUri}
+		isAdmin={data.isAdmin}
 	/>
 
 	{#if data.blockedByProfile}
@@ -55,7 +56,7 @@
 		<div class="feed-list">
 			{#if data.feed && data.feed.length > 0}
 				{#each data.feed as item (item.post.uri + (item.reblog?.uri || ''))}
-					<PostCard post={item.post} chain={item.chain} reblog={item.reblog} profileHandle={data.profile.handle} viewerDid={data.user?.did} />
+					<PostCard post={item.post} chain={item.chain} reblog={item.reblog} profileHandle={data.profile.handle} viewerDid={data.user?.did} isAdmin={data.isAdmin} />
 				{/each}
 			{:else}
 				<div class="profile-empty-card card">

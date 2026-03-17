@@ -26,17 +26,18 @@ export function getSignupMode(): SignupMode {
 }
 
 /**
- * Read the admin DID from the environment.
- * Returns null if unset.
+ * Read admin DIDs from the environment.
+ * Supports comma-separated ADMIN_DIDS, with fallback to singular ADMIN_DID.
  */
-export function getAdminDid(): string | null {
-	return env.ADMIN_DID?.trim() || null;
+export function getAdminDids(): Set<string> {
+	const raw = env.ADMIN_DIDS || env.ADMIN_DID || '';
+	const dids = raw.split(',').map((d) => d.trim()).filter(Boolean);
+	return new Set(dids);
 }
 
 export function isAdmin(did?: string): boolean {
 	if (!did) return false;
-	const adminDid = getAdminDid();
-	return !!adminDid && did === adminDid;
+	return getAdminDids().has(did);
 }
 
 /**

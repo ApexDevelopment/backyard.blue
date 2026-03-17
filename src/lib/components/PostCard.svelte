@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { BackyardPost, BackyardChainEntry, BackyardReblogInfo, ContentBlock } from '$lib/types.js';
-	import { MessageCircle, Repeat2, Heart, ChevronDown, Trash2, Pencil, Ban } from 'lucide-svelte';
+	import { MessageCircle, Repeat2, Heart, ChevronDown, Trash2, Pencil, Ban, ShieldAlert, ShieldX } from 'lucide-svelte';
 	import { openReblogComposer, openEditComposer } from '$lib/stores/composer.js';
 	import RichTextRenderer from './RichTextRenderer.svelte';
 	import EmbedCard from './EmbedCard.svelte';
@@ -18,9 +18,11 @@
 		profileHandle?: string;
 		/** The logged-in user's DID, used to show delete controls on owned posts/reblogs */
 		viewerDid?: string;
+		/** Whether the viewer is an admin */
+		isAdmin?: boolean;
 	}
 
-	let { post, chain, reblog, showActions = true, compact = false, profileHandle, viewerDid }: Props = $props();
+	let { post, chain, reblog, showActions = true, compact = false, profileHandle, viewerDid, isAdmin = false }: Props = $props();
 
 	/** The tags to display at the card bottom: reblog's own tags if this is a reblog, otherwise the post's. */
 	let cardTags = $derived(reblog ? reblog.tags : post.tags);
@@ -282,6 +284,47 @@
 			// Silently fail
 		}
 	}
+
+	/** Whether the admin should see moderation actions on this post/user */
+	let showAdminActions = $derived(isAdmin && viewerDid && blockTargetDid !== viewerDid);
+
+	let adminBanLoading = $state(false);
+	let adminDeleteLoading = $state(false);
+
+	async function handleAdminBan() {
+		if (adminBanLoading) return;
+		adminBanLoading = true;
+		try {
+			const res = await fetch('/api/admin/ban', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ did: blockTargetDid, reason: 'Banned via post context menu' })
+			});
+			if (res.ok) {
+				window.location.reload();
+			}
+		} finally {
+			adminBanLoading = false;
+		}
+	}
+
+	async function handleAdminQueueDelete() {
+		if (adminDeleteLoading) return;
+		adminDeleteLoading = true;
+		try {
+			const targetUri = reblog ? reblog.uri : post.uri;
+			const res = await fetch('/api/admin/delete-post', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ uri: targetUri, reason: 'Flagged via post context menu' })
+			});
+			if (res.ok) {
+				deleted = true;
+			}
+		} finally {
+			adminDeleteLoading = false;
+		}
+	}
 </script>
 
 {#if deleted}
@@ -475,7 +518,7 @@
 				</span>
 			</button>
 
-			{#if canDelete || showBlockOption}
+			{#if canDelete || showBlockOption || showAdminActions}
 				<div class="action-menu">
 					<ContextMenu onopen={showBlockOption ? checkBlockStatus : undefined}>
 						{#snippet children()}
@@ -493,6 +536,16 @@
 								<button class="context-item {blockStatus?.blocking ? '' : 'context-item-danger'}" onclick={handleBlockUser}>
 									<Ban size={16} />
 									<span>{blockStatus?.blocking ? 'unblock' : 'block'} {blockTargetName}</span>
+								</button>
+							{/if}
+							{#if showAdminActions}
+								<button class="context-item context-item-danger" onclick={handleAdminQueueDelete} disabled={adminDeleteLoading}>
+									<ShieldAlert size={16} />
+									<span>flag post for deletion</span>
+								</button>
+								<button class="context-item context-item-danger" onclick={handleAdminBan} disabled={adminBanLoading}>
+									<ShieldX size={16} />
+									<span>ban {blockTargetName}</span>
 								</button>
 							{/if}
 						{/snippet}

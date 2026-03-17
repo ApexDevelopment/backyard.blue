@@ -23,6 +23,14 @@ This is implemented in `src/lib/server/repo.ts`. Each operation (create post, co
 | `src/lib/server/identity.ts` | DID resolution, profile caching, handle-based search |
 | `src/lib/server/repo.ts` | PDS CRUD + local DB indexing (the dual-write layer) |
 | `src/lib/server/feed.ts` | Timeline, author feed, comments, follows — all SQL from local index |
+| `src/lib/server/notifications.ts` | Notification creation, SSE delivery, unread counts |
+| `src/lib/server/backfill.ts` | Relay discovery + per-user PDS backfill on login/profile view |
+| `src/lib/server/firehose.ts` | Jetstream WebSocket consumer for real-time `blue.backyard.*` events |
+| `src/lib/server/signup.ts` | Signup gating (open/allowlist/closed), admin DID management |
+| `src/lib/server/trust.ts` | Account trust scoring (0–100) for media visibility |
+| `src/lib/server/validation.ts` | AT-URI, DID, CID validation; text/tag/JSON size limits |
+| `src/lib/server/opengraph.ts` | OpenGraph/Twitter Card metadata extraction with 7-day cache |
+| `src/lib/server/news.ts` | Fetches `site.standard.document` records for the news panel |
 
 ### Identity Resolution
 
@@ -64,7 +72,9 @@ This allows the UI to show filled/active states for like and reblog buttons with
 
 2. **Session extraction** — the encrypted session cookie is decrypted on every request. If valid, `event.locals.did` is populated with the user's DID. If the cookie is invalid or expired, the request continues as unauthenticated (graceful degradation).
 
-3. **SSR theme injection** — `transformPageChunk` replaces a `%backyard.theme%` placeholder in the HTML with the user's theme preference (from a cookie), enabling server-side rendering of the correct theme class.
+3. **Admin & moderation flags** — after session extraction, `locals.isAdmin`, `locals.isBanned`, and `locals.hasPendingDeletions` are populated. Banned users receive 403 on all non-GET API calls. Users with pending deletions are blocked from all writes except `DELETE /api/post` (to resolve violations).
+
+4. **SSR theme injection** — `transformPageChunk` replaces a `%backyard.theme%` placeholder in the HTML with the user's theme preference (from a cookie), enabling server-side rendering of the correct theme class.
 
 ## Session Management
 
@@ -114,6 +124,11 @@ Tables map to AT Protocol record types:
 | `blocked_tags` | — | Local-only tag mutes; not committed to PDS |
 | `embed_cache` | — | OpenGraph/Twitter Card preview cache with TTL |
 | `account_trust` | — | Trust evaluation cache: score, manual approval, signals |
+| `notifications` | — | Activity notifications (like, comment, reblog, follow) with read status |
+| `firehose_cursor` | — | Jetstream cursor persistence (unix microseconds) |
+| `signup_allowlist` | — | DIDs/handles allowed to sign up in allowlist mode |
+| `appview_bans` | — | Admin-imposed user bans (DID, reason, banned_by, timestamp) |
+| `pending_deletions` | — | Queued post deletions awaiting author acknowledgement |
 
 The `profiles` table also includes a denormalised `media_trusted` boolean column, updated by the trust evaluation system for fast feed rendering.
 
@@ -159,3 +174,22 @@ Configured in `svelte.config.js`:
 - `$components` → `src/lib/components`
 - `$server` → `src/lib/server`
 - `$stores` → `src/lib/stores`
+
+## Admin Moderation
+
+Backyard supports multi-admin moderation via the `ADMIN_DIDS` environment variable (comma-separated DIDs, with backward compatibility for `ADMIN_DID`). Admin status is checked via `isAdmin()` in `src/lib/server/signup.ts`.
+
+### Bans
+
+Admins can ban users via `POST /api/admin/ban`. Banned users:
+- Cannot make any write API calls (enforced in `hooks.server.ts`)
+- Have their posts filtered from all feeds (enforced in `enrichFeedItems()` in `feed.ts`)
+- Are stored in the `appview_bans` table
+
+### Queued Deletions
+
+Instead of deleting posts directly from a user's PDS, admins queue posts for deletion via `POST /api/admin/delete-post`. This:
+- Immediately hides the post from all feeds
+- On the author's next login, shows a full-screen `ViolationModal` requiring them to delete the post
+- Blocks all API writes until the violation is resolved (except `DELETE /api/post`)
+- When the user deletes the post via the modal, the `pending_deletions` row is cleared and the record is removed from their PDS

@@ -46,10 +46,11 @@ Copy `.env.example` to `.env` and set the required values:
 | `JETSTREAM_URL` | No | Custom Jetstream WebSocket URL. Defaults to `wss://jetstream2.us-east.bsky.network/subscribe`. |
 | `FIREHOSE_DISABLED` | No | Set to `true` to disable the Jetstream firehose consumer. |
 | `SIGNUP_MODE` | No | `open` (default), `allowlist`, or `closed`. Controls who can sign in to the instance. |
-| `ADMIN_DID` | No | DID of the instance admin. Required for `/api/admin/*` endpoints. |
+| `ADMIN_DIDS` | No | Comma-separated DIDs of instance admins. Required for `/api/admin/*` endpoints. Supports legacy `ADMIN_DID` for single-admin setups. |
 | `HANDLE_RESOLVER_URL` | No | XRPC-compatible endpoint for resolving handles to DIDs. Falls back to `https://public.api.bsky.app`. A good choice is `https://slingshot.microcosm.blue/`. |
 | `NEWS_DID` | No | DID of the account whose posts populate the news panel. If unset, resolves `NEWS_HANDLE` via the handle resolver. |
 | `NEWS_HANDLE` | No | Handle of the news account. Defaults to `backyard.blue`. |
+| `RELAY_URL` | No | XRPC-compatible relay for `com.atproto.sync.listReposByCollection` backfill discovery at startup. Defaults to `https://relay1.us-east.bsky.network`. |
 
 In production, the app will refuse to start if `SESSION_SECRET` uses a default value or if no OAuth private key is configured.
 
@@ -111,6 +112,8 @@ All record types live under the `blue.backyard` namespace:
 | `blue.backyard.feed.reblog` | Reblog with optional text/tag additions |
 | `blue.backyard.feed.like` | Like on a post |
 | `blue.backyard.graph.follow` | Follow relationship |
+| `blue.backyard.graph.block` | Block relationship |
+| `blue.backyard.richtext.facet` | Rich text annotation (mentions, links, tags) |
 
 Lexicon schemas are in the `lexicons/` directory.
 
@@ -168,7 +171,7 @@ The login page adapts its messaging automatically based on the current mode.
 
 #### Managing the allowlist
 
-Set `ADMIN_DID` to your DID, then use the admin API while signed in:
+Set `ADMIN_DIDS` to your DID, then use the admin API while signed in:
 
 ```sh
 # List allowlisted identifiers
@@ -186,6 +189,52 @@ curl -b cookies.txt -X DELETE https://backyard.example.com/api/admin/allowlist \
 ```
 
 You can add either a DID (`did:plc:...`) or a handle (`alice.bsky.social`). Both are checked during signup.
+
+### Admin Moderation
+
+Admins can moderate content and users through the API and the web UI.
+
+#### Banning users
+
+Admin users see moderation actions in context menus on posts and profiles. Banning a user prevents them from posting or interacting through the Backyard API. Banned users' posts are filtered from all feeds.
+
+```sh
+# Ban a user
+curl -b cookies.txt -X POST https://backyard.example.com/api/admin/ban \
+  -H 'Content-Type: application/json' \
+  -d '{"did": "did:plc:...", "reason": "spam"}'
+
+# Check ban status
+curl -b cookies.txt https://backyard.example.com/api/admin/ban?did=did:plc:...
+
+# Unban a user
+curl -b cookies.txt -X DELETE https://backyard.example.com/api/admin/ban \
+  -H 'Content-Type: application/json' \
+  -d '{"did": "did:plc:..."}'
+```
+
+#### Queued post deletion
+
+Instead of deleting posts from a user's PDS directly, admins can queue a post for deletion. The post is immediately hidden from feeds, and the next time the author logs in they are shown a modal explaining the violation and requiring them to delete the post before they can continue using Backyard.
+
+```sh
+# Queue a post for deletion
+curl -b cookies.txt -X POST https://backyard.example.com/api/admin/delete-post \
+  -H 'Content-Type: application/json' \
+  -d '{"uri": "at://did:plc:.../blue.backyard.feed.post/...", "reason": "Violates site rules"}'
+
+# List pending deletions
+curl -b cookies.txt https://backyard.example.com/api/admin/delete-post
+
+# Cancel a pending deletion
+curl -b cookies.txt -X DELETE https://backyard.example.com/api/admin/delete-post \
+  -H 'Content-Type: application/json' \
+  -d '{"uri": "at://did:plc:.../blue.backyard.feed.post/..."}'
+```
+
+### User Trust System
+
+Backyard includes an automatic trust scoring system that controls whether uploaded media is displayed. New accounts start untrusted and earn trust based on account age, existing AT Protocol activity, and posting frequency. Accounts scoring 50 or above out of 100 are considered "media trusted". Admins can manually override trust via `POST /api/admin/trust`.
 
 ## License
 

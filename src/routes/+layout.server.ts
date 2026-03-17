@@ -22,5 +22,13 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 
 	const news: NewsDocument[] = await getNewsDocuments();
 
-	return { user, theme, fancyProfiles, news };
+	return {
+		user,
+		theme,
+		fancyProfiles,
+		news,
+		isAdmin: locals.isAdmin || false,
+		isBanned: locals.isBanned || false,
+		hasPendingDeletions: locals.hasPendingDeletions || false
+	};
 };

@@ -59,7 +59,7 @@
 
 	<!-- Main post -->
 	<div class="main-post">
-		<PostCard post={data.post} reblog={data.reblog} chain={data.chain} viewerDid={data.user?.did} />
+		<PostCard post={data.post} reblog={data.reblog} chain={data.chain} viewerDid={data.user?.did} isAdmin={data.isAdmin} />
 	</div>
 
 	<!-- Reblogs List -->

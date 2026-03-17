@@ -297,6 +297,28 @@ async function enrichFeedItems(
 ): Promise<BackyardFeedItem[]> {
 	const { blockedDids, blockedTags } = await getViewerBlocks(viewerDid);
 
+	// Collect all post/reblog URIs and author DIDs for filtering
+	const allUris: string[] = [];
+	const allAuthorDids = new Set<string>();
+	for (const row of rows) {
+		allUris.push(row.uri);
+		if (row.reblog_uri) allUris.push(row.reblog_uri);
+		allAuthorDids.add(row.author_did);
+		if (row.reblog_author_did) allAuthorDids.add(row.reblog_author_did);
+	}
+
+	// Check pending deletions and appview bans in parallel
+	const [pendingResult, bannedResult] = await Promise.all([
+		allUris.length > 0
+			? pool.query('SELECT uri FROM pending_deletions WHERE uri = ANY($1)', [allUris])
+			: Promise.resolve({ rows: [] }),
+		allAuthorDids.size > 0
+			? pool.query('SELECT did FROM appview_bans WHERE did = ANY($1)', [[...allAuthorDids]])
+			: Promise.resolve({ rows: [] })
+	]);
+	const pendingUris = new Set<string>(pendingResult.rows.map((r: any) => r.uri));
+	const bannedDids = new Set<string>(bannedResult.rows.map((r: any) => r.did));
+
 	// Gather all DIDs for profile resolution
 	const dids = new Set<string>();
 	for (const row of rows) {
@@ -314,9 +336,17 @@ async function enrichFeedItems(
 	}
 	const chains = await buildReblogChains(reblogUris);
 
-	// Build feed items, applying block filtering
+	// Build feed items, applying block and pending-deletion filtering
 	const items: BackyardFeedItem[] = [];
 	for (const row of rows) {
+		// --- Pending deletion filtering ---
+		if (pendingUris.has(row.uri)) continue;
+		if (row.reblog_uri && pendingUris.has(row.reblog_uri)) continue;
+
+		// --- Appview ban filtering ---
+		if (row.item_type === 'post' && bannedDids.has(row.author_did)) continue;
+		if (row.item_type === 'reblog' && bannedDids.has(row.reblog_author_did)) continue;
+
 		// --- Block filtering at feed-item level ---
 		if (row.item_type === 'post') {
 			if (blockedDids.has(row.author_did)) continue;
