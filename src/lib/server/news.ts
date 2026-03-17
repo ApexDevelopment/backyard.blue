@@ -14,6 +14,8 @@ const COLLECTION = 'site.standard.document';
 const DEFAULT_NEWS_HANDLE = 'backyard.blue';
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_ITEMS = 5;
+const BACKOFF_BASE_MS = 60 * 1000; // 1 minute
+const BACKOFF_MAX_MS = 30 * 60 * 1000; // 30 minutes
 
 interface DocumentRecord {
 	$type?: string;
@@ -35,6 +37,8 @@ interface ListRecordsResponse {
 }
 
 let cache: { items: NewsDocument[]; fetchedAt: number } | null = null;
+let failureCount = 0;
+let nextRetryAt = 0;
 
 /**
  * Resolve the DID for the news account. Tries NEWS_DID env var first,
@@ -102,17 +106,28 @@ async function fetchDocuments(): Promise<NewsDocument[]> {
  * degrades gracefully.
  */
 export async function getNewsDocuments(): Promise<NewsDocument[]> {
-	if (cache && Date.now() - cache.fetchedAt < CACHE_TTL_MS) {
+	const now = Date.now();
+
+	if (cache && now - cache.fetchedAt < CACHE_TTL_MS) {
 		return cache.items;
+	}
+
+	if (failureCount > 0 && now < nextRetryAt) {
+		return cache?.items ?? [];
 	}
 
 	try {
 		const items = await fetchDocuments();
-		cache = { items, fetchedAt: Date.now() };
+		cache = { items, fetchedAt: now };
+		failureCount = 0;
+		nextRetryAt = 0;
 		return items;
 	} catch (err) {
-		console.error('Failed to fetch news documents:', err);
-		// Return stale cache if available, otherwise empty
+		failureCount++;
+		const delay = Math.min(BACKOFF_BASE_MS * Math.pow(2, failureCount - 1), BACKOFF_MAX_MS);
+		nextRetryAt = now + delay;
+		const message = err instanceof Error ? err.message : String(err);
+		console.warn(`news fetch failed (attempt ${failureCount}, retrying in ${delay / 1000}s): ${message}`);
 		return cache?.items ?? [];
 	}
 }
