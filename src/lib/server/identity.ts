@@ -7,6 +7,7 @@ import pool from './db.js';
 import type { BackyardProfile } from '$lib/types.js';
 import { escapeLike, isValidDid } from './validation.js';
 import { getTrustStatus } from './trust.js';
+import { NSID } from '$lib/lexicon.js';
 
 interface DidDocument {
 	id: string;
@@ -106,6 +107,39 @@ export async function getBackyardProfileRecord(did: string): Promise<Record<stri
 		return null;
 	} catch {
 		return null;
+	}
+}
+
+/**
+ * Check whether a user has ANY blue.backyard.* records on their PDS.
+ * Used to detect returning users who may not have a profile record
+ * but have previously used Backyard (e.g. created posts or follows).
+ * Makes lightweight limit=1 listRecords calls for key collections.
+ */
+export async function hasAnyBackyardRecords(did: string): Promise<boolean> {
+	try {
+		const didDoc = await resolveDidDocument(did);
+		const pdsUrl = getPdsUrl(didDoc);
+		if (!pdsUrl) return false;
+
+		const collections = [NSID.POST, NSID.REBLOG, NSID.FOLLOW, NSID.COMMENT, NSID.LIKE];
+
+		for (const collection of collections) {
+			const url = new URL(`${pdsUrl}/xrpc/com.atproto.repo.listRecords`);
+			url.searchParams.set('repo', did);
+			url.searchParams.set('collection', collection);
+			url.searchParams.set('limit', '1');
+
+			const res = await fetch(url.toString());
+			if (!res.ok) continue;
+
+			const data = await res.json();
+			if (data.records?.length > 0) return true;
+		}
+
+		return false;
+	} catch {
+		return false;
 	}
 }
 

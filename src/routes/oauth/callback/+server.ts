@@ -4,7 +4,7 @@ import { getOAuthClient } from '$lib/server/oauth.js';
 import { setSessionData } from '$lib/server/session.js';
 import { backfillUser } from '$lib/server/backfill.js';
 import { canSignIn, getSignupMode } from '$lib/server/signup.js';
-import { getBackyardProfileRecord } from '$lib/server/identity.js';
+import { getBackyardProfileRecord, hasAnyBackyardRecords } from '$lib/server/identity.js';
 
 /**
  * OAuth callback handler.
@@ -30,14 +30,18 @@ export const GET: RequestHandler = async (event) => {
 		}
 
 		// ── Onboarding check ────────────────────────────────────────────
-		// If the user doesn't have a Backyard profile, flag them for
-		// onboarding so they can import from Bluesky, start fresh, or skip.
+		// If the user doesn't have a Backyard profile, check whether they
+		// have any other Backyard records (posts, follows, etc.). Only
+		// flag for onboarding if they are truly new to the platform.
 		let needsOnboarding = false;
 		try {
 			const backyardProfile = await getBackyardProfileRecord(oauthSession.did);
 			if (!backyardProfile) {
-				needsOnboarding = true;
-				redirectTo = '/onboarding';
+				const hasRecords = await hasAnyBackyardRecords(oauthSession.did);
+				if (!hasRecords) {
+					needsOnboarding = true;
+					redirectTo = '/onboarding';
+				}
 			}
 		} catch {
 			// If the check fails, don't block login — they can always set
