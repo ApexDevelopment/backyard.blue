@@ -96,6 +96,51 @@ async function listAllRecords(
 }
 
 /**
+ * Map collection NSIDs to their local database table and author column.
+ */
+const COLLECTION_TABLE: Record<string, { table: string; authorCol: string }> = {
+	[NSID.POST]: { table: 'posts', authorCol: 'author_did' },
+	[NSID.COMMENT]: { table: 'comments', authorCol: 'author_did' },
+	[NSID.REBLOG]: { table: 'reblogs', authorCol: 'author_did' },
+	[NSID.LIKE]: { table: 'likes', authorCol: 'author_did' },
+	[NSID.FOLLOW]: { table: 'follows', authorCol: 'author_did' },
+	[NSID.BLOCK]: { table: 'blocks', authorCol: 'author_did' }
+};
+
+/**
+ * Delete local records that no longer exist on the user's PDS.
+ * Compares the set of URIs fetched from listRecords against what we have
+ * locally, and removes any stale rows.
+ */
+async function removeStaleRecords(
+	did: string,
+	collection: string,
+	pdsUris: Set<string>
+): Promise<number> {
+	const mapping = COLLECTION_TABLE[collection];
+	if (!mapping) return 0;
+
+	const { table, authorCol } = mapping;
+	const localResult = await pool.query(
+		`SELECT uri FROM ${table} WHERE ${authorCol} = $1`,
+		[did]
+	);
+
+	const staleUris = localResult.rows
+		.map((row: { uri: string }) => row.uri)
+		.filter((uri: string) => !pdsUris.has(uri));
+
+	if (staleUris.length === 0) return 0;
+
+	await pool.query(
+		`DELETE FROM ${table} WHERE uri = ANY($1::text[])`,
+		[staleUris]
+	);
+
+	return staleUris.length;
+}
+
+/**
  * Index a single record fetched via listRecords, mirroring the firehose
  * indexRecord logic but working from the listRecords response shape.
  */
@@ -244,13 +289,16 @@ export async function backfillUser(did: string): Promise<number> {
 		// Ensure profile is indexed first
 		await ensureProfile(did);
 
-		// Fetch and index all collections in order
+		// Fetch and index all collections in order, then remove stale records
 		for (const collection of BACKFILL_COLLECTIONS) {
 			if (collection === NSID.PROFILE) continue; // handled by ensureProfile
 
 			try {
 				const records = await listAllRecords(pdsUrl, did, collection);
+				const pdsUris = new Set<string>();
+
 				for (const record of records) {
+					pdsUris.add(record.uri);
 					try {
 						await indexBackfillRecord(
 							did,
@@ -263,6 +311,12 @@ export async function backfillUser(did: string): Promise<number> {
 					} catch (err) {
 						console.error(`Backfill: failed to index ${record.uri}:`, err);
 					}
+				}
+
+				// Remove records that exist locally but not on the PDS
+				const removed = await removeStaleRecords(did, collection, pdsUris);
+				if (removed > 0) {
+					console.info(`Backfill: removed ${removed} stale ${collection} records for ${did}`);
 				}
 			} catch (err) {
 				console.error(`Backfill: failed to list ${collection} for ${did}:`, err);
