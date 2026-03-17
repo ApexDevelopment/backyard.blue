@@ -238,4 +238,4 @@ Backyard includes an automatic trust scoring system that controls whether upload
 
 ## License
 
-TBD
+[Creative Commons Attribution-ShareAlike 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
