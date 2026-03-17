@@ -14,6 +14,7 @@
         },
         "features": {
           "type": "array",
+          "description": "The feature types applied to this text range (e.g. link, mention, formatting).",
           "items": {
             "type": "union",
             "refs": ["#mention", "#link", "#tag", "#bold", "#italic", "#underline", "#strikethrough"]

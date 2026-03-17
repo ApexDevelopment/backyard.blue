@@ -18,7 +18,7 @@
           },
           "content": {
             "type": "array",
-            "description": "Optional addition content blocks (text, images, embeds) added by the reblogger.",
+            "description": "Optional additional content blocks (text, images, embeds) added by the reblogger.",
             "maxLength": 20,
             "items": {
               "type": "union",
