@@ -61,6 +61,7 @@ references (e.g. a reblog's `root_post_uri`) can be resolved:
 4. `blue.backyard.feed.comment` — comments referencing posts/reblogs
 5. `blue.backyard.feed.like` — likes referencing any of the above
 6. `blue.backyard.graph.follow` — follow relationships
+7. `blue.backyard.graph.block` — block relationships
 
 ### Deduplication & Throttling
 
@@ -76,6 +77,18 @@ references (e.g. a reblog's `root_post_uri`) can be resolved:
 All database writes use `ON CONFLICT ... DO UPDATE` (upsert) or
 `ON CONFLICT ... DO NOTHING` semantics. Backfill can be run at any time
 without risk of data corruption or duplication.
+
+### Deletion & Update Sync
+
+Backfill is **not** add-only. After fetching all records for a collection
+from the user's PDS, the set of URIs returned is compared against local
+records. Any local records whose URIs are absent from the PDS response are
+deleted — this syncs deletions that happened while the firehose was offline
+or before the instance existed.
+
+Content updates are handled by the upsert semantics: posts, comments, and
+reblogs use `ON CONFLICT ... DO UPDATE` which overwrites `cid`, `content`,
+`tags`, `text`, and `facets` with the latest values from the PDS.
 
 ## Triggers
 

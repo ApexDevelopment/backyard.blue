@@ -105,11 +105,14 @@ Tables map to AT Protocol record types:
 | `oauth_state` | — | Short-lived (~1 hour), CSRF prevention |
 | `oauth_session` | — | Long-lived, stores access/refresh tokens |
 | `profiles` | `blue.backyard.actor.profile` | Cached from DID resolution + PDS reads |
-| `posts` | `blue.backyard.feed.post` | Text, facets, media, tags |
-| `comments` | `blue.backyard.feed.comment` | "Notes" in Tumblr terms; threaded via parent/root URIs |
-| `reblogs` | `blue.backyard.feed.reblog` | Tumblr-style reblogs with optional text/media additions |
+| `posts` | `blue.backyard.feed.post` | Ordered content blocks (text, images, embeds), tags |
+| `comments` | `blue.backyard.feed.comment` | "Notes" in Tumblr terms; threaded via parent/root URIs; flat text + facets |
+| `reblogs` | `blue.backyard.feed.reblog` | Tumblr-style reblogs with optional block-based additions, tags |
 | `likes` | `blue.backyard.feed.like` | Subject is a strongRef (URI + CID) |
 | `follows` | `blue.backyard.graph.follow` | Unique constraint on (author_did, subject_did) |
+| `blocks` | `blue.backyard.graph.block` | Unique constraint on (author_did, subject_did) |
+| `blocked_tags` | — | Local-only tag mutes; not committed to PDS |
+| `embed_cache` | — | OpenGraph/Twitter Card preview cache with TTL |
 | `account_trust` | — | Trust evaluation cache: score, manual approval, signals |
 
 The `profiles` table also includes a denormalised `media_trusted` boolean column, updated by the trust evaluation system for fast feed rendering.

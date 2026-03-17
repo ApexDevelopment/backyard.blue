@@ -31,10 +31,11 @@ Per AGENTS.md, we MUST use scoped permissions. The following scopes are needed:
 - `repo:blue.backyard.feed.reblog` — Reblogging posts with optional additions
 - `repo:blue.backyard.feed.like` — Liking posts
 - `repo:blue.backyard.graph.follow` — Following users
+- `repo:blue.backyard.graph.block` — Blocking other users
 
 ### Full scope string:
 ```
-atproto repo:blue.backyard.actor.profile repo:blue.backyard.feed.post repo:blue.backyard.feed.comment repo:blue.backyard.feed.reblog repo:blue.backyard.feed.like repo:blue.backyard.graph.follow blob:*/*
+atproto repo:blue.backyard.actor.profile repo:blue.backyard.feed.post repo:blue.backyard.feed.comment repo:blue.backyard.feed.reblog repo:blue.backyard.feed.like repo:blue.backyard.graph.follow repo:blue.backyard.graph.block blob:*/*
 ```
 
 The scope is computed dynamically from `OAUTH_SCOPE` in `src/lib/lexicon.ts`.
@@ -98,11 +99,12 @@ Backyard uses its own lexicon namespace rather than `app.bsky`. This enables a T
 
 User repos contain collections of records:
 - `blue.backyard.actor.profile` — Profile (single record, rkey="self")
-- `blue.backyard.feed.post` — Posts (text up to 3000 graphemes, media, tags)
-- `blue.backyard.feed.comment` — Comments / "notes" on posts (text up to 1000 graphemes, threaded via parent/root refs)
-- `blue.backyard.feed.reblog` — Reblogs with optional text/media additions
+- `blue.backyard.feed.post` — Posts (ordered content blocks: textBlock / imageBlock / embedBlock; up to 20 blocks per post; tags)
+- `blue.backyard.feed.comment` — Comments / "notes" on posts (flat text up to 1000 graphemes + facets; threaded via subject/root/parent refs)
+- `blue.backyard.feed.reblog` — Reblogs with optional block-based additions and tags
 - `blue.backyard.feed.like` — Likes (subject strongRef)
 - `blue.backyard.graph.follow` — Follows (subject DID)
+- `blue.backyard.graph.block` — Blocks (subject DID)
 - `blue.backyard.richtext.facet` — Shared richtext annotation type (mentions, links, tags)
 
 Records are identified by: `at://{did}/{collection}/{rkey}`
@@ -114,4 +116,4 @@ NSID constants and the computed OAuth scope are in `src/lib/lexicon.ts`.
 See [architecture.md](architecture.md) for details on the dual-write pattern, server modules, and database schema.
 
 ## Firehose
-Use `@atproto/sync` `Firehose` class to subscribe to network-wide events. Filter by collection names and validate records before ingesting into local DB.
+Backyard uses [Jetstream](https://github.com/bluesky-social/jetstream) (not `@atproto/sync`) for server-side-filtered event streaming. Jetstream supports a `wantedCollections` query parameter so only `blue.backyard.*` events are delivered — avoiding the bandwidth cost of the full network firehose. See [firehose.md](firehose.md) for details.
