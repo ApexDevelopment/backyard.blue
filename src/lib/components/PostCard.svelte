@@ -449,24 +449,30 @@
 	{#if showActions}
 		<div class="post-actions">
 			<a href="/post/{postHref(reblog ? reblog.uri : post.uri)}" class="action-btn" title="comment">
-				<MessageCircle size={16} />
-				{#if post.commentCount > 0}
-					<span>{formatCount(post.commentCount)}</span>
-				{/if}
+				<span class="action-pill">
+					<MessageCircle size={16} />
+					{#if post.commentCount > 0}
+						<span>{formatCount(post.commentCount)}</span>
+					{/if}
+				</span>
 			</a>
 
 			<button class="action-btn" class:active={!!post.viewerReblog} onclick={handleReblog} title="reblog">
-				<Repeat2 size={16} />
-				{#if post.reblogCount > 0}
-					<span>{formatCount(post.reblogCount)}</span>
-				{/if}
+				<span class="action-pill">
+					<Repeat2 size={16} />
+					{#if post.reblogCount > 0}
+						<span>{formatCount(post.reblogCount)}</span>
+					{/if}
+				</span>
 			</button>
 
 			<button class="action-btn like-btn" class:active={liked} onclick={handleLike} title="like" disabled={likeLoading}>
-				<Heart size={16} fill={liked ? 'currentColor' : 'none'} />
-				{#if likeCount > 0}
-					<span>{formatCount(likeCount)}</span>
-				{/if}
+				<span class="action-pill">
+					<Heart size={16} fill={liked ? 'currentColor' : 'none'} />
+					{#if likeCount > 0}
+						<span>{formatCount(likeCount)}</span>
+					{/if}
+				</span>
 			</button>
 
 			{#if canDelete || showBlockOption}
@@ -806,26 +812,36 @@
 
 	.action-btn {
 		display: flex;
+		width: 3.5rem;
 		align-items: center;
-		gap: 0.375rem;
-		padding: 0.375rem 0.625rem;
-		border-radius: var(--radius-full);
 		font-size: 0.8125rem;
 		line-height: 1;
 		color: var(--text-tertiary);
-		transition: all 0.15s ease;
+		transition: color 0.15s ease;
 		text-decoration: none;
 		cursor: pointer;
 		background: none;
 		border: none;
-		min-width: 3.25rem;
+		padding: 0;
 		font-variant-numeric: tabular-nums;
 	}
 
+	.action-pill {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.375rem 0.625rem;
+		border-radius: var(--radius-full);
+		transition: background-color 0.15s ease;
+	}
+
 	.action-btn:hover {
-		background-color: var(--bg-hover);
 		color: var(--text-secondary);
 		text-decoration: none;
+	}
+
+	.action-btn:hover .action-pill {
+		background-color: var(--bg-hover);
 	}
 
 	.action-btn.active {
