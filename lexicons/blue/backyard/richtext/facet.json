@@ -57,19 +57,23 @@
     },
     "bold": {
       "type": "object",
-      "description": "Facet feature for bold text formatting. Spec candidate per Paul Frazee."
+      "description": "Facet feature for bold text formatting. Spec candidate per Paul Frazee.",
+      "properties": {}
     },
     "italic": {
       "type": "object",
-      "description": "Facet feature for italic text formatting. Spec candidate per Paul Frazee."
+      "description": "Facet feature for italic text formatting. Spec candidate per Paul Frazee.",
+      "properties": {}
     },
     "underline": {
       "type": "object",
-      "description": "Facet feature for underline text formatting. Spec candidate per Paul Frazee."
+      "description": "Facet feature for underline text formatting. Spec candidate per Paul Frazee.",
+      "properties": {}
     },
     "strikethrough": {
       "type": "object",
-      "description": "Facet feature for strikethrough text formatting. Spec candidate per Paul Frazee."
+      "description": "Facet feature for strikethrough text formatting. Spec candidate per Paul Frazee.",
+      "properties": {}
     },
     "byteSlice": {
       "type": "object",
