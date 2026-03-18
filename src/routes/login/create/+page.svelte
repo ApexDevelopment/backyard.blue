@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types.js';
-	import { House, CircleX, X, ChevronLeft, TriangleAlert, User } from 'lucide-svelte';
+	import { House, CircleX, X, ChevronLeft, TriangleAlert, User, ExternalLink } from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -13,6 +13,7 @@
 	let errorMsg = $state('');
 	let showPdsExplainer = $state(false);
 	let agreedToTerms = $state(false);
+	let showAdvancedForm = $state(false);
 
 	// PDS description state
 	let pdsInfo = $state<{
@@ -168,9 +169,25 @@
 			<span class="create-logo"><House size={40} color="var(--accent)" strokeWidth={2} /></span>
 			<h1>create an account</h1>
 			<p class="create-subtitle">
-				create an account on a PDS of your choice.
+				you'll need an account on the atproto network to use backyard.
 			</p>
 		</div>
+
+		{#if !showAdvancedForm}
+			<div class="create-choices">
+				<a href="https://bsky.app" target="_blank" rel="noopener noreferrer" class="btn btn-primary create-bsky-btn">
+					create account on Bluesky
+					<ExternalLink size={16} />
+				</a>
+				<button type="button" class="btn btn-secondary create-advanced-btn" onclick={() => showAdvancedForm = true}>
+					use a different PDS
+				</button>
+			</div>
+
+			<div class="create-footer">
+				<a href="/login"><ChevronLeft size={14} /> already have an account? sign in</a>
+			</div>
+		{:else}
 
 		<form onsubmit={handleSubmit} class="create-form">
 			{#if errorMsg}
@@ -329,6 +346,8 @@
 		<div class="create-footer">
 			<a href="/login"><ChevronLeft size={14} /> already have an account? sign in</a>
 		</div>
+
+		{/if}
 	</div>
 </div>
 
@@ -398,6 +417,24 @@
 		font-size: 0.875rem;
 		color: var(--text-secondary);
 		margin-top: 0.375rem;
+	}
+
+	.create-choices {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.create-bsky-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		width: 100%;
+	}
+
+	.create-advanced-btn {
+		width: 100%;
 	}
 
 	.create-form {
