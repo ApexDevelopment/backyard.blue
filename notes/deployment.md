@@ -24,16 +24,7 @@ The app service waits for the database healthcheck before starting (`depends_on:
 
 ## Environment Variables
 
-Configured via `.env` (copy from `.env.example`):
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `INSTANCE_URL` | The public URL where the app is hosted | `http://localhost:3000` |
-| `SESSION_SECRET` | Secret for AES-256-GCM session cookie encryption (32+ chars) | Development fallback (insecure) |
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://backyard:backyard@localhost:5432/backyard` |
-| `OAUTH_PRIVATE_KEY_1` | ES256 (P-256) JWK private key for OAuth client auth | Empty (ephemeral key generated in dev) |
-| `OAUTH_PRIVATE_KEY_2` | Optional additional key for rotation | Empty |
-| `OAUTH_PRIVATE_KEY_3` | Optional additional key for rotation | Empty |
+Configured via `.env` (copy from `.env.example`). See the [environment variables table in the README](../README.md#2-configure-environment) for the full list.
 
 ### Generating OAuth Keys
 

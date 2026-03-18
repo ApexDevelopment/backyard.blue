@@ -78,6 +78,27 @@ All database writes use `ON CONFLICT ... DO UPDATE` (upsert) or
 `ON CONFLICT ... DO NOTHING` semantics. Backfill can be run at any time
 without risk of data corruption or duplication.
 
+### Revision Tracking
+
+AT Protocol repositories have a **revision** (`rev`) — a TID (Timestamp
+IDentifier) that increases lexicographically with each commit. Backyard
+tracks the latest known rev per DID in the `repo_revs` table to avoid
+redundant work and prevent stale data from overwriting newer data.
+
+**Before backfilling** a user, `backfillUser` calls
+`com.atproto.sync.getLatestCommit` on the user's PDS to get the repo's
+current rev. If the stored rev is already `>=` the PDS rev, the backfill
+is skipped entirely — the repo hasn't changed since we last synced.
+
+**After a successful backfill**, the PDS rev is stored with a conditional
+`WHERE repo_revs.rev < EXCLUDED.rev` guard. This ensures the firehose
+(which also advances the rev on every commit event) can never be rolled
+back by a stale backfill write.
+
+**The firehose** advances `repo_revs` on every commit event using the
+same conditional guard. This keeps the stored rev up-to-date in real time
+and allows future backfills to skip repos that are already current.
+
 ### Deletion & Update Sync
 
 Backfill is **not** add-only. After fetching all records for a collection

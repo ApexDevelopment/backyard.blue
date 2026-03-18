@@ -28,6 +28,7 @@
 		"@atproto/jwk-jose": "^0.1.11",
 		"@atproto/oauth-client-node": "^0.3.16",
 		"lucide-svelte": "^0.563.0",
+		"marked": "^17.0.4",
 		"pg": "^8.18.0"
 	}
 }

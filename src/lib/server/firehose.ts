@@ -272,6 +272,19 @@ async function processEvent(event: JetstreamEvent): Promise<void> {
 		} else if (event.commit.operation === 'delete') {
 			await deleteRecord(event.did, event.commit);
 		}
+
+		// Advance the stored repo revision (only forward, never backwards).
+		// This lets the backfill module skip repos already up-to-date.
+		if (event.commit.rev) {
+			await pool.query(
+				`INSERT INTO repo_revs (did, rev, updated_at)
+				 VALUES ($1, $2, NOW())
+				 ON CONFLICT (did) DO UPDATE
+				   SET rev = EXCLUDED.rev, updated_at = NOW()
+				   WHERE repo_revs.rev < EXCLUDED.rev`,
+				[event.did, event.commit.rev]
+			);
+		}
 	} else if (event.kind === 'identity') {
 		await handleIdentity(event);
 	}

@@ -60,6 +60,29 @@ interface ListRecordsResponse {
 	cursor?: string;
 }
 
+interface LatestCommitResponse {
+	cid: string;
+	rev: string;
+}
+
+/**
+ * Fetch the latest commit revision for a repo from a user's PDS via
+ * com.atproto.sync.getLatestCommit. Returns the rev (a TID — a
+ * lexicographically sortable timestamp), or null on failure.
+ */
+async function getLatestCommit(pdsUrl: string, did: string): Promise<string | null> {
+	try {
+		const url = new URL(`${pdsUrl}/xrpc/com.atproto.sync.getLatestCommit`);
+		url.searchParams.set('did', did);
+		const res = await fetch(url.toString());
+		if (!res.ok) return null;
+		const data = (await res.json()) as LatestCommitResponse;
+		return data.rev || null;
+	} catch {
+		return null;
+	}
+}
+
 /**
  * Fetch all records in a collection from a user's PDS via
  * com.atproto.repo.listRecords, paginating through all pages.
@@ -286,6 +309,22 @@ export async function backfillUser(did: string): Promise<number> {
 			return 0;
 		}
 
+		// Check the PDS's current repo revision before fetching records.
+		// If our stored rev is already >= the PDS rev, the repo hasn't
+		// changed since our last sync — skip the backfill entirely.
+		const pdsRev = await getLatestCommit(pdsUrl, did);
+		if (pdsRev) {
+			const stored = await pool.query(
+				'SELECT rev FROM repo_revs WHERE did = $1',
+				[did]
+			);
+			if (stored.rows.length > 0 && stored.rows[0].rev >= pdsRev) {
+				console.info(`Backfill: ${did} already at rev ${pdsRev}, skipping`);
+				backfillCache.set(did, Date.now());
+				return -1;
+			}
+		}
+
 		// Ensure profile is indexed first
 		await ensureProfile(did);
 
@@ -321,6 +360,19 @@ export async function backfillUser(did: string): Promise<number> {
 			} catch (err) {
 				console.error(`Backfill: failed to list ${collection} for ${did}:`, err);
 			}
+		}
+
+		// Store the rev we synced at. Use a conditional update so we never
+		// roll back a rev that the firehose has already advanced past.
+		if (pdsRev) {
+			await pool.query(
+				`INSERT INTO repo_revs (did, rev, updated_at)
+				 VALUES ($1, $2, NOW())
+				 ON CONFLICT (did) DO UPDATE
+				   SET rev = EXCLUDED.rev, updated_at = NOW()
+				   WHERE repo_revs.rev < EXCLUDED.rev`,
+				[did, pdsRev]
+			);
 		}
 
 		backfillCache.set(did, Date.now());

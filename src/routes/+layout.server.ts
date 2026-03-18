@@ -1,6 +1,7 @@
 import type { LayoutServerLoad } from './$types.js';
 import { ensureProfile } from '$lib/server/identity.js';
 import { getNewsDocuments } from '$lib/server/news.js';
+import { hasTos, hasCommunityGuidelines } from '$lib/server/legal.js';
 import type { BackyardProfile } from '$lib/types.js';
 import type { NewsDocument } from '$lib/types.js';
 
@@ -29,6 +30,8 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 		news,
 		isAdmin: locals.isAdmin || false,
 		isBanned: locals.isBanned || false,
-		hasPendingDeletions: locals.hasPendingDeletions || false
+		hasPendingDeletions: locals.hasPendingDeletions || false,
+		hasTos: hasTos(),
+		hasCommunityGuidelines: hasCommunityGuidelines()
 	};
 };

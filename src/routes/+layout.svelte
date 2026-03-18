@@ -106,6 +106,17 @@
 	</div>
 </main>
 
+{#if !hideChrome && (data.hasTos || data.hasCommunityGuidelines)}
+	<footer class="site-footer">
+		{#if data.hasTos}
+			<a href="/terms_of_service">terms of service</a>
+		{/if}
+		{#if data.hasCommunityGuidelines}
+			<a href="/community_guidelines">community guidelines</a>
+		{/if}
+	</footer>
+{/if}
+
 {#if data.user}
 	<PostComposer
 		user={data.user}
@@ -226,5 +237,22 @@
 		.drawer.open {
 			transform: translateX(0);
 		}
+	}
+
+	.site-footer {
+		display: flex;
+		justify-content: center;
+		gap: 1rem;
+		padding: 1.5rem 1rem;
+		border-top: 1px solid var(--border-light);
+	}
+
+	.site-footer a {
+		font-size: 0.8125rem;
+		color: var(--text-tertiary);
+	}
+
+	.site-footer a:hover {
+		color: var(--text-link);
 	}
 </style>

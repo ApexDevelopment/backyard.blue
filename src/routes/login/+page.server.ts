@@ -1,6 +1,7 @@
 import type { PageServerLoad } from './$types.js';
 import { redirect } from '@sveltejs/kit';
 import { getSignupMode } from '$lib/server/signup.js';
+import { hasTos, hasCommunityGuidelines } from '$lib/server/legal.js';
 
 const ERROR_MESSAGES: Record<string, string> = {
 	auth_failed: 'authentication failed. please try again.',
@@ -17,6 +18,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	return {
 		error: ERROR_MESSAGES[errorCode] || '',
-		signupMode: getSignupMode()
+		signupMode: getSignupMode(),
+		hasTos: hasTos(),
+		hasCommunityGuidelines: hasCommunityGuidelines()
 	};
 };

@@ -51,6 +51,9 @@ Copy `.env.example` to `.env` and set the required values:
 | `NEWS_DID` | No | DID of the account whose posts populate the news panel. If unset, resolves `NEWS_HANDLE` via the handle resolver. |
 | `NEWS_HANDLE` | No | Handle of the news account. Defaults to `backyard.blue`. |
 | `RELAY_URL` | No | XRPC-compatible relay for `com.atproto.sync.listReposByCollection` backfill discovery at startup. Defaults to `https://relay1.us-east.bsky.network`. |
+| `TOS_PATH` | No | Path to a plaintext or markdown file rendered at `/terms_of_service`. If set, users must agree before signing in. |
+| `COMMUNITY_GUIDELINES_PATH` | No | Path to a plaintext or markdown file rendered at `/community_guidelines`. If set, users must agree before signing in. |
+| `CAPTCHA_PDS_ALLOWLIST` | No | [PDS Gatekeeper](https://tangled.org/baileytownsend.dev/pds-gatekeeper) does not allow arbitrary captcha redirects by default. Put PDS hosts here that allow your instance to complete captchas. Comma-separated. |
 
 In production, the app will refuse to start if `SESSION_SECRET` uses a default value or if no OAuth private key is configured.
 

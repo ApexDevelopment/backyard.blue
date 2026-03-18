@@ -92,6 +92,7 @@ setInterval(() => {
 
 const WRITE_PATHS = new Set([
 	'/api/auth/login',
+	'/api/auth/create-account',
 	'/api/post',
 	'/api/like',
 	'/api/follow',

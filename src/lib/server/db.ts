@@ -245,6 +245,13 @@ export async function initializeDatabase(): Promise<void> {
 			DELETE FROM oauth_state WHERE created_at < NOW() - INTERVAL '1 hour';
 			-- Housekeeping: clean up stale negative embed cache entries (older than 1 hour)
 			DELETE FROM embed_cache WHERE is_null = TRUE AND fetched_at < NOW() - INTERVAL '1 hour';
+
+			-- Repository revision tracking (latest known rev per DID)
+			CREATE TABLE IF NOT EXISTS repo_revs (
+				did TEXT PRIMARY KEY,
+				rev TEXT NOT NULL,
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
 		`);
 	} finally {
 		client.release();
