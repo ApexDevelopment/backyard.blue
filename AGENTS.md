@@ -28,3 +28,4 @@ Backyard has its own established style and patterns. **Agents should strive to m
 1. All API routes must require authentication unless they are explicitly public.
 2. If any new environment variables are added, they must be documented and added to `.env.example`.
 3. After making any changes, agents must run `npx svelte-check`. Warnings are not acceptable and should be resolved before considering the task complete.
+4. When adding dependencies, ensure the most up-to-date versions are used and that they do not duplicate existing dependencies.
