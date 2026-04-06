@@ -5,6 +5,8 @@ import { initializeDatabase, startOAuthStateCleanup } from '$lib/server/db.js';
 import { startFirehose } from '$lib/server/firehose.js';
 import { discoverAndBackfill } from '$lib/server/backfill.js';
 import { isAdmin } from '$lib/server/signup.js';
+import { NSID } from '$lib/lexicon.js';
+import { resolveHandleToDid } from '$lib/server/identity.js';
 import pool from '$lib/server/db.js';
 
 /**
@@ -137,6 +139,46 @@ export const handle: Handle = async ({ event, resolve }) => {
 				headers: { 'Content-Type': 'application/json', 'Retry-After': '60' }
 			});
 		}
+	}
+
+	// AT URI resolution: /at://authority/collection/rkey
+	// Browsers may collapse // to /, so match both /at:// and /at:/
+	const atMatch = path.match(/^\/at:\/\/?(.+)/);
+	if (atMatch) {
+		const atUri = `at://${atMatch[1]}`;
+		const parts = atMatch[1].split('/');
+		const [authority, collection, rkey] = parts;
+
+		if (authority && collection && rkey) {
+			// Resolve handle to DID if needed
+			let did = authority;
+			if (!did.startsWith('did:')) {
+				const resolved = await resolveHandleToDid(authority);
+				if (resolved) did = resolved;
+			}
+
+			switch (collection) {
+				case NSID.PROFILE:
+					redirect(301, `/profile/${authority}`);
+					break; // unreachable, redirect throws
+				case NSID.POST:
+					redirect(301, `/post/${did}/${rkey}`);
+					break;
+				case NSID.REBLOG:
+					redirect(301, `/post/${did}/${rkey}`);
+					break;
+				case NSID.COMMENT:
+				case NSID.LIKE:
+				case NSID.FOLLOW:
+				case NSID.BLOCK:
+					// No dedicated page — redirect to the author's profile
+					redirect(301, `/profile/${authority}`);
+					break;
+			}
+		}
+
+		// Not a Backyard collection or malformed URI — redirect to PDSls
+		redirect(302, `https://pdsls.dev/${atUri}`);
 	}
 
 	try {
