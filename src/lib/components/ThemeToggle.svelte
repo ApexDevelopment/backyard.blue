@@ -17,9 +17,9 @@
 	title="toggle theme"
 >
 	{#if mode === 'light'}
-		<Moon size={18} />
+		<Moon size={20} />
 	{:else}
-		<Sun size={18} />
+		<Sun size={20} />
 	{/if}
 </button>
 
@@ -30,6 +30,7 @@
 		justify-content: center;
 		width: 36px;
 		height: 36px;
+		padding: 0;
 		border-radius: var(--radius-full);
 		color: var(--text-secondary);
 		transition: all 0.15s ease;

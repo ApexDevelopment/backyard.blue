@@ -398,6 +398,22 @@ textarea.input {
 	line-height: 1.5;
 }
 
+/* Auth page layout (login, create account) */
+.auth-page {
+	display: flex;
+	justify-content: center;
+	align-items: flex-start;
+	padding-top: 4rem;
+	padding-bottom: 2rem;
+	min-height: 60vh;
+}
+
+.auth-card {
+	width: 100%;
+	max-width: 400px;
+	padding: 2rem;
+}
+
 /* Avatar */
 .avatar {
 	width: 40px;

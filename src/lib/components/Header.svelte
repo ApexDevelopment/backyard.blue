@@ -52,7 +52,7 @@
 					<span class="btn-label">post</span>
 				</button>
 				<a href="/search" class="btn-ghost nav-icon" title="search">
-					<Search size={18} />
+					<Search size={20} />
 				</a>
 
 				<div class="user-menu">
@@ -89,7 +89,7 @@
 				</div>
 			{:else}
 				<a href="/search" class="btn-ghost nav-icon" title="search">
-					<Search size={18} />
+					<Search size={20} />
 				</a>
 				<a href="/login" class="btn btn-primary">sign in</a>
 				<ThemeToggle />
@@ -113,7 +113,10 @@
 		align-items: center;
 		justify-content: space-between;
 		height: 100%;
-		max-width: var(--max-width);
+		/* Match the layout grid: sidebar + gap + feed + gap + sidebar */
+		max-width: calc(var(--sidebar-width, 17.5rem) * 2 + var(--max-width) + 1.5rem * 2);
+		margin: 0 auto;
+		padding: 0;
 	}
 
 	.hamburger {
@@ -136,6 +139,10 @@
 	}
 
 	@media (max-width: 640px) {
+		.header-inner {
+			padding: 0 1rem;
+		}
+
 		.hamburger {
 			display: flex;
 		}
@@ -149,6 +156,8 @@
 		font-weight: 700;
 		font-size: 1.125rem;
 		text-decoration: none;
+		/* Align with the sidenav left edge */
+		margin-left: calc(var(--sidebar-width, 17.5rem) - 11.7rem);
 	}
 
 	.logo :global(svg) {
@@ -176,6 +185,7 @@
 		justify-content: center;
 		width: 36px;
 		height: 36px;
+		padding: 0;
 		border-radius: var(--radius-full);
 		color: var(--text-secondary);
 		transition: all 0.15s ease;
@@ -282,6 +292,29 @@
 		to {
 			opacity: 1;
 			transform: scale(1);
+		}
+	}
+
+	/* Match layout grid breakpoints */
+	@media (max-width: 1100px) {
+		.header-inner {
+			max-width: calc(var(--sidebar-width, 17.5rem) + var(--max-width) + 1.5rem);
+		}
+	}
+
+	@media (max-width: 960px) {
+		.header-inner {
+			max-width: calc(var(--sidenav-icon-width, 3rem) + var(--max-width) + 1.5rem);
+		}
+
+		.logo {
+			margin-left: 0;
+		}
+	}
+
+	@media (max-width: 640px) {
+		.header-inner {
+			max-width: var(--max-width);
 		}
 	}
 </style>
