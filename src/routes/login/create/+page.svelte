@@ -163,13 +163,13 @@
 	<title>create account — backyard</title>
 </svelte:head>
 
-<div class="create-page">
-	<div class="create-card card">
+<div class="auth-page">
+	<div class="auth-card card">
 		<div class="create-header">
 			<span class="create-logo"><House size={40} color="var(--accent)" strokeWidth={2} /></span>
 			<h1>create an account</h1>
 			<p class="create-subtitle">
-				you'll need an account on the atproto network to use backyard.
+				you'll need an atproto account to use backyard.
 			</p>
 		</div>
 
@@ -386,20 +386,7 @@
 {/if}
 
 <style>
-	.create-page {
-		display: flex;
-		justify-content: center;
-		align-items: flex-start;
-		padding-top: 3rem;
-		padding-bottom: 2rem;
-		min-height: 60vh;
-	}
 
-	.create-card {
-		width: 100%;
-		max-width: 400px;
-		padding: 2rem;
-	}
 
 	.create-header {
 		text-align: center;

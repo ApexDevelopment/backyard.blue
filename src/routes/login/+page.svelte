@@ -48,8 +48,8 @@
 	<title>sign in — backyard</title>
 </svelte:head>
 
-<div class="login-page">
-	<div class="login-card card">
+<div class="auth-page">
+	<div class="auth-card card">
 		<div class="login-header">
 			<span class="login-logo"><House size={40} color="var(--accent)" strokeWidth={2} /></span>
 			<h1>welcome to the backyard</h1>
@@ -184,19 +184,7 @@
 {/if}
 
 <style>
-	.login-page {
-		display: flex;
-		justify-content: center;
-		align-items: flex-start;
-		padding-top: 4rem;
-		min-height: 60vh;
-	}
 
-	.login-card {
-		width: 100%;
-		max-width: 400px;
-		padding: 2rem;
-	}
 
 	.login-header {
 		text-align: center;
