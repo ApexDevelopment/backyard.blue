@@ -84,6 +84,7 @@
 	let altEditBlockId: number | null = $state(null);
 	let altEditValue = $state('');
 	let altTextarea: HTMLTextAreaElement | undefined = $state();
+	let focusedBlockId: number | null = $state(null);
 
 	const MAX_CHARS = 3000;
 	const MAX_BLOCKS = 20;
@@ -179,6 +180,7 @@
 		}
 		if (blocks.length === 0) blocks.push(makeTextBlock());
 		blocks = blocks;
+		if (focusedBlockId === id) focusedBlockId = null;
 	}
 
 	function addImageBlock(afterId: number, file: File) {
@@ -233,6 +235,30 @@
 	function handleDragLeave(e: DragEvent) {
 		if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) {
 			dragging = false;
+		}
+	}
+
+	/* ── Clipboard paste ──────────────────────────────── */
+
+	function handlePaste(e: ClipboardEvent) {
+		const items = e.clipboardData?.items;
+		if (!items) return;
+
+		const files: File[] = [];
+		for (const item of items) {
+			if (item.kind === 'file' && ALLOWED_TYPES.has(item.type)) {
+				const file = item.getAsFile();
+				if (file) files.push(file);
+			}
+		}
+		if (files.length === 0) return;
+
+		e.preventDefault();
+		let insertAfter = focusedBlockId ?? blocks[blocks.length - 1].id;
+		for (const file of files) {
+			addImageBlock(insertAfter, file);
+			const idx = blocks.findIndex((b) => b.id === insertAfter);
+			insertAfter = blocks[idx + 1]?.id ?? blocks[blocks.length - 1].id;
 		}
 	}
 
@@ -512,7 +538,8 @@
 				</div>
 			{/if}
 
-			<div class="composer-body">
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<div class="composer-body" onpaste={handlePaste}>
 				<div class="composer-avatar">
 					{#if user.avatar}
 						<img src={user.avatar} alt="" class="avatar" />
@@ -524,7 +551,8 @@
 				</div>
 				<div class="composer-fields">
 					{#each blocks as block, i (block.id)}
-						<div class="block-wrapper">
+						<!-- svelte-ignore a11y_no_static_element_interactions -->
+						<div class="block-wrapper" onfocusin={() => focusedBlockId = block.id}>
 						{#if block.type === 'text'}
 							<RichTextEditor
 								bind:text={block.text}
