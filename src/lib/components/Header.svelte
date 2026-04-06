@@ -176,7 +176,7 @@
 	.nav {
 		display: flex;
 		align-items: center;
-		gap: 0.25rem;
+		gap: 0.5rem;
 	}
 
 	.nav-icon {
@@ -227,7 +227,6 @@
 	/* Menu Styles */
 	.user-menu {
 		position: relative;
-		margin-left: 0.25rem;
 	}
 
 	.user-btn {
