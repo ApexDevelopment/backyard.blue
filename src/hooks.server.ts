@@ -56,11 +56,9 @@ const readBuckets = new Map<string, RateBucket>();
  */
 function evictBuckets(buckets: Map<string, RateBucket>): void {
 	const now = Date.now();
-	// First pass: remove all expired
 	for (const [key, b] of buckets) {
 		if (now >= b.resetAt) buckets.delete(key);
 	}
-	// If still over limit, evict oldest entries
 	if (buckets.size > RATE_MAX_BUCKETS) {
 		const sorted = [...buckets.entries()].sort((a, b) => a[1].resetAt - b[1].resetAt);
 		const toRemove = sorted.slice(0, buckets.size - RATE_MAX_BUCKETS);
@@ -121,7 +119,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 	await initPromise;
 
-	// Rate limiting
 	const clientIp = event.getClientAddress();
 	const path = event.url.pathname;
 
@@ -150,7 +147,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 		const [authority, collection, rkey] = parts;
 
 		if (authority && collection && rkey) {
-			// Resolve handle to DID if needed
 			let did = authority;
 			if (!did.startsWith('did:')) {
 				const resolved = await resolveHandleToDid(authority);
@@ -184,7 +180,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 	try {
 		const session = getSessionData(event.cookies);
 		if (session.did) {
-			// Verify the OAuth session still exists in the database
 			const oauthCheck = await pool.query(
 				'SELECT 1 FROM oauth_session WHERE did = $1',
 				[session.did]
@@ -200,7 +195,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 				event.locals.needsOnboarding = session.needsOnboarding || false;
 				event.locals.isAdmin = isAdmin(session.did);
 
-				// Check ban and pending deletion status
 				const [banCheck, pendingCheck] = await Promise.all([
 					pool.query('SELECT 1 FROM appview_bans WHERE did = $1', [session.did]),
 					pool.query('SELECT 1 FROM pending_deletions WHERE author_did = $1 LIMIT 1', [session.did])
