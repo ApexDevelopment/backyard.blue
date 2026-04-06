@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { House, Bell, User, Settings } from 'lucide-svelte';
+	import { House, Search, Bell, User, Settings } from 'lucide-svelte';
 	import type { BackyardProfile } from '$lib/types.js';
 
 	interface Props {
@@ -26,6 +26,10 @@
 	<a href="/" class="sidenav-item" class:active={isActive('/')} onclick={onnavigate}>
 		<House size={20} />
 		<span class="sidenav-label">home</span>
+	</a>
+	<a href="/search" class="sidenav-item" class:active={isActive('/search')} onclick={onnavigate}>
+		<Search size={20} />
+		<span class="sidenav-label">search</span>
 	</a>
 	<a href="/activity" class="sidenav-item" class:active={isActive('/activity')} onclick={onnavigate}>
 		<span class="sidenav-icon-wrapper">
