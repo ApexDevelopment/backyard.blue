@@ -24,6 +24,8 @@ services:
       - COMMUNITY_GUIDELINES_PATH=${COMMUNITY_GUIDELINES_PATH:-/data/legal/community_guidelines.md}
       - BLOB_CACHE_DIR=${BLOB_CACHE_DIR:-/data/blob-cache}
       - BLOB_CACHE_MAX_BYTES=${BLOB_CACHE_MAX_BYTES:-2147483648}
+      - REDIS_URL=redis://redis:6379
+      - BLOB_REDIS_MAX_BYTES=${BLOB_REDIS_MAX_BYTES:-536870912}
       - CAPTCHA_PDS_ALLOWLIST=${CAPTCHA_PDS_ALLOWLIST:-}
     volumes:
       - blobcache:/data/blob-cache
@@ -31,6 +33,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
 
   db:
@@ -48,6 +52,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:8-alpine
+    command: redis-server --save "" --appendonly no --maxmemory-policy noeviction
     restart: unless-stopped
 
 volumes:
