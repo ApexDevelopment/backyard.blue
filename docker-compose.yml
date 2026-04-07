@@ -6,7 +6,7 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-development}
       - INSTANCE_URL=${INSTANCE_URL:-http://localhost:3000}
-      - DATABASE_URL=postgresql://backyard:backyard@db:5432/backyard
+      - DATABASE_URL=${DATABASE_URL:-postgresql://backyard:backyard@db:5432/backyard}
       - SESSION_SECRET=${SESSION_SECRET:-change-me-to-a-random-secret-at-least-32-characters-long!!}
       - OAUTH_PRIVATE_KEY_1=${OAUTH_PRIVATE_KEY_1:-}
       - OAUTH_PRIVATE_KEY_2=${OAUTH_PRIVATE_KEY_2:-}
@@ -24,7 +24,7 @@ services:
       - COMMUNITY_GUIDELINES_PATH=${COMMUNITY_GUIDELINES_PATH:-/data/legal/community_guidelines.md}
       - BLOB_CACHE_DIR=${BLOB_CACHE_DIR:-/data/blob-cache}
       - BLOB_CACHE_MAX_BYTES=${BLOB_CACHE_MAX_BYTES:-2147483648}
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - BLOB_REDIS_MAX_BYTES=${BLOB_REDIS_MAX_BYTES:-536870912}
       - CAPTCHA_PDS_ALLOWLIST=${CAPTCHA_PDS_ALLOWLIST:-}
     volumes:
