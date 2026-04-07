@@ -15,7 +15,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 };
 
 /**
- * POST /api/admin/allowlist — add an identifier (DID or handle) to the allowlist.
+ * POST /api/admin/allowlist — add a DID to the allowlist.
+ * Handles are automatically resolved to DIDs.
  * Body: { identifier: string, note?: string }
  */
 export const POST: RequestHandler = async ({ locals, request }) => {
@@ -35,8 +36,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		return json({ error: 'identifier is required' }, { status: 400 });
 	}
 
-	await addToAllowlist(identifier, note);
-	return json({ success: true });
+	try {
+		const did = await addToAllowlist(identifier, note);
+		return json({ success: true, did });
+	} catch (err) {
+		const message = err instanceof Error ? err.message : 'Failed to add to allowlist';
+		return json({ error: message }, { status: 400 });
+	}
 };
 
 /**

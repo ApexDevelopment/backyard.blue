@@ -209,11 +209,11 @@
 		if (!allowIdentifier.trim()) return;
 		allowLoading = true;
 		try {
-			await apiFetch('/api/admin/allowlist', {
+			const result = await apiFetch('/api/admin/allowlist', {
 				method: 'POST',
 				body: JSON.stringify({ identifier: allowIdentifier.trim(), note: allowNote.trim() || undefined })
 			});
-			showFeedback(`added ${allowIdentifier.trim()} to allowlist`);
+			showFeedback(`added ${result.did} to allowlist`);
 			allowIdentifier = '';
 			allowNote = '';
 			await loadAllowlist();
@@ -376,7 +376,7 @@
 		<div class="admin-form">
 			<h3>add to allowlist</h3>
 			<div class="admin-form-row">
-				<input class="input" type="text" placeholder="DID or handle" bind:value={allowIdentifier} />
+				<input class="input" type="text" placeholder="DID or handle (resolved to DID)" bind:value={allowIdentifier} />
 			</div>
 			<div class="admin-form-row">
 				<input class="input" type="text" placeholder="note (optional)" bind:value={allowNote} />

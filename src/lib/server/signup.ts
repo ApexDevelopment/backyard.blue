@@ -12,6 +12,7 @@
 
 import { env } from '$env/dynamic/private';
 import pool from './db.js';
+import { resolveHandleToDid } from './identity.js';
 
 export type SignupMode = 'open' | 'allowlist' | 'closed';
 
@@ -51,15 +52,12 @@ export async function isReturningUser(did: string): Promise<boolean> {
 }
 
 /**
- * Check whether a DID or handle is on the signup allowlist.
+ * Check whether a DID is on the signup allowlist.
  */
-export async function isOnAllowlist(did: string, handle?: string): Promise<boolean> {
-	const identifiers = [did];
-	if (handle) identifiers.push(handle);
-
+export async function isOnAllowlist(did: string): Promise<boolean> {
 	const result = await pool.query(
-		'SELECT 1 FROM signup_allowlist WHERE identifier = ANY($1) LIMIT 1',
-		[identifiers]
+		'SELECT 1 FROM signup_allowlist WHERE identifier = $1 LIMIT 1',
+		[did]
 	);
 	return result.rows.length > 0;
 }
@@ -69,8 +67,7 @@ export async function isOnAllowlist(did: string, handle?: string): Promise<boole
  * Returning users always pass. New users are subject to the signup mode.
  */
 export async function canSignIn(
-	did: string,
-	handle?: string
+	did: string
 ): Promise<{ allowed: boolean; reason?: string }> {
 	const mode = getSignupMode();
 
@@ -84,7 +81,7 @@ export async function canSignIn(
 			return { allowed: true };
 
 		case 'allowlist':
-			if (await isOnAllowlist(did, handle)) {
+			if (await isOnAllowlist(did)) {
 				return { allowed: true };
 			}
 			return {
@@ -122,12 +119,19 @@ export async function getAllowlist(): Promise<AllowlistEntry[]> {
 	}));
 }
 
-export async function addToAllowlist(identifier: string, note?: string): Promise<void> {
+export async function addToAllowlist(identifier: string, note?: string): Promise<string> {
+	let did = identifier.trim();
+	if (!did.startsWith('did:')) {
+		const resolved = await resolveHandleToDid(did.replace(/^@/, ''));
+		if (!resolved) throw new Error(`Could not resolve handle "${did}" to a DID`);
+		did = resolved;
+	}
 	await pool.query(
 		`INSERT INTO signup_allowlist (identifier, note) VALUES ($1, $2)
 		 ON CONFLICT (identifier) DO UPDATE SET note = $2, added_at = NOW()`,
-		[identifier.trim(), note?.trim() || null]
+		[did, note?.trim() || null]
 	);
+	return did;
 }
 
 export async function removeFromAllowlist(identifier: string): Promise<boolean> {
