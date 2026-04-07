@@ -12,6 +12,14 @@ pool.on('error', (err) => {
 	console.error('Unexpected database pool error:', err);
 });
 
+pool.on('connect', () => {
+	console.info('PostgreSQL: new client connected');
+});
+
+pool.on('remove', () => {
+	console.info('PostgreSQL: client removed from pool');
+});
+
 export default pool;
 
 /**
