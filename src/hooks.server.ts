@@ -4,6 +4,7 @@ import { getSessionData, clearSession } from '$lib/server/session.js';
 import { initializeDatabase, startOAuthStateCleanup } from '$lib/server/db.js';
 import { startFirehose } from '$lib/server/firehose.js';
 import { discoverAndBackfill } from '$lib/server/backfill.js';
+import { connectRedis } from '$lib/server/redis.js';
 import { isAdmin } from '$lib/server/signup.js';
 import { NSID } from '$lib/lexicon.js';
 import { resolveHandleToDid } from '$lib/server/identity.js';
@@ -18,6 +19,7 @@ let initPromise: Promise<void> | null = null;
 function doInit(): Promise<void> {
 	return (async () => {
 		await initializeDatabase();
+		await connectRedis();
 		startOAuthStateCleanup();
 		startFirehose().catch((err) => {
 			console.error('Failed to start firehose:', err);

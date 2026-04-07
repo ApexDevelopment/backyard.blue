@@ -14,14 +14,13 @@ import { resolveDidDocument, getPdsUrl } from '$lib/server/identity.js';
 import { env } from '$env/dynamic/private';
 import { readFile, writeFile, mkdir, access, readdir, stat, rename, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
-import Redis from 'ioredis';
+import { getRedis } from '$lib/server/redis.js';
 
 const CACHE_DIR = env.BLOB_CACHE_DIR || './blob-cache';
 const MAX_BLOB_SIZE = 5 * 1024 * 1024;
 const CID_RE = /^[a-zA-Z0-9_-]+$/;
 const MAX_CACHE_BYTES = parseInt(env.BLOB_CACHE_MAX_BYTES || '', 10) || 2 * 1024 * 1024 * 1024; // 2 GB default
 
-const REDIS_URL = env.REDIS_URL || '';
 const REDIS_MAX_BYTES = parseInt(env.BLOB_REDIS_MAX_BYTES || '', 10) || 512 * 1024 * 1024; // 512 MB default
 
 let cacheReady = false;
@@ -90,21 +89,6 @@ async function pruneCacheIfNeeded(requiredSpace: number): Promise<void> {
 // ---------------------------------------------------------------------------
 // Redis cache tier
 // ---------------------------------------------------------------------------
-
-let redis: Redis | null = null;
-
-function getRedis(): Redis | null {
-	if (!REDIS_URL) return null;
-	if (!redis) {
-		redis = new Redis(REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: 1 });
-		redis.on('connect', () => console.info('Redis: connected'));
-		redis.on('close', () => console.warn('Redis: connection closed'));
-		redis.on('reconnecting', (ms: number) => console.info(`Redis: reconnecting in ${ms}ms`));
-		redis.on('error', (err: Error) => console.error('Redis: error:', err.message));
-		redis.connect().catch(() => {});
-	}
-	return redis;
-}
 
 const rBlobKey = (cid: string) => `blob:d:${cid}`;
 const rCtKey = (cid: string) => `blob:ct:${cid}`;
