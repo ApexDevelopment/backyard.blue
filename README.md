@@ -169,7 +169,7 @@ The application includes a basic in-memory rate limiter (60 writes/min, 300 read
 Backyard supports three signup modes, controlled by the `SIGNUP_MODE` environment variable:
 
 - **`open`** (default) -- anyone with an atproto account can sign in.
-- **`allowlist`** -- only DIDs or handles listed in the allowlist can create new sessions. Returning users (who have signed in before) are always allowed.
+- **`allowlist`** -- only DIDs listed in the allowlist can create new sessions. Handles are automatically resolved to DIDs when added. Returning users (who have signed in before) are always allowed.
 - **`closed`** -- no new signups. Only users with an existing session can sign in.
 
 The login page adapts its messaging automatically based on the current mode.
@@ -182,7 +182,7 @@ Set `ADMIN_DIDS` to your DID, then use the admin API while signed in:
 # List allowlisted identifiers
 curl -b cookies.txt https://backyard.example.com/api/admin/allowlist
 
-# Add a DID or handle
+# Add a DID or handle (handles are resolved to DIDs automatically)
 curl -b cookies.txt -X POST https://backyard.example.com/api/admin/allowlist \
   -H 'Content-Type: application/json' \
   -d '{"identifier": "alice.bsky.social", "note": "Invited by admin"}'
@@ -193,7 +193,7 @@ curl -b cookies.txt -X DELETE https://backyard.example.com/api/admin/allowlist \
   -d '{"identifier": "alice.bsky.social"}'
 ```
 
-You can add either a DID (`did:plc:...`) or a handle (`alice.bsky.social`). Both are checked during signup.
+You can add either a DID (`did:plc:...`) or a handle (`alice.bsky.social`). Handles are resolved to DIDs before storage, so the allowlist always contains DIDs. The check at sign-in time is DID-only.
 
 ### Admin Moderation
 
@@ -201,21 +201,21 @@ Admins can moderate content and users through the API and the web UI.
 
 #### Banning users
 
-Admin users see moderation actions in context menus on posts and profiles. Banning a user prevents them from posting or interacting through the Backyard API. Banned users' posts are filtered from all feeds.
+Admin users see moderation actions in context menus on posts and profiles. Banning a user prevents them from posting or interacting through the Backyard API. Banned users' posts are filtered from all feeds. All admin endpoints accept either a DID or a handle (handles are resolved to DIDs automatically).
 
 ```sh
-# Ban a user
+# Ban a user (by DID or handle)
 curl -b cookies.txt -X POST https://backyard.example.com/api/admin/ban \
   -H 'Content-Type: application/json' \
-  -d '{"did": "did:plc:...", "reason": "spam"}'
+  -d '{"did": "alice.bsky.social", "reason": "spam"}'
 
 # Check ban status
-curl -b cookies.txt https://backyard.example.com/api/admin/ban?did=did:plc:...
+curl -b cookies.txt https://backyard.example.com/api/admin/ban?did=alice.bsky.social
 
 # Unban a user
 curl -b cookies.txt -X DELETE https://backyard.example.com/api/admin/ban \
   -H 'Content-Type: application/json' \
-  -d '{"did": "did:plc:..."}'
+  -d '{"did": "alice.bsky.social"}'
 ```
 
 #### Queued post deletion

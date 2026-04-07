@@ -445,6 +445,18 @@ export async function resolveHandleToDid(handle: string): Promise<string | null>
 }
 
 /**
+ * Resolve an identifier that may be a DID or a handle to a DID.
+ * Strips a leading @ from handles. Throws if resolution fails.
+ */
+export async function resolveIdentifier(identifier: string): Promise<string> {
+	const trimmed = identifier.trim();
+	if (trimmed.startsWith('did:')) return trimmed;
+	const resolved = await resolveHandleToDid(trimmed.replace(/^@/, ''));
+	if (!resolved) throw new Error(`Could not resolve handle "${trimmed}" to a DID`);
+	return resolved;
+}
+
+/**
  * Search profiles by handle or display name (simple text search).
  */
 export async function searchProfiles(query: string, limit = 25): Promise<BackyardProfile[]> {

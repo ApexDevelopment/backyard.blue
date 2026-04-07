@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { isAdmin } from '$lib/server/signup.js';
-import { isValidDid } from '$lib/server/validation.js';
+import { resolveIdentifier } from '$lib/server/identity.js';
 import { getTrustStatus, setManualApproval } from '$lib/server/trust.js';
 
 /**
@@ -12,9 +12,17 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		return json({ error: 'Forbidden' }, { status: 403 });
 	}
 
-	const did = url.searchParams.get('did');
-	if (!did || !isValidDid(did)) {
-		return json({ error: 'Valid DID is required' }, { status: 400 });
+	const raw = url.searchParams.get('did');
+	if (!raw) {
+		return json({ error: 'DID or handle is required' }, { status: 400 });
+	}
+
+	let did: string;
+	try {
+		did = await resolveIdentifier(raw);
+	} catch (err) {
+		const message = err instanceof Error ? err.message : 'Could not resolve identifier';
+		return json({ error: message }, { status: 400 });
 	}
 
 	const trust = await getTrustStatus(did);
@@ -37,9 +45,17 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
 
-	const { did } = body;
-	if (!did || typeof did !== 'string' || !isValidDid(did)) {
-		return json({ error: 'Valid DID is required' }, { status: 400 });
+	const { did: rawDid } = body;
+	if (!rawDid || typeof rawDid !== 'string') {
+		return json({ error: 'DID or handle is required' }, { status: 400 });
+	}
+
+	let did: string;
+	try {
+		did = await resolveIdentifier(rawDid);
+	} catch (err) {
+		const message = err instanceof Error ? err.message : 'Could not resolve identifier';
+		return json({ error: message }, { status: 400 });
 	}
 
 	await setManualApproval(did, true);
@@ -62,9 +78,17 @@ export const DELETE: RequestHandler = async ({ locals, request }) => {
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
 
-	const { did } = body;
-	if (!did || typeof did !== 'string' || !isValidDid(did)) {
-		return json({ error: 'Valid DID is required' }, { status: 400 });
+	const { did: rawDid2 } = body;
+	if (!rawDid2 || typeof rawDid2 !== 'string') {
+		return json({ error: 'DID or handle is required' }, { status: 400 });
+	}
+
+	let did: string;
+	try {
+		did = await resolveIdentifier(rawDid2);
+	} catch (err) {
+		const message = err instanceof Error ? err.message : 'Could not resolve identifier';
+		return json({ error: message }, { status: 400 });
 	}
 
 	await setManualApproval(did, false);

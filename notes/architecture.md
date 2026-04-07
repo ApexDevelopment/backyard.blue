@@ -20,7 +20,7 @@ This is implemented in `src/lib/server/repo.ts`. Each operation (create post, co
 | `src/lib/server/oauth.ts` | OAuth client singleton, state/session stores, agent creation |
 | `src/lib/server/db.ts` | PostgreSQL pool, schema initialization |
 | `src/lib/server/session.ts` | AES-256-GCM encrypted cookie sessions |
-| `src/lib/server/identity.ts` | DID resolution, profile caching, handle-based search |
+| `src/lib/server/identity.ts` | DID resolution, profile caching, handle-based search, identifier resolution |
 | `src/lib/server/repo.ts` | PDS CRUD + local DB indexing (the dual-write layer) |
 | `src/lib/server/feed.ts` | Timeline, author feed, comments, follows — all SQL from local index |
 | `src/lib/server/notifications.ts` | Notification creation, SSE delivery, unread counts |
@@ -126,7 +126,7 @@ Tables map to AT Protocol record types:
 | `account_trust` | — | Trust evaluation cache: score, manual approval, signals |
 | `notifications` | — | Activity notifications (like, comment, reblog, follow) with read status |
 | `firehose_cursor` | — | Jetstream cursor persistence (unix microseconds) |
-| `signup_allowlist` | — | DIDs/handles allowed to sign up in allowlist mode |
+| `signup_allowlist` | — | DIDs allowed to sign up in allowlist mode (handles resolved on insert) |
 | `appview_bans` | — | Admin-imposed user bans (DID, reason, banned_by, timestamp) |
 | `pending_deletions` | — | Queued post deletions awaiting author acknowledgement |
 
@@ -162,6 +162,8 @@ No preferential treatment is given to any particular PDS.
 `POST /api/admin/trust` — manually approve a user (sets score to 100)
 `DELETE /api/admin/trust` — revoke manual approval (re-evaluates organically)
 `GET /api/admin/trust?did=...` — inspect trust evaluation details
+
+All admin endpoints (ban, trust, allowlist) accept either a DID or a handle. Handles are resolved to DIDs via `resolveIdentifier()` in `identity.ts` before processing.
 
 ### UI Integration
 

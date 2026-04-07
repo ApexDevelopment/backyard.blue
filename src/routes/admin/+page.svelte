@@ -261,7 +261,7 @@
 		<div class="admin-form">
 			<h3>check ban status</h3>
 			<div class="admin-form-row">
-				<input class="input" type="text" placeholder="did:plc:..." bind:value={banCheckDid} />
+				<input class="input" type="text" placeholder="DID or handle" bind:value={banCheckDid} />
 				<button class="btn btn-secondary" onclick={checkBan} disabled={banLoading || !banCheckDid.trim()}>
 					check
 				</button>
@@ -284,7 +284,7 @@
 		<div class="admin-form">
 			<h3>ban a user</h3>
 			<div class="admin-form-row">
-				<input class="input" type="text" placeholder="did:plc:..." bind:value={banDid} />
+				<input class="input" type="text" placeholder="DID or handle" bind:value={banDid} />
 			</div>
 			<div class="admin-form-row">
 				<input class="input" type="text" placeholder="reason (optional)" bind:value={banReason} />
@@ -301,7 +301,7 @@
 
 		<div class="admin-form">
 			<div class="admin-form-row">
-				<input class="input" type="text" placeholder="did:plc:..." bind:value={trustDid} />
+				<input class="input" type="text" placeholder="DID or handle" bind:value={trustDid} />
 				<button class="btn btn-secondary" onclick={checkTrust} disabled={trustLoading || !trustDid.trim()}>
 					check
 				</button>
@@ -376,7 +376,7 @@
 		<div class="admin-form">
 			<h3>add to allowlist</h3>
 			<div class="admin-form-row">
-				<input class="input" type="text" placeholder="DID or handle (resolved to DID)" bind:value={allowIdentifier} />
+				<input class="input" type="text" placeholder="DID or handle" bind:value={allowIdentifier} />
 			</div>
 			<div class="admin-form-row">
 				<input class="input" type="text" placeholder="note (optional)" bind:value={allowNote} />

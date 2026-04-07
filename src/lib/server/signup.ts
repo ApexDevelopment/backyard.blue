@@ -12,7 +12,7 @@
 
 import { env } from '$env/dynamic/private';
 import pool from './db.js';
-import { resolveHandleToDid } from './identity.js';
+import { resolveIdentifier } from './identity.js';
 
 export type SignupMode = 'open' | 'allowlist' | 'closed';
 
@@ -120,12 +120,7 @@ export async function getAllowlist(): Promise<AllowlistEntry[]> {
 }
 
 export async function addToAllowlist(identifier: string, note?: string): Promise<string> {
-	let did = identifier.trim();
-	if (!did.startsWith('did:')) {
-		const resolved = await resolveHandleToDid(did.replace(/^@/, ''));
-		if (!resolved) throw new Error(`Could not resolve handle "${did}" to a DID`);
-		did = resolved;
-	}
+	const did = await resolveIdentifier(identifier);
 	await pool.query(
 		`INSERT INTO signup_allowlist (identifier, note) VALUES ($1, $2)
 		 ON CONFLICT (identifier) DO UPDATE SET note = $2, added_at = NOW()`,
