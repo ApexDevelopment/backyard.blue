@@ -137,7 +137,7 @@ async function createOAuthClient(): Promise<NodeOAuthClient> {
 			sessionStore
 		});
 
-		console.info(`🔒 OAuth configured as loopback client (${clientId})`);
+		console.info(`🔒 OAuth configured as loopback client`);
 		return client;
 	}
 
