@@ -23,5 +23,7 @@ export async function connectRedis(): Promise<void> {
 		console.info('Redis: no REDIS_URL configured, skipping');
 		return;
 	}
-	await r.connect();
+	if (r.status === 'wait') {
+		await r.connect();
+	}
 }
