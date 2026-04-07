@@ -116,7 +116,7 @@
 		<div class="setting-row">
 			<div class="setting-info">
 				<span class="setting-label">fancy profiles</span>
-				<span class="setting-description">tint the page with a gradient sampled from each user's banner image</span>
+				<span class="setting-description">tint the profile page based on the user's banner image</span>
 			</div>
 			<button class="mode-toggle" onclick={() => fancyProfiles.toggle()} aria-label="toggle fancy profiles">
 				<span class="mode-toggle-track" class:dark={fancy}>
