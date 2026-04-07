@@ -260,6 +260,10 @@
 		gap: 0.5rem;
 	}
 
+	.profile-actions :global(.btn) {
+		padding: 0.375rem 0.75rem;
+	}
+
 	.profile-avatar {
 		border: 3px solid var(--bg-card);
 	}
