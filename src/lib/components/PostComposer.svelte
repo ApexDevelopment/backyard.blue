@@ -122,6 +122,7 @@
 	/* ── Lifecycle / pre-fill ─────────────────────────── */
 
 	let wasOpen = false;
+
 	$effect(() => {
 		const justOpened = open && !wasOpen;
 		wasOpen = open;
@@ -1274,5 +1275,26 @@
 		font-weight: 600;
 		font-size: 0.875rem;
 		flex-shrink: 0;
+	}
+
+	@media (max-width: 640px) {
+		.modal-backdrop {
+			padding-top: 0;
+			padding-left: 0;
+			padding-right: 0;
+			align-items: center;
+			bottom: auto;
+			height: 100dvh;
+		}
+
+		.modal-content {
+			max-width: none;
+			max-height: 100vh;
+			border-radius: 0;
+		}
+
+		.composer-avatar {
+			display: none;
+		}
 	}
 </style>
