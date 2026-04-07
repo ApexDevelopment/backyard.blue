@@ -28,6 +28,9 @@ import {
 } from './validation.js';
 
 const RELAY_URL = process.env.RELAY_URL || 'https://relay1.us-east.bsky.network';
+const RELAY_RETRY_BASE_MS = 5_000;
+const RELAY_RETRY_MAX_MS = 5 * 60_000;
+const RELAY_MAX_ATTEMPTS = 10;
 
 /**
  * Collections to backfill, in dependency order.
@@ -319,7 +322,6 @@ export async function backfillUser(did: string): Promise<number> {
 				[did]
 			);
 			if (stored.rows.length > 0 && stored.rows[0].rev >= pdsRev) {
-				console.info(`Backfill: ${did} already at rev ${pdsRev}, skipping`);
 				backfillCache.set(did, Date.now());
 				return -1;
 			}
@@ -353,10 +355,7 @@ export async function backfillUser(did: string): Promise<number> {
 				}
 
 				// Remove records that exist locally but not on the PDS
-				const removed = await removeStaleRecords(did, collection, pdsUris);
-				if (removed > 0) {
-					console.info(`Backfill: removed ${removed} stale ${collection} records for ${did}`);
-				}
+				await removeStaleRecords(did, collection, pdsUris);
 			} catch (err) {
 				console.error(`Backfill: failed to list ${collection} for ${did}:`, err);
 			}
@@ -376,7 +375,6 @@ export async function backfillUser(did: string): Promise<number> {
 		}
 
 		backfillCache.set(did, Date.now());
-		console.info(`✅ Backfill complete for ${did}: ${totalRecords} records indexed`);
 	} catch (err) {
 		console.error(`Backfill: failed for ${did}:`, err);
 	} finally {
@@ -456,21 +454,37 @@ export async function discoverAndBackfill(): Promise<void> {
 	discoveryRunning = true;
 
 	try {
-		console.info(`🔍 Discovering repos from relay ${RELAY_URL}…`);
+		console.info(`Discovering repos from relay ${RELAY_URL}…`);
 
-		// Collect unique DIDs across all collections
+		// Collect unique DIDs across all collections, retrying on relay failure
 		const allDids = new Set<string>();
-		for (const collection of Object.values(NSID)) {
-			if (collection === NSID.PROFILE) continue;
+		let attempt = 0;
+
+		while (attempt < RELAY_MAX_ATTEMPTS) {
 			try {
-				const dids = await listReposByCollection(collection);
-				for (const did of dids) allDids.add(did);
+				for (const collection of Object.values(NSID)) {
+					if (collection === NSID.PROFILE) continue;
+					const dids = await listReposByCollection(collection);
+					for (const did of dids) allDids.add(did);
+				}
+				break; // success
 			} catch (err) {
-				console.error(`Discovery: failed to list repos for ${collection}:`, err);
+				attempt++;
+				if (attempt >= RELAY_MAX_ATTEMPTS) {
+					console.error(`Relay discovery failed after ${attempt} attempts, giving up:`, err);
+					return;
+				}
+				const delay = Math.min(
+					RELAY_RETRY_BASE_MS * Math.pow(2, attempt - 1) + Math.random() * 1000,
+					RELAY_RETRY_MAX_MS
+				);
+				const message = err instanceof Error ? err.message : String(err);
+				console.warn(`Relay discovery attempt ${attempt} failed (retrying in ${(delay / 1000).toFixed(1)}s): ${message}`);
+				await new Promise((r) => setTimeout(r, delay));
 			}
 		}
 
-		console.info(`🔍 Found ${allDids.size} repos with Backyard records, starting backfill…`);
+		console.info(`Found ${allDids.size} repos with Backyard records, starting backfill…`);
 
 		let completed = 0;
 		for (const did of allDids) {
@@ -482,7 +496,7 @@ export async function discoverAndBackfill(): Promise<void> {
 			}
 		}
 
-		console.info(`✅ Discovery backfill complete: ${completed}/${allDids.size} repos indexed`);
+		console.info(`Discovery backfill complete: ${completed}/${allDids.size} repos indexed`);
 	} catch (err) {
 		console.error('Discovery backfill failed:', err);
 	} finally {
