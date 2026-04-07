@@ -85,7 +85,7 @@
 	role="presentation"
 ></div>
 <aside class="drawer" class:open={$mobileNavOpen}>
-	<SideNav user={data.user} unreadNotifications={$unreadCount} onnavigate={closeMobileNav} drawer={true} />
+	<SideNav user={data.user} unreadNotifications={$unreadCount} onnavigate={closeMobileNav} drawer={true} isAdmin={data.isAdmin} />
 </aside>
 
 {#if data.user}
@@ -95,7 +95,7 @@
 <main class="main">
 	<div class="layout" class:layout-full={hideChrome}>
 		{#if !hideChrome}
-			<SideNav user={data.user} unreadNotifications={$unreadCount} />
+			<SideNav user={data.user} unreadNotifications={$unreadCount} isAdmin={data.isAdmin} />
 		{/if}
 		<div class="content">
 			{@render children()}

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { House, Search, Bell, User, Settings } from 'lucide-svelte';
+	import { House, Search, Bell, User, Settings, Shield } from 'lucide-svelte';
 	import type { BackyardProfile } from '$lib/types.js';
 
 	interface Props {
@@ -8,9 +8,10 @@
 		unreadNotifications?: number;
 		onnavigate?: () => void;
 		drawer?: boolean;
+		isAdmin?: boolean;
 	}
 
-	let { user = null, unreadNotifications = 0, onnavigate, drawer = false }: Props = $props();
+	let { user = null, unreadNotifications = 0, onnavigate, drawer = false, isAdmin = false }: Props = $props();
 
 	let currentPath = $derived($page.url.pathname);
 
@@ -48,6 +49,12 @@
 		<Settings size={20} />
 		<span class="sidenav-label">settings</span>
 	</a>
+	{#if isAdmin}
+		<a href="/admin" class="sidenav-item" class:active={isActive('/admin')} onclick={onnavigate}>
+			<Shield size={20} />
+			<span class="sidenav-label">admin</span>
+		</a>
+	{/if}
 </nav>
 
 <style>

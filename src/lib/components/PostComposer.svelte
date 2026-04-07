@@ -909,6 +909,10 @@
 		flex-shrink: 0;
 	}
 
+	.composer-footer .btn {
+		padding: 0.25rem 0.75rem;
+	}
+
 	.footer-tags {
 		flex: 1;
 		min-width: 0;

@@ -177,7 +177,7 @@ Configured in `svelte.config.js`:
 
 ## Admin Moderation
 
-Backyard supports multi-admin moderation via the `ADMIN_DIDS` environment variable (comma-separated DIDs, with backward compatibility for `ADMIN_DID`). Admin status is checked via `isAdmin()` in `src/lib/server/signup.ts`.
+Backyard supports multi-admin moderation via the `ADMIN_DIDS` environment variable (comma-separated DIDs). Admin status is checked via `isAdmin()` in `src/lib/server/signup.ts`.
 
 ### Bans
 

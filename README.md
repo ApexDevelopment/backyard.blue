@@ -48,7 +48,7 @@ Copy `.env.example` to `.env` and set the required values:
 | `JETSTREAM_URL` | No | Custom Jetstream WebSocket URL. Defaults to `wss://jetstream2.us-east.bsky.network/subscribe`. |
 | `FIREHOSE_DISABLED` | No | Set to `true` to disable the Jetstream firehose consumer. |
 | `SIGNUP_MODE` | No | `open` (default), `allowlist`, or `closed`. Controls who can sign in to the instance. |
-| `ADMIN_DIDS` | No | Comma-separated DIDs of instance admins. Required for `/api/admin/*` endpoints. Supports legacy `ADMIN_DID` for single-admin setups. |
+| `ADMIN_DIDS` | No | Comma-separated DIDs of instance admins. Required for `/api/admin/*` endpoints. |
 | `HANDLE_RESOLVER_URL` | No | XRPC-compatible endpoint for resolving handles to DIDs. Falls back to `https://public.api.bsky.app`. A good choice is `https://slingshot.microcosm.blue/`. |
 | `NEWS_DID` | No | DID of the account whose posts populate the news panel. If unset, resolves `NEWS_HANDLE` via the handle resolver. |
 | `NEWS_HANDLE` | No | Handle of the news account. Defaults to `backyard.blue`. |

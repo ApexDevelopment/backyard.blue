@@ -27,10 +27,9 @@ export function getSignupMode(): SignupMode {
 
 /**
  * Read admin DIDs from the environment.
- * Supports comma-separated ADMIN_DIDS, with fallback to singular ADMIN_DID.
  */
 export function getAdminDids(): Set<string> {
-	const raw = env.ADMIN_DIDS || env.ADMIN_DID || '';
+	const raw = env.ADMIN_DIDS || '';
 	const dids = raw.split(',').map((d) => d.trim()).filter(Boolean);
 	return new Set(dids);
 }
