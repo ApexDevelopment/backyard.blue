@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { X, Shield, UserCheck, UserX, FileWarning, ListPlus } from 'lucide-svelte';
+	import { X, Shield, UserCheck, UserX, FileExclamationPoint, ListPlus } from 'lucide-svelte';
 	import type { PageData } from './$types.js';
 
 	let { data }: { data: PageData } = $props();
@@ -327,7 +327,7 @@
 
 	<!-- Pending deletions -->
 	<section class="admin-section card">
-		<h2><FileWarning size={14} /> pending deletions</h2>
+		<h2><FileExclamationPoint size={14} /> pending deletions</h2>
 
 		<div class="admin-form">
 			<h3>queue a post for deletion</h3>
