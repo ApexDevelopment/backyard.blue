@@ -153,7 +153,7 @@ export interface BackyardNotification {
 }
 
 export type ThemeMode = 'light' | 'dark';
-export type ColorScheme = 'chocoberry' | 'potpourri' | 'atmosphere';
+export type ColorScheme = 'chocoberry' | 'potpourri' | 'atmosphere' | 'gruvbox' | 'rosepine';
 export type Theme = `${ColorScheme}-${ThemeMode}`;
 
 /**

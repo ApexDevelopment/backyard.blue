@@ -5,7 +5,9 @@ import type { Theme, ThemeMode, ColorScheme } from '$lib/types.js';
 export const COLOR_SCHEMES: { id: ColorScheme; label: string; description: string }[] = [
 	{ id: 'chocoberry', label: 'Chocoberry', description: 'Warm chocolate and berry tones' },
 	{ id: 'potpourri', label: 'Potpourri', description: 'Cool slate and lavender' },
-	{ id: 'atmosphere', label: 'Atmosphere', description: 'Deep blues and sky tones' }
+	{ id: 'atmosphere', label: 'Atmosphere', description: 'Deep blues and sky tones' },
+	{ id: 'gruvbox', label: 'Gruvbox', description: 'Retro groove colors' },
+	{ id: 'rosepine', label: 'Rosé Pine', description: 'Soho vibes for the late night' }
 ];
 
 const DEFAULT_SCHEME: ColorScheme = 'chocoberry';
