@@ -291,6 +291,19 @@
 	let adminBanLoading = $state(false);
 	let adminDeleteLoading = $state(false);
 
+	let lightboxSrc = $state('');
+	let lightboxAlt = $state('');
+
+	function openLightbox(src: string, alt: string) {
+		lightboxSrc = src;
+		lightboxAlt = alt;
+	}
+
+	function closeLightbox() {
+		lightboxSrc = '';
+		lightboxAlt = '';
+	}
+
 	async function handleAdminBan() {
 		if (adminBanLoading) return;
 		adminBanLoading = true;
@@ -400,7 +413,9 @@
 												<!-- svelte-ignore a11y_media_has_caption -->
 												<video src={block.image.url} class="embed-image single" controls playsinline preload="metadata"></video>
 											{:else}
-												<img src={block.image.url} alt={block.image.alt || ''} class="embed-image single" loading="lazy" />
+												<button class="lightbox-trigger" onclick={() => openLightbox(block.image.url, block.image.alt || '')}>
+													<img src={block.image.url} alt={block.image.alt || ''} class="embed-image single" loading="lazy" />
+												</button>
 											{/if}
 										{:else}
 											<p class="media-hidden-notice">media hidden — this account is pending automatic verification</p>
@@ -457,7 +472,9 @@
 								<!-- svelte-ignore a11y_media_has_caption -->
 								<video src={block.image.url} class="embed-image single" controls playsinline preload="metadata"></video>
 							{:else}
-								<img src={block.image.url} alt={block.image.alt || ''} class="embed-image single" loading="lazy" />
+								<button class="lightbox-trigger" onclick={() => openLightbox(block.image.url, block.image.alt || '')}>
+									<img src={block.image.url} alt={block.image.alt || ''} class="embed-image single" loading="lazy" />
+								</button>
 							{/if}
 						{:else}
 							<p class="media-hidden-notice">media hidden — this account is pending automatic verification</p>
@@ -570,6 +587,13 @@
 				</button>
 			</div>
 		</div>
+	</div>
+{/if}
+
+{#if lightboxSrc}
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<div class="lightbox-backdrop" role="dialog" aria-modal="true" aria-label="image preview" tabindex="-1" onclick={closeLightbox} onkeydown={(e) => e.key === 'Escape' && closeLightbox()}>
+		<img src={lightboxSrc} alt={lightboxAlt} class="lightbox-image" />
 	</div>
 {/if}
 
@@ -1006,6 +1030,56 @@
 
 		.embed-image {
 			border-radius: 0;
+		}
+	}
+
+	/* ── Image lightbox ──────────────────────────────────── */
+
+	.lightbox-trigger {
+		all: unset;
+		display: block;
+		width: 100%;
+		cursor: pointer;
+	}
+
+	.lightbox-backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: 300;
+		background-color: rgba(0, 0, 0, 0.85);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 2rem;
+		cursor: pointer;
+		animation: lightboxFadeIn 0.2s ease;
+	}
+
+	@keyframes lightboxFadeIn {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
+	.lightbox-image {
+		max-width: 100%;
+		max-height: 100%;
+		object-fit: contain;
+		border-radius: var(--radius-sm);
+		animation: lightboxScaleIn 0.2s ease;
+	}
+
+	@keyframes lightboxScaleIn {
+		from {
+			opacity: 0;
+			transform: scale(0.95);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
 		}
 	}
 </style>
