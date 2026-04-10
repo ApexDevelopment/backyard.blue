@@ -20,8 +20,24 @@ import type {
  * Resolve a batch of DIDs to profiles.
  * First checks the local cache, then eagerly resolves any missing profiles
  * from the network via ensureProfile so we don't show raw DIDs.
+ *
+ * Remote resolution is capped at PROFILE_RESOLVE_CONCURRENCY concurrent
+ * calls and PROFILE_RESOLVE_TIMEOUT_MS per call so a slow PDS can't stall
+ * the entire feed response.
  */
 const MAX_PROFILE_BATCH = 500;
+const PROFILE_RESOLVE_CONCURRENCY = 5;
+const PROFILE_RESOLVE_TIMEOUT_MS = 5_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+	return new Promise<T>((resolve, reject) => {
+		const timer = setTimeout(() => reject(new Error('timeout')), ms);
+		promise.then(
+			(v) => { clearTimeout(timer); resolve(v); },
+			(e) => { clearTimeout(timer); reject(e); }
+		);
+	});
+}
 
 async function resolveProfiles(dids: string[]): Promise<Map<string, BackyardProfile>> {
 	if (dids.length === 0) return new Map();
@@ -34,17 +50,36 @@ async function resolveProfiles(dids: string[]): Promise<Map<string, BackyardProf
 	}
 
 	// Eagerly resolve any uncached profiles from the network.
-	// Run them concurrently but don't let a single failure break the batch.
+	// Bounded concurrency prevents a burst of missing profiles from
+	// firing dozens of simultaneous PDS requests.
 	const missing = unique.filter((did) => !map.has(did));
 	if (missing.length > 0) {
-		const settled = await Promise.allSettled(missing.map((did) => ensureProfile(did)));
-		for (let i = 0; i < missing.length; i++) {
-			const result = settled[i];
-			if (result.status === 'fulfilled' && result.value) {
-				map.set(missing[i], result.value);
-			} else {
-				map.set(missing[i], { did: missing[i], handle: missing[i] });
+		const results = new Array<BackyardProfile | null>(missing.length).fill(null);
+		let idx = 0;
+
+		async function next(): Promise<void> {
+			while (idx < missing.length) {
+				const i = idx++;
+				try {
+					const profile = await withTimeout(
+						ensureProfile(missing[i]),
+						PROFILE_RESOLVE_TIMEOUT_MS
+					);
+					results[i] = profile;
+				} catch {
+					// Timeout or resolution failure — leave null
+				}
 			}
+		}
+
+		const workers = Array.from(
+			{ length: Math.min(PROFILE_RESOLVE_CONCURRENCY, missing.length) },
+			() => next()
+		);
+		await Promise.all(workers);
+
+		for (let i = 0; i < missing.length; i++) {
+			map.set(missing[i], results[i] || { did: missing[i], handle: missing[i] });
 		}
 	}
 

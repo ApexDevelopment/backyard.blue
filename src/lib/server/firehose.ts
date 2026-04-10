@@ -32,6 +32,8 @@ const DEFAULT_JETSTREAM_URL = 'wss://jetstream2.us-east.bsky.network/subscribe';
 const RECONNECT_BASE_MS = 1_000;
 const RECONNECT_MAX_MS = 60_000;
 const CURSOR_PERSIST_INTERVAL_MS = 10_000;
+const EVENT_CONCURRENCY = 5;
+const EVENT_QUEUE_MAX = 5_000;
 
 let reconnectAttempt = 0;
 
@@ -63,6 +65,34 @@ let ws: WebSocket | null = null;
 let running = false;
 let lastCursorUs: number | null = null;
 let cursorTimer: ReturnType<typeof setInterval> | null = null;
+
+// Bounded event processing queue. Events are pushed by the WebSocket
+// message handler and drained by up to EVENT_CONCURRENCY workers.
+const eventQueue: JetstreamEvent[] = [];
+let activeWorkers = 0;
+
+function drainQueue(): void {
+	while (activeWorkers < EVENT_CONCURRENCY && eventQueue.length > 0) {
+		const event = eventQueue.shift()!;
+		activeWorkers++;
+		processEvent(event)
+			.catch((err) => console.error('Firehose event processing error:', err))
+			.finally(() => {
+				activeWorkers--;
+				drainQueue();
+			});
+	}
+}
+
+function enqueueEvent(event: JetstreamEvent): void {
+	if (eventQueue.length >= EVENT_QUEUE_MAX) {
+		// Shed oldest events to prevent unbounded memory growth.
+		// The cursor rewind on reconnect will re-deliver them.
+		eventQueue.shift();
+	}
+	eventQueue.push(event);
+	drainQueue();
+}
 
 async function loadCursor(): Promise<number | null> {
 	const result = await pool.query(
@@ -110,7 +140,7 @@ async function indexRecord(did: string, commit: JetstreamCommit): Promise<void> 
 			break;
 		}
 		case NSID.POST: {
-			await ensureProfile(did).catch(() => {});
+			ensureProfile(did).catch(() => {});
 			await pool.query(
 				`INSERT INTO posts (uri, cid, author_did, tags, content, created_at)
 				 VALUES ($1, $2, $3, $4, $5, $6)
@@ -128,7 +158,7 @@ async function indexRecord(did: string, commit: JetstreamCommit): Promise<void> 
 			break;
 		}
 		case NSID.COMMENT: {
-			await ensureProfile(did).catch(() => {});
+			ensureProfile(did).catch(() => {});
 			const subject = r.subject as { uri?: string; cid?: string } | undefined;
 			const root = r.root as { uri?: string; cid?: string } | undefined;
 			const parent = r.parent as { uri?: string; cid?: string } | undefined;
@@ -155,7 +185,7 @@ async function indexRecord(did: string, commit: JetstreamCommit): Promise<void> 
 			break;
 		}
 		case NSID.REBLOG: {
-			await ensureProfile(did).catch(() => {});
+			ensureProfile(did).catch(() => {});
 			const subject = r.subject as { uri?: string; cid?: string } | undefined;
 			const subjectUri = subject?.uri || '';
 
@@ -318,9 +348,7 @@ function connect(): void {
 		try {
 			const raw = typeof msgEvent.data === 'string' ? msgEvent.data : String(msgEvent.data);
 			const data = JSON.parse(raw) as JetstreamEvent;
-			processEvent(data).catch((err) => {
-				console.error('Firehose event processing error:', err);
-			});
+			enqueueEvent(data);
 		} catch (err) {
 			console.error('Firehose message parse error:', err);
 		}
