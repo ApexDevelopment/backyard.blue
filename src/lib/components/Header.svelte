@@ -5,6 +5,7 @@
 	import { toggleMobileNav } from '$lib/stores/mobileNav.js';
 	import type { BackyardProfile } from '$lib/types.js';
 	import { Plus, Search, LogOut, User, Moon, Sun, Menu } from 'lucide-svelte';
+	import { page } from '$app/stores';
 
 	interface Props {
 		user?: BackyardProfile | null;
@@ -91,7 +92,9 @@
 				<a href="/search" class="btn-ghost nav-icon" title="search">
 					<Search size={20} />
 				</a>
-				<a href="/login" class="btn btn-primary">sign in</a>
+				{#if !$page.url.pathname.startsWith('/login')}
+					<a href="/login" class="btn btn-primary">sign in</a>
+				{/if}
 				<ThemeToggle />
 			{/if}
 		</nav>
