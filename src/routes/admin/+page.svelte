@@ -262,7 +262,7 @@
 			<h3>check ban status</h3>
 			<div class="admin-form-row">
 				<input class="input" type="text" placeholder="DID or handle" bind:value={banCheckDid} />
-				<button class="btn btn-secondary" onclick={checkBan} disabled={banLoading || !banCheckDid.trim()}>
+				<button class="btn btn-secondary btn-inline" onclick={checkBan} disabled={banLoading || !banCheckDid.trim()}>
 					check
 				</button>
 			</div>
@@ -288,7 +288,7 @@
 			</div>
 			<div class="admin-form-row">
 				<input class="input" type="text" placeholder="reason (optional)" bind:value={banReason} />
-				<button class="btn btn-danger" onclick={banUser} disabled={banLoading || !banDid.trim()}>
+				<button class="btn btn-danger btn-inline" onclick={banUser} disabled={banLoading || !banDid.trim()}>
 					ban
 				</button>
 			</div>
@@ -302,7 +302,7 @@
 		<div class="admin-form">
 			<div class="admin-form-row">
 				<input class="input" type="text" placeholder="DID or handle" bind:value={trustDid} />
-				<button class="btn btn-secondary" onclick={checkTrust} disabled={trustLoading || !trustDid.trim()}>
+				<button class="btn btn-secondary btn-inline" onclick={checkTrust} disabled={trustLoading || !trustDid.trim()}>
 					check
 				</button>
 			</div>
@@ -336,7 +336,7 @@
 			</div>
 			<div class="admin-form-row">
 				<input class="input" type="text" placeholder="reason (optional)" bind:value={deleteReason} />
-				<button class="btn btn-danger" onclick={queueDeletion} disabled={deleteLoading || !deleteUri.trim()}>
+				<button class="btn btn-danger btn-inline" onclick={queueDeletion} disabled={deleteLoading || !deleteUri.trim()}>
 					queue
 				</button>
 			</div>
@@ -380,7 +380,7 @@
 			</div>
 			<div class="admin-form-row">
 				<input class="input" type="text" placeholder="note (optional)" bind:value={allowNote} />
-				<button class="btn btn-primary" onclick={addToAllowlist} disabled={allowLoading || !allowIdentifier.trim()}>
+				<button class="btn btn-primary btn-inline" onclick={addToAllowlist} disabled={allowLoading || !allowIdentifier.trim()}>
 					add
 				</button>
 			</div>

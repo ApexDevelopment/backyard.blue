@@ -155,7 +155,7 @@
 				onkeydown={handleTagKeydown}
 				disabled={tagLoading}
 			/>
-			<button class="btn btn-primary" onclick={addBlockedTag} disabled={tagLoading || !tagInput.trim()}>
+			<button class="btn btn-primary btn-inline" onclick={addBlockedTag} disabled={tagLoading || !tagInput.trim()}>
 				block
 			</button>
 		</div>

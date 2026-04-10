@@ -198,15 +198,11 @@
 	}
 
 	.btn-compose {
-		display: inline-flex;
-		align-items: stretch;
 		gap: 0.25rem;
-		padding: 0.375rem 0.75rem;
 	}
 
 	.btn-label {
 		display: inline;
-		line-height: 1;
 	}
 
 	.avatar-placeholder {
