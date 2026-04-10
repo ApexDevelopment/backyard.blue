@@ -71,6 +71,39 @@ let cursorTimer: ReturnType<typeof setInterval> | null = null;
 const eventQueue: JetstreamEvent[] = [];
 let activeWorkers = 0;
 
+// Shed recovery: when events are dropped, we track the gap and reconnect
+// with a rewound cursor once the queue drains. A cooldown prevents loops
+// if the overload condition persists across reconnections.
+let shedStartUs: number | null = null;
+let lastRecoveryAt = 0;
+const RECOVERY_COOLDOWN_MS = 5 * 60_000;
+
+function attemptShedRecovery(): void {
+	if (!shedStartUs) return;
+	if (eventQueue.length > 0 || activeWorkers > 0) return;
+
+	const now = Date.now();
+	if (now - lastRecoveryAt < RECOVERY_COOLDOWN_MS) {
+		console.warn(
+			`🔥 Firehose shed recovery skipped — last recovery was ${((now - lastRecoveryAt) / 1000).toFixed(0)}s ago (cooldown: ${RECOVERY_COOLDOWN_MS / 1000}s)`
+		);
+		shedStartUs = null;
+		return;
+	}
+
+	const rewindUs = shedStartUs - 5_000_000;
+	console.info(`🔥 Firehose recovering shed events — reconnecting at cursor ${rewindUs}`);
+	lastCursorUs = rewindUs;
+	shedStartUs = null;
+	lastRecoveryAt = now;
+
+	// Force reconnect: close the current socket and let the close handler
+	// re-establish with the rewound cursor.
+	if (ws) {
+		ws.close();
+	}
+}
+
 function drainQueue(): void {
 	while (activeWorkers < EVENT_CONCURRENCY && eventQueue.length > 0) {
 		const event = eventQueue.shift()!;
@@ -79,17 +112,22 @@ function drainQueue(): void {
 			.catch((err) => console.error('Firehose event processing error:', err))
 			.finally(() => {
 				activeWorkers--;
-				drainQueue();
+				if (eventQueue.length === 0 && activeWorkers === 0) {
+					attemptShedRecovery();
+				} else {
+					drainQueue();
+				}
 			});
 	}
 }
 
 function enqueueEvent(event: JetstreamEvent): void {
 	if (eventQueue.length >= EVENT_QUEUE_MAX) {
-		// Shed oldest events to prevent unbounded memory growth.
-		// Shed events are permanently lost — acceptable since it only
-		// happens under sustained overload of a tiny-traffic namespace.
-		eventQueue.shift();
+		const shed = eventQueue.shift()!;
+		if (!shedStartUs) {
+			shedStartUs = shed.time_us;
+			console.warn(`🔥 Firehose queue full (${EVENT_QUEUE_MAX}) — shedding events (gap starts at ${shed.time_us})`);
+		}
 	}
 	eventQueue.push(event);
 	drainQueue();
