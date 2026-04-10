@@ -87,7 +87,8 @@ function drainQueue(): void {
 function enqueueEvent(event: JetstreamEvent): void {
 	if (eventQueue.length >= EVENT_QUEUE_MAX) {
 		// Shed oldest events to prevent unbounded memory growth.
-		// The cursor rewind on reconnect will re-deliver them.
+		// Shed events are permanently lost — acceptable since it only
+		// happens under sustained overload of a tiny-traffic namespace.
 		eventQueue.shift();
 	}
 	eventQueue.push(event);
@@ -319,7 +320,10 @@ async function processEvent(event: JetstreamEvent): Promise<void> {
 		await handleIdentity(event);
 	}
 
-	lastCursorUs = event.time_us;
+	// Only advance forward — concurrent workers may finish out of order.
+	if (event.time_us > (lastCursorUs || 0)) {
+		lastCursorUs = event.time_us;
+	}
 }
 
 function connect(): void {
