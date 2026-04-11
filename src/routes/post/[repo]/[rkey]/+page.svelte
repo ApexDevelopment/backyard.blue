@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/stores';
 	import PostCard from '$lib/components/PostCard.svelte';
 	import RichTextRenderer from '$lib/components/RichTextRenderer.svelte';
 	import type { PageData } from './$types.js';
@@ -9,6 +10,14 @@
 	let commentText = $state('');
 	let commenting = $state(false);
 	let commentError = $state('');
+
+	let ogDescription = $derived.by(() => {
+		const blocks = data.reblog?.content?.length ? data.reblog.content : data.post.content;
+		for (const b of blocks || []) {
+			if (b.type === 'text') return b.text.slice(0, 200);
+		}
+		return '';
+	});
 
 	async function handleComment(e: Event) {
 		e.preventDefault();
@@ -47,6 +56,13 @@
 
 <svelte:head>
 	<title>{data.post.author.displayName || `@${data.post.author.handle}`}: "{(data.post.content?.[0]?.type === 'text' ? data.post.content[0].text : '').slice(0, 50)}" — backyard</title>
+	<meta property="og:title" content="{data.post.author.displayName || `@${data.post.author.handle}`} — backyard" />
+	<meta property="og:description" content={ogDescription} />
+	<meta property="og:type" content="article" />
+	<meta property="og:url" content={$page.url.href} />
+	<meta name="twitter:card" content="summary" />
+	<meta name="twitter:title" content="{data.post.author.displayName || `@${data.post.author.handle}`} — backyard" />
+	<meta name="twitter:description" content={ogDescription} />
 </svelte:head>
 
 <div class="thread-page">

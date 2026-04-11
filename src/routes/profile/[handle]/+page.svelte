@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/stores';
 	import ProfileCard from '$lib/components/ProfileCard.svelte';
 	import PostCard from '$lib/components/PostCard.svelte';
 	import { extractBannerGradient, BANNER_GRADIENT_ENABLED } from '$lib/bannerColors.js';
@@ -28,6 +29,15 @@
 
 <svelte:head>
 	<title>{data.profile.displayName || `@${data.profile.handle}`} — backyard</title>
+	<meta property="og:title" content={data.profile.displayName || `@${data.profile.handle}`} />
+	<meta property="og:description" content={data.profile.description || ''} />
+	<meta property="og:type" content="profile" />
+	<meta property="og:url" content={$page.url.href} />
+	<meta property="og:image" content={data.profile.avatar || `${$page.url.origin}/banner.svg`} />
+	<meta name="twitter:card" content="summary" />
+	<meta name="twitter:title" content={data.profile.displayName || `@${data.profile.handle}`} />
+	<meta name="twitter:description" content={data.profile.description || ''} />
+	<meta name="twitter:image" content={data.profile.avatar || `${$page.url.origin}/banner.svg`} />
 </svelte:head>
 
 <div class="profile-page">

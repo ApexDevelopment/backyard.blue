@@ -74,6 +74,18 @@
 
 <svelte:head>
 	<title>backyard</title>
+	<meta property="og:site_name" content="backyard" />
+	{#if $page.route.id !== '/profile/[handle]' && $page.route.id !== '/post/[repo]/[rkey]'}
+		<meta property="og:title" content="backyard" />
+		<meta property="og:description" content="backyard" />
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content={$page.url.href} />
+		<meta property="og:image" content="{$page.url.origin}/banner.svg" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content="backyard" />
+		<meta name="twitter:description" content="backyard" />
+		<meta name="twitter:image" content="{$page.url.origin}/banner.svg" />
+	{/if}
 </svelte:head>
 
 <Header user={data.user} onCompose={() => openComposer()} />
