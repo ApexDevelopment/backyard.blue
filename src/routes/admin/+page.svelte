@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { X, Shield, UserCheck, UserX, FileExclamationPoint, ListPlus } from 'lucide-svelte';
+	import { onMount } from 'svelte';
 	import type { PageData } from './$types.js';
 
 	let { data }: { data: PageData } = $props();
@@ -239,6 +240,11 @@
 			allowLoading = false;
 		}
 	}
+
+	onMount(() => {
+		loadAllowlist();
+		loadPendingDeletions();
+	});
 </script>
 
 <svelte:head>
