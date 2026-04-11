@@ -62,7 +62,7 @@ export async function canSignIn(
 			return { allowed: true };
 
 		case 'allowlist':
-			if (await isOnAllowlist(did)) {
+			if (isAdmin(did) || await isOnAllowlist(did)) {
 				return { allowed: true };
 			}
 			return {

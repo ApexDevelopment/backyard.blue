@@ -192,7 +192,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				if (!path.startsWith('/api/') && !path.startsWith('/login') && !path.startsWith('/logout') && !path.startsWith('/oauth/')) {
 					redirect(303, '/login');
 				}
-			} else if (getSignupMode() === 'allowlist' && !(await isOnAllowlist(session.did))) {
+			} else if (getSignupMode() === 'allowlist' && !isAdmin(session.did) && !(await isOnAllowlist(session.did))) {
 				clearSession(event.cookies);
 				if (!path.startsWith('/api/') && !path.startsWith('/login') && !path.startsWith('/logout') && !path.startsWith('/oauth/')) {
 					redirect(303, '/login');
