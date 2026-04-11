@@ -71,11 +71,6 @@ export async function canSignIn(
 ): Promise<{ allowed: boolean; reason?: string }> {
 	const mode = getSignupMode();
 
-	// Returning users always pass regardless of mode
-	if (await isReturningUser(did)) {
-		return { allowed: true };
-	}
-
 	switch (mode) {
 		case 'open':
 			return { allowed: true };
@@ -90,6 +85,9 @@ export async function canSignIn(
 			};
 
 		case 'closed':
+			if (await isReturningUser(did)) {
+				return { allowed: true };
+			}
 			return {
 				allowed: false,
 				reason: 'Signups are currently disabled on this instance.'

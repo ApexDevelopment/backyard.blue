@@ -1,6 +1,7 @@
 import type { Handle } from '@sveltejs/kit';
 import { redirect, json } from '@sveltejs/kit';
 import { getSessionData, clearSession } from '$lib/server/session.js';
+import { getSignupMode, isOnAllowlist } from '$lib/server/signup.js';
 import { initializeDatabase, startOAuthStateCleanup } from '$lib/server/db.js';
 import { startFirehose } from '$lib/server/firehose.js';
 import { discoverAndBackfill } from '$lib/server/backfill.js';
@@ -188,7 +189,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 			);
 			if (oauthCheck.rows.length === 0) {
 				clearSession(event.cookies);
-				// For page navigations, redirect to login immediately
+				if (!path.startsWith('/api/') && !path.startsWith('/login') && !path.startsWith('/logout') && !path.startsWith('/oauth/')) {
+					redirect(303, '/login');
+				}
+			} else if (getSignupMode() === 'allowlist' && !(await isOnAllowlist(session.did))) {
+				clearSession(event.cookies);
 				if (!path.startsWith('/api/') && !path.startsWith('/login') && !path.startsWith('/logout') && !path.startsWith('/oauth/')) {
 					redirect(303, '/login');
 				}

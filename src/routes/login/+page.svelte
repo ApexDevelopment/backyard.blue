@@ -63,19 +63,20 @@
 			{/if}
 		</div>
 
+		{#if errorMsg}
+			<div class="login-error">
+				<div class="icon-wrapper">
+					<CircleX size={20} />
+				</div>
+				<span>{errorMsg}</span>
+			</div>
+		{/if}
+
 		{#if !clickedConfirm}
 			<button class="btn btn-primary confirm-btn" onclick={() => clickedConfirm = true}>I'm on the list</button>
 		{:else}
 			{#if !signupsDisabled}
 				<form onsubmit={handleSubmit} class="login-form">
-					{#if errorMsg}
-						<div class="login-error">
-							<div class="icon-wrapper">
-								<CircleX size={20} />
-							</div>
-							<span>{errorMsg}</span>
-						</div>
-					{/if}
 
 					<div class="form-group">
 						<label for="handle" class="form-label">
