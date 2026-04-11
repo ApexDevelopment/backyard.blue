@@ -69,7 +69,7 @@ export async function initNotifications(): Promise<void> {
 			const event = JSON.parse(e.data);
 			const actor = event.actorProfile || { did: event.actorDid, handle: event.actorDid };
 			pushLive({
-				id: event.id,
+				id: Number(event.id),
 				actor,
 				type: event.type,
 				subjectUri: event.subjectUri,

@@ -56,7 +56,7 @@ export async function createNotification(params: {
 		if (row) {
 			const actorProfile = await ensureProfile(params.actorDid).catch(() => null);
 			bus.emit(`notify:${params.recipientDid}`, {
-				id: row.id,
+				id: Number(row.id),
 				type: params.type,
 				actorDid: params.actorDid,
 				actorProfile: actorProfile || { did: params.actorDid, handle: params.actorDid },
