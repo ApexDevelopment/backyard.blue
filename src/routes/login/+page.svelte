@@ -11,7 +11,7 @@
 	let showHandleExplainer = $state(false);
 	let agreedToTerms = $state(false);
 
-	let signupsDisabled = $derived(data.signupMode === 'closed');
+	let signupsDisabled = false;
 	let needsAgreement = $derived(data.hasTos || data.hasCommunityGuidelines);
 	let clickedConfirm = $derived(data.signupMode !== 'allowlist');
 
@@ -54,9 +54,7 @@
 		<div class="login-header">
 			<span class="login-logo"><House size={40} color="var(--accent)" strokeWidth={2} /></span>
 			<h1>welcome to the backyard</h1>
-			{#if signupsDisabled}
-				<p class="login-subtitle">signups are currently disabled.</p>
-			{:else if data.signupMode === 'allowlist'}
+			{#if data.signupMode === 'allowlist'}
 				<p class="login-subtitle">this instance is invite-only.</p>
 			{:else}
 				<p class="login-subtitle">sign in with your Atmosphere handle to get started.</p>
@@ -196,6 +194,7 @@
 		align-items: center;
 		gap: 0.75rem;
 		padding: 0.75rem;
+		margin-bottom: 1.5rem;
 		background-color: color-mix(in srgb, var(--danger) 10%, transparent);
 		color: var(--danger);
 		border-radius: var(--radius-sm);

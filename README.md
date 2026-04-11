@@ -47,7 +47,7 @@ Copy `.env.example` to `.env` and set the required values:
 | `BLOB_REDIS_MAX_BYTES` | No | Maximum total size of the Redis blob cache in bytes. Defaults to `536870912` (512 MiB). |
 | `JETSTREAM_URL` | No | Custom Jetstream WebSocket URL. Defaults to `wss://jetstream2.us-east.bsky.network/subscribe`. |
 | `FIREHOSE_DISABLED` | No | Set to `true` to disable the Jetstream firehose consumer. |
-| `SIGNUP_MODE` | No | `open` (default), `allowlist`, or `closed`. Controls who can sign in to the instance. |
+| `SIGNUP_MODE` | No | `open` (default) or `allowlist`. Controls who can sign in to the instance. |
 | `ADMIN_DIDS` | No | Comma-separated DIDs of instance admins. Required for `/api/admin/*` endpoints. |
 | `HANDLE_RESOLVER_URL` | No | XRPC-compatible endpoint for resolving handles to DIDs. Falls back to `https://public.api.bsky.app`. A good choice is `https://slingshot.microcosm.blue/`. |
 | `NEWS_DID` | No | DID of the account whose posts populate the news panel. If unset, resolves `NEWS_HANDLE` via the handle resolver. |
@@ -166,11 +166,10 @@ The application includes a basic in-memory rate limiter (60 writes/min, 300 read
 
 ### Signup Gating
 
-Backyard supports three signup modes, controlled by the `SIGNUP_MODE` environment variable:
+Backyard supports two signup modes, controlled by the `SIGNUP_MODE` environment variable:
 
 - **`open`** (default) -- anyone with an atproto account can sign in.
-- **`allowlist`** -- only DIDs listed in the allowlist can create new sessions. Handles are automatically resolved to DIDs when added. Returning users (who have signed in before) are always allowed.
-- **`closed`** -- no new signups. Only users with an existing session can sign in.
+- **`allowlist`** -- only DIDs listed in the allowlist can sign in. Handles are automatically resolved to DIDs when added.
 
 The login page adapts its messaging automatically based on the current mode.
 

@@ -26,7 +26,7 @@ This is implemented in `src/lib/server/repo.ts`. Each operation (create post, co
 | `src/lib/server/notifications.ts` | Notification creation, SSE delivery, unread counts |
 | `src/lib/server/backfill.ts` | Relay discovery + per-user PDS backfill on login/profile view |
 | `src/lib/server/firehose.ts` | Jetstream WebSocket consumer for real-time `blue.backyard.*` events |
-| `src/lib/server/signup.ts` | Signup gating (open/allowlist/closed), admin DID management |
+| `src/lib/server/signup.ts` | Signup gating (open/allowlist), admin DID management |
 | `src/lib/server/trust.ts` | Account trust scoring (0–100) for media visibility |
 | `src/lib/server/validation.ts` | AT-URI, DID, CID validation; text/tag/JSON size limits |
 | `src/lib/server/opengraph.ts` | OpenGraph/Twitter Card metadata extraction with 7-day cache |

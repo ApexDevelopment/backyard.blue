@@ -2,19 +2,16 @@
  * Signup gating — controls who is allowed to create a new session on this
  * Backyard instance.
  *
- * Three modes (set via SIGNUP_MODE env var):
+ * Two modes (set via SIGNUP_MODE env var):
  *   - "open"      — anyone can sign in (default)
  *   - "allowlist"  — only DIDs / handles listed in the signup_allowlist table
- *   - "closed"     — no new signups; only returning users can sign in
- *
- * "Returning user" means a DID that already has a row in oauth_session.
  */
 
 import { env } from '$env/dynamic/private';
 import pool from './db.js';
 import { resolveIdentifier } from './identity.js';
 
-export type SignupMode = 'open' | 'allowlist' | 'closed';
+export type SignupMode = 'open' | 'allowlist';
 
 /**
  * Read the current signup mode from the environment.
@@ -22,7 +19,7 @@ export type SignupMode = 'open' | 'allowlist' | 'closed';
  */
 export function getSignupMode(): SignupMode {
 	const raw = (env.SIGNUP_MODE || 'open').trim().toLowerCase();
-	if (raw === 'allowlist' || raw === 'closed') return raw;
+	if (raw === 'allowlist') return raw;
 	return 'open';
 }
 
@@ -38,17 +35,6 @@ export function getAdminDids(): Set<string> {
 export function isAdmin(did?: string): boolean {
 	if (!did) return false;
 	return getAdminDids().has(did);
-}
-
-/**
- * Check whether a DID is a returning user (has an existing session).
- */
-export async function isReturningUser(did: string): Promise<boolean> {
-	const result = await pool.query(
-		'SELECT 1 FROM oauth_session WHERE did = $1 LIMIT 1',
-		[did]
-	);
-	return result.rows.length > 0;
 }
 
 /**
@@ -82,15 +68,6 @@ export async function canSignIn(
 			return {
 				allowed: false,
 				reason: 'This instance is invite-only. Your account is not on the allowlist.'
-			};
-
-		case 'closed':
-			if (await isReturningUser(did)) {
-				return { allowed: true };
-			}
-			return {
-				allowed: false,
-				reason: 'Signups are currently disabled on this instance.'
 			};
 
 		default:

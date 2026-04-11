@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types.js';
 import { getOAuthClient } from '$lib/server/oauth.js';
 import { setSessionData } from '$lib/server/session.js';
 import { backfillUser } from '$lib/server/backfill.js';
-import { canSignIn, getSignupMode } from '$lib/server/signup.js';
+import { canSignIn } from '$lib/server/signup.js';
 import { getBackyardProfileRecord, hasAnyBackyardRecords } from '$lib/server/identity.js';
 
 /**
@@ -24,9 +24,7 @@ export const GET: RequestHandler = async (event) => {
 		// to use this instance if signups are restricted.
 		const { allowed, reason } = await canSignIn(oauthSession.did);
 		if (!allowed) {
-			const mode = getSignupMode();
-			const errorParam = mode === 'closed' ? 'signups_closed' : 'not_allowed';
-			throw redirect(303, `/login?error=${errorParam}`);
+			throw redirect(303, '/login?error=not_allowed');
 		}
 
 		// ── Onboarding check ────────────────────────────────────────────

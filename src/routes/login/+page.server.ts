@@ -5,7 +5,6 @@ import { hasTos, hasCommunityGuidelines } from '$lib/server/legal.js';
 
 const ERROR_MESSAGES: Record<string, string> = {
 	auth_failed: 'authentication failed. please try again.',
-	signups_closed: 'signups are currently disabled on this instance.',
 	not_allowed: 'your account is not on the allowlist for this instance.'
 };
 
