@@ -6,19 +6,49 @@
 		loadMoreNotifications,
 		markNotificationsRead
 	} from '$lib/stores/notifications.js';
+	import type { BackyardNotification, BackyardProfile } from '$lib/types.js';
 
-	let items = $derived($notifStore.items);
+	interface NotificationGroup {
+		key: string;
+		type: string;
+		actors: BackyardProfile[];
+		subjectUri?: string;
+		subjectPreview?: string;
+		createdAt: string;
+	}
+
 	let loaded = $derived($notifStore.loaded);
 	let cursor = $derived($notifStore.cursor);
 
+	let groups = $derived.by(() => {
+		const result: NotificationGroup[] = [];
+		for (const notif of $notifStore.items) {
+			const key = notif.type + '\0' + (notif.subjectUri || '');
+			const prev = result[result.length - 1];
+			if (prev && prev.key === key) {
+				if (!prev.actors.some((a) => a.did === notif.actor.did)) {
+					prev.actors.push(notif.actor);
+				}
+			} else {
+				result.push({
+					key,
+					type: notif.type,
+					actors: [notif.actor],
+					subjectUri: notif.subjectUri,
+					subjectPreview: notif.subjectPreview,
+					createdAt: notif.createdAt
+				});
+			}
+		}
+		return result;
+	});
+
 	onMount(() => {
-		// Mark all currently-unread notifications as read when the page is viewed
 		const unreadIds = $notifStore.items.filter((n) => !n.read).map((n) => n.id);
 		if (unreadIds.length > 0) {
 			markNotificationsRead(unreadIds);
 		}
 
-		// Also mark any future ones that arrive while we're on this page
 		return notifStore.subscribe((state) => {
 			const fresh = state.items.filter((n) => !n.read).map((n) => n.id);
 			if (fresh.length > 0) {
@@ -60,7 +90,16 @@
 		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 	}
 
-	function actionLabel(type: string): string {
+	function groupActionLabel(type: string, count: number): string {
+		if (count === 1) {
+			switch (type) {
+				case 'like': return 'liked your post';
+				case 'comment': return 'commented on your post';
+				case 'reblog': return 'reblogged your post';
+				case 'follow': return 'followed you';
+				default: return 'interacted with you';
+			}
+		}
 		switch (type) {
 			case 'like': return 'liked your post';
 			case 'comment': return 'commented on your post';
@@ -68,6 +107,13 @@
 			case 'follow': return 'followed you';
 			default: return 'interacted with you';
 		}
+	}
+
+	function actorNames(actors: BackyardProfile[]): string {
+		const names = actors.map((a) => a.displayName || a.handle);
+		if (names.length === 1) return names[0];
+		if (names.length === 2) return `${names[0]} and ${names[1]}`;
+		return `${names[0]}, ${names[1]}, and ${names.length - 2} other${names.length - 2 === 1 ? '' : 's'}`;
 	}
 </script>
 
@@ -82,44 +128,48 @@
 		<div class="empty-state">
 			<p>loading notifications…</p>
 		</div>
-	{:else if items.length > 0}
+	{:else if groups.length > 0}
 		<div class="notification-list">
-			{#each items as notif (notif.id)}
-				{@const href = notif.type === 'follow'
-					? profileHref(notif.actor.handle)
-					: notif.subjectUri ? postHref(notif.subjectUri) : '#'}
+			{#each groups as group (group.key + group.createdAt)}
+				{@const href = group.type === 'follow'
+					? profileHref(group.actors[0].handle)
+					: group.subjectUri ? postHref(group.subjectUri) : '#'}
 				<a class="notification-item" {href}>
-					<span class="notification-icon" class:icon-like={notif.type === 'like'} class:icon-comment={notif.type === 'comment'} class:icon-reblog={notif.type === 'reblog'} class:icon-follow={notif.type === 'follow'}>
-						{#if notif.type === 'like'}
+					<span class="notification-icon" class:icon-like={group.type === 'like'} class:icon-comment={group.type === 'comment'} class:icon-reblog={group.type === 'reblog'} class:icon-follow={group.type === 'follow'}>
+						{#if group.type === 'like'}
 							<Heart size={16} />
-						{:else if notif.type === 'comment'}
+						{:else if group.type === 'comment'}
 							<MessageCircle size={16} />
-						{:else if notif.type === 'reblog'}
+						{:else if group.type === 'reblog'}
 							<Repeat2 size={16} />
-						{:else if notif.type === 'follow'}
+						{:else if group.type === 'follow'}
 							<UserPlus size={16} />
 						{/if}
 					</span>
 
 					<div class="notification-details">
 						<div class="notification-body">
-							{#if notif.actor.avatar}
-								<img src={notif.actor.avatar} alt="" class="avatar avatar-sm" />
-							{:else}
-								<div class="avatar avatar-sm avatar-placeholder">
-									{(notif.actor.displayName || notif.actor.handle).charAt(0).toUpperCase()}
-								</div>
-							{/if}
+							<div class="avatar-stack">
+								{#each group.actors.slice(0, 3) as actor (actor.did)}
+									{#if actor.avatar}
+										<img src={actor.avatar} alt="" class="avatar avatar-sm" />
+									{:else}
+										<div class="avatar avatar-sm avatar-placeholder">
+											{(actor.displayName || actor.handle).charAt(0).toUpperCase()}
+										</div>
+									{/if}
+								{/each}
+							</div>
 
 							<div class="notification-text">
-								<span class="actor-name">{notif.actor.displayName || notif.actor.handle}</span>
-								<span class="action">{actionLabel(notif.type)}</span>
-								<span class="time">{formatDate(notif.createdAt)}</span>
+								<span class="actor-name">{actorNames(group.actors)}</span>
+								<span class="action">{groupActionLabel(group.type, group.actors.length)}</span>
+								<span class="time">{formatDate(group.createdAt)}</span>
 							</div>
 						</div>
 
-						{#if notif.subjectPreview}
-							<p class="subject-preview">{notif.subjectPreview}</p>
+						{#if group.subjectPreview}
+							<p class="subject-preview">{group.subjectPreview}</p>
 						{/if}
 					</div>
 				</a>
@@ -186,6 +236,15 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
+	}
+
+	.avatar-stack {
+		display: flex;
+		flex-shrink: 0;
+	}
+
+	.avatar-stack .avatar:not(:first-child) {
+		margin-left: -8px;
 	}
 
 	.notification-icon {
