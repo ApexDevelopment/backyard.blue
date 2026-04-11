@@ -13,6 +13,7 @@
 
 	let signupsDisabled = $derived(data.signupMode === 'closed');
 	let needsAgreement = $derived(data.hasTos || data.hasCommunityGuidelines);
+	let clickedConfirm = $derived(data.signupMode !== 'allowlist');
 
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
@@ -56,100 +57,77 @@
 			{#if signupsDisabled}
 				<p class="login-subtitle">signups are currently disabled.</p>
 			{:else if data.signupMode === 'allowlist'}
-				<p class="login-subtitle">this instance is invite-only. sign in if you're on the list.</p>
+				<p class="login-subtitle">this instance is invite-only.</p>
 			{:else}
-				<p class="login-subtitle">sign in with your Bluesky/AT handle to get started.</p>
+				<p class="login-subtitle">sign in with your Atmosphere handle to get started.</p>
 			{/if}
 		</div>
 
-		{#if signupsDisabled}
-			<div class="signup-notice">
-				<div class="icon-wrapper">
-					<Info size={20} />
-				</div>
-				<span>this instance is not accepting new accounts at this time.</span>
-			</div>
+		{#if !clickedConfirm}
+			<button class="btn btn-primary confirm-btn" onclick={() => clickedConfirm = true}>I'm on the list</button>
 		{:else}
-			<form onsubmit={handleSubmit} class="login-form">
-				{#if errorMsg}
-					<div class="login-error">
-						<div class="icon-wrapper">
-							<CircleX size={20} />
+			{#if !signupsDisabled}
+				<form onsubmit={handleSubmit} class="login-form">
+					{#if errorMsg}
+						<div class="login-error">
+							<div class="icon-wrapper">
+								<CircleX size={20} />
+							</div>
+							<span>{errorMsg}</span>
 						</div>
-						<span>{errorMsg}</span>
-					</div>
-				{/if}
-
-				{#if data.signupMode === 'allowlist'}
-					<div class="signup-notice info">
-						<div class="icon-wrapper">
-							<Info size={20} />
-						</div>
-						<span>only allowlisted accounts can sign up. existing users can sign in normally.</span>
-					</div>
-				{/if}
-
-				<div class="form-group">
-					<label for="handle" class="form-label">
-						your handle
-						<button type="button" class="whats-this" onclick={() => showHandleExplainer = true}>(what's this?)</button>
-					</label>
-					<!-- svelte-ignore a11y_autofocus -->
-					<input
-						id="handle"
-						type="text"
-						class="input"
-						placeholder="alice.bsky.social"
-						bind:value={handle}
-						disabled={loading}
-						autocomplete="username"
-						autofocus
-					/>
-				</div>
-
-				{#if needsAgreement}
-					<label class="terms-checkbox">
-						<input type="checkbox" bind:checked={agreedToTerms} />
-						<span>
-							I agree to the
-							{#if data.hasTos}
-								<a href="/terms_of_service" target="_blank">terms of service</a>
-							{/if}
-							{#if data.hasTos && data.hasCommunityGuidelines}
-								and
-							{/if}
-							{#if data.hasCommunityGuidelines}
-								<a href="/community_guidelines" target="_blank">community guidelines</a>
-							{/if}
-						</span>
-					</label>
-				{/if}
-
-				<button type="submit" class="btn btn-primary login-btn" disabled={!handle.trim() || loading || (needsAgreement && !agreedToTerms)}>
-					{#if loading}
-						<span class="spinner" style="width:16px;height:16px;border-width:2px;"></span>
-						signing in...
-					{:else}
-						sign in
 					{/if}
-				</button>
-			</form>
 
-			<div class="create-account-link">
-				<span>don't have an account?</span>
-				<a href="/login/create">create one</a>
-			</div>
-		{/if}
+					<div class="form-group">
+						<label for="handle" class="form-label">
+							your handle
+							<button type="button" class="whats-this" onclick={() => showHandleExplainer = true}>(what's this?)</button>
+						</label>
+						<!-- svelte-ignore a11y_autofocus -->
+						<input
+							id="handle"
+							type="text"
+							class="input"
+							placeholder="alice.bsky.social"
+							bind:value={handle}
+							disabled={loading}
+							autocomplete="username"
+							autofocus
+						/>
+					</div>
 
-		{#if data.hasTos || data.hasCommunityGuidelines}
-			<div class="login-footer-links">
-				{#if data.hasTos}
-					<a href="/terms_of_service">terms of service</a>
-				{/if}
-				{#if data.hasCommunityGuidelines}
-					<a href="/community_guidelines">community guidelines</a>
-				{/if}
-			</div>
+					{#if needsAgreement}
+						<label class="terms-checkbox">
+							<input type="checkbox" bind:checked={agreedToTerms} />
+							<span>
+								I agree to the
+								{#if data.hasTos}
+									<a href="/terms_of_service" target="_blank">terms of service</a>
+								{/if}
+								{#if data.hasTos && data.hasCommunityGuidelines}
+									and
+								{/if}
+								{#if data.hasCommunityGuidelines}
+									<a href="/community_guidelines" target="_blank">community guidelines</a>
+								{/if}
+							</span>
+						</label>
+					{/if}
+
+					<button type="submit" class="btn btn-primary login-btn" disabled={!handle.trim() || loading || (needsAgreement && !agreedToTerms)}>
+						{#if loading}
+							<span class="spinner" style="width:16px;height:16px;border-width:2px;"></span>
+							signing in...
+						{:else}
+							sign in
+						{/if}
+					</button>
+				</form>
+
+				<div class="create-account-link">
+					<span>don't have an account?</span>
+					<a href="/login/create">create one</a>
+				</div>
+			{/if}
 		{/if}
 	</div>
 </div>
@@ -184,7 +162,9 @@
 {/if}
 
 <style>
-
+	.confirm-btn {
+		width: 100%;
+	}
 
 	.login-header {
 		text-align: center;
@@ -260,23 +240,6 @@
 		color: var(--text-link-hover);
 	}
 
-	.signup-notice {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		padding: 0.75rem;
-		background-color: color-mix(in srgb, var(--warning) 10%, transparent);
-		color: var(--text-secondary);
-		border-radius: var(--radius-sm);
-		font-size: 0.875rem;
-		line-height: 1.4;
-	}
-
-	.signup-notice.info {
-		background-color: color-mix(in srgb, var(--accent) 8%, transparent);
-		color: var(--text-secondary);
-	}
-
 	.icon-wrapper {
 		display: flex;
 		flex-shrink: 0;
@@ -320,24 +283,6 @@
 
 	.terms-checkbox a:hover {
 		color: var(--text-link-hover);
-	}
-
-	.login-footer-links {
-		display: flex;
-		justify-content: center;
-		gap: 1rem;
-		margin-top: 1rem;
-		padding-top: 1rem;
-		border-top: 1px solid var(--border-light);
-	}
-
-	.login-footer-links a {
-		font-size: 0.8125rem;
-		color: var(--text-tertiary);
-	}
-
-	.login-footer-links a:hover {
-		color: var(--text-link);
 	}
 
 	.explainer-backdrop {
