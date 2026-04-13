@@ -125,7 +125,7 @@
 					<h3>skip for now</h3>
 					<p>
 						don't create a backyard profile yet. your profile page will show your
-						{hasBskyProfile ? 'Bluesky' : 'AT Protocol'} info instead.
+						Bluesky account info instead (if you have one).
 					</p>
 				</div>
 			</button>
