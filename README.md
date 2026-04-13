@@ -1,18 +1,19 @@
 # Backyard
 
-Backyard is a social blogging platform built on the [AT Protocol](https://atproto.com/). It uses its own lexicon namespace (`blue.backyard.*`) for posts, comments, reblogs, likes, and follows, storing all user data in their PDS. Users log in via OAuth with scoped permissions.
+Backyard is a social blogging platform built on the [AT Protocol](https://atproto.com/). It uses its own lexicon namespace (`blue.backyard.*`) for posts, comments, reblogs, likes, and follows, storing all user data in their Personal Data Server (PDS). Users log in via OAuth with scoped permissions.
 
-Built with SvelteKit, PostgreSQL, and Docker.
+Built with SvelteKit, PostgreSQL, Redis, and Docker.
 
 ## Requirements
 
 - Node.js 22+
-- PostgreSQL 16+ (with `pg_trgm` extension)
+- PostgreSQL 18+ (with `pg_trgm` extension)
+- Redis 8+ (for caching blobs)
 - An internet-accessible domain with HTTPS (for OAuth callbacks)
 
 ## Quick Start (Docker)
 
-The included `docker-compose.yml` runs both the app and a PostgreSQL instance.
+The included `docker-compose.yml` runs the app, a PostgreSQL instance, and a Redis instance.
 
 ### 1. Generate secrets
 
@@ -69,7 +70,9 @@ The app listens on port 3000. Place it behind a reverse proxy (Nginx, Caddy, etc
 
 ### 4. Verify
 
-Visit `https://<your-domain>/oauth/client-metadata.json`. You should see the OAuth client metadata document with your `INSTANCE_URL` and redirect URIs.
+Visit `https://<your-domain>/oauth/client-metadata.json`. Ensure that you see the OAuth client metadata document with your `INSTANCE_URL` and correct redirect URIs.
+
+Navigating to `https://<your-domain>/` should display the home feed.
 
 ## Manual Setup (without Docker)
 
@@ -93,31 +96,32 @@ npm install
 npm run dev
 ```
 
-No environment configuration is needed for local development. The app will use default values (local PostgreSQL at `localhost:5432`, ephemeral OAuth keys, default session secret).
+No environment variable configuration is needed for local development. The app will use default values (local PostgreSQL at `localhost:5432`, ephemeral OAuth keys, default session secret). You must configure and run a local PostgreSQL instance yourself.
 
 ## Architecture
 
-Backyard is a SvelteKit application using `adapter-node` for production. It does not store user content itself -- all posts, comments, reblogs, likes, and follows are atproto records written to each user's PDS.
+Backyard is a SvelteKit application using `adapter-node`. It does not store user content, except in the cache -- all posts, comments, reblogs, likes, and follows are atproto records written to each user's PDS.
 
-PostgreSQL serves as a local index/cache. Records arrive via two paths:
-- **Jetstream firehose**: real-time WebSocket stream of all `blue.backyard.*` events across the network.
+PostgreSQL serves as a local index/cache of user records. Records arrive via two paths:
+- **Jetstream**: real-time WebSocket stream of all `blue.backyard.*` events across the network.
+- **Startup backfill**: on startup, the app queries a relay for all DIDs with records in any `blue.backyard.*` collection, then backfills each one from their PDS. A cursor is stored in the database to avoid re-backfilling on subsequent restarts.
 - **Per-user backfill**: on login or profile view, missing records are fetched from the user's PDS via `com.atproto.repo.listRecords`.
 
-The database schema is created automatically at startup. There is no separate migration step.
+The database schema is created automatically at startup.
 
 ### Lexicon
 
 All record types live under the `blue.backyard` namespace:
 
-| Collection | Description |
-|---|---|
-| `blue.backyard.actor.profile` | User profile (display name, bio, avatar, banner) |
-| `blue.backyard.feed.post` | Original post with text, rich text facets, media, and tags |
-| `blue.backyard.feed.comment` | Comment on a post (threaded) |
-| `blue.backyard.feed.reblog` | Reblog with optional text/tag additions |
-| `blue.backyard.feed.like` | Like on a post |
-| `blue.backyard.graph.follow` | Follow relationship |
-| `blue.backyard.graph.block` | Block relationship |
+| Collection                     | Description |
+|--------------------------------|-------------|
+| `blue.backyard.actor.profile`  | User profile (display name, bio, avatar, banner) |
+| `blue.backyard.feed.post`      | Original post with text, rich text facets, media, and tags |
+| `blue.backyard.feed.comment`   | Comment on a post (threaded) |
+| `blue.backyard.feed.reblog`    | Reblog with optional text/tag additions |
+| `blue.backyard.feed.like`      | Like on a post |
+| `blue.backyard.graph.follow`   | Follow relationship |
+| `blue.backyard.graph.block`    | Block relationship |
 | `blue.backyard.richtext.facet` | Rich text annotation (mentions, links, tags) |
 
 Lexicon schemas are in the `lexicons/` directory.
@@ -175,70 +179,25 @@ The login page adapts its messaging automatically based on the current mode.
 
 #### Managing the allowlist
 
-Set `ADMIN_DIDS` to your DID, then use the admin API while signed in:
-
-```sh
-# List allowlisted identifiers
-curl -b cookies.txt https://backyard.example.com/api/admin/allowlist
-
-# Add a DID or handle (handles are resolved to DIDs automatically)
-curl -b cookies.txt -X POST https://backyard.example.com/api/admin/allowlist \
-  -H 'Content-Type: application/json' \
-  -d '{"identifier": "alice.bsky.social", "note": "Invited by admin"}'
-
-# Remove an identifier
-curl -b cookies.txt -X DELETE https://backyard.example.com/api/admin/allowlist \
-  -H 'Content-Type: application/json' \
-  -d '{"identifier": "alice.bsky.social"}'
-```
+Set `ADMIN_DIDS` to your DID, then use the admin UI while signed in.
 
 You can add either a DID (`did:plc:...`) or a handle (`alice.bsky.social`). Handles are resolved to DIDs before storage, so the allowlist always contains DIDs. The check at sign-in time is DID-only.
 
 ### Admin Moderation
 
-Admins can moderate content and users through the API and the web UI.
+Admins can moderate content through web UI.
 
 #### Banning users
 
 Admin users see moderation actions in context menus on posts and profiles. Banning a user prevents them from posting or interacting through the Backyard API. Banned users' posts are filtered from all feeds. All admin endpoints accept either a DID or a handle (handles are resolved to DIDs automatically).
 
-```sh
-# Ban a user (by DID or handle)
-curl -b cookies.txt -X POST https://backyard.example.com/api/admin/ban \
-  -H 'Content-Type: application/json' \
-  -d '{"did": "alice.bsky.social", "reason": "spam"}'
-
-# Check ban status
-curl -b cookies.txt https://backyard.example.com/api/admin/ban?did=alice.bsky.social
-
-# Unban a user
-curl -b cookies.txt -X DELETE https://backyard.example.com/api/admin/ban \
-  -H 'Content-Type: application/json' \
-  -d '{"did": "alice.bsky.social"}'
-```
-
 #### Queued post deletion
 
-Instead of deleting posts from a user's PDS directly, admins can queue a post for deletion. The post is immediately hidden from feeds, and the next time the author logs in they are shown a modal explaining the violation and requiring them to delete the post before they can continue using Backyard.
-
-```sh
-# Queue a post for deletion
-curl -b cookies.txt -X POST https://backyard.example.com/api/admin/delete-post \
-  -H 'Content-Type: application/json' \
-  -d '{"uri": "at://did:plc:.../blue.backyard.feed.post/...", "reason": "Violates site rules"}'
-
-# List pending deletions
-curl -b cookies.txt https://backyard.example.com/api/admin/delete-post
-
-# Cancel a pending deletion
-curl -b cookies.txt -X DELETE https://backyard.example.com/api/admin/delete-post \
-  -H 'Content-Type: application/json' \
-  -d '{"uri": "at://did:plc:.../blue.backyard.feed.post/..."}'
-```
+Instead of deleting posts from a user's PDS directly, admins queue posts for deletion. The offending post is immediately hidden from feeds, and the next time the author logs in they are shown a modal explaining the violation and requiring them to delete the post before they can continue using Backyard.
 
 ### User Trust System
 
-Backyard includes an automatic trust scoring system that controls whether uploaded media is displayed. New accounts start untrusted and earn trust based on account age, existing AT Protocol activity, and posting frequency. Accounts scoring 50 or above out of 100 are considered "media trusted". Admins can manually override trust via `POST /api/admin/trust`.
+Backyard includes an automatic trust scoring system that controls whether uploaded media is displayed. New accounts start untrusted and earn trust based on account age, existing AT Protocol activity, and posting frequency. Accounts scoring 50 or above out of 100 are considered "media trusted". Admins can manually override trust via the dashboard.
 
 ## License
 
