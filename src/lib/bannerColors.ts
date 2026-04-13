@@ -9,7 +9,7 @@
  */
 export const BANNER_GRADIENT_ENABLED = true;
 
-interface RGB {
+export interface RGB {
 	r: number;
 	g: number;
 	b: number;
@@ -82,7 +82,7 @@ function samplePixels(src: string, size = 64): Promise<RGB[]> {
 }
 
 /** Euclidean distance² between two colors. */
-function dist2(a: RGB, b: RGB): number {
+export function dist2(a: RGB, b: RGB): number {
 	const dr = a.r - b.r;
 	const dg = a.g - b.g;
 	const db = a.b - b.b;
@@ -90,7 +90,7 @@ function dist2(a: RGB, b: RGB): number {
 }
 
 /** Simple k-means to find `k` representative colors. */
-function kMeans(pixels: RGB[], k: number, iterations = 8): RGB[] {
+export function kMeans(pixels: RGB[], k: number, iterations = 8): RGB[] {
 	// Seed centroids by evenly sampling the input
 	const step = Math.max(1, Math.floor(pixels.length / k));
 	let centroids: RGB[] = [];
@@ -163,7 +163,7 @@ function getThemeBase(): RGB {
  * Mix a color toward the theme background.
  * `t` = 0 → fully original color, `t` = 1 → fully theme background.
  */
-function mixToward(c: RGB, base: RGB, t: number): RGB {
+export function mixToward(c: RGB, base: RGB, t: number): RGB {
 	return {
 		r: Math.round(c.r + (base.r - c.r) * t),
 		g: Math.round(c.g + (base.g - c.g) * t),
@@ -171,7 +171,7 @@ function mixToward(c: RGB, base: RGB, t: number): RGB {
 	};
 }
 
-function rgbStr(c: RGB): string {
+export function rgbStr(c: RGB): string {
 	return `rgb(${c.r}, ${c.g}, ${c.b})`;
 }
 

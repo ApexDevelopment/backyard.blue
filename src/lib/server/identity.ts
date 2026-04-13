@@ -19,7 +19,7 @@ interface DidDocument {
  * Validate that a domain is a public hostname (not an IP, localhost, or private range).
  * Prevents SSRF via did:web resolution.
  */
-function isValidPublicDomain(domain: string): boolean {
+export function isValidPublicDomain(domain: string): boolean {
 	// Reject empty or overly long domains
 	if (!domain || domain.length > 253) return false;
 

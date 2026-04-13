@@ -27,7 +27,7 @@ const FREQUENCY_MAX = 30;
 
 // ─── Account age brackets (in days → points) ────────────────────────
 
-function ageScore(createdAt: Date | null): number {
+export function ageScore(createdAt: Date | null): number {
 	if (!createdAt) return 0;
 	const ageDays = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
 	if (ageDays >= 90) return AGE_MAX;
@@ -37,7 +37,7 @@ function ageScore(createdAt: Date | null): number {
 	return 0;
 }
 
-function externalRecordsScore(hasExternal: boolean): number {
+export function externalRecordsScore(hasExternal: boolean): number {
 	return hasExternal ? EXTERNAL_MAX : 0;
 }
 
@@ -45,7 +45,7 @@ function externalRecordsScore(hasExternal: boolean): number {
  * Score posting frequency. Normal or no activity = full points.
  * Suspiciously high volume in a short window = 0.
  */
-function frequencyScore(postCount30d: number, accountAgeDays: number): number {
+export function frequencyScore(postCount30d: number, accountAgeDays: number): number {
 	if (postCount30d === 0) return FREQUENCY_MAX;
 
 	// For very new accounts (< 1 day), even a few posts are fine, but

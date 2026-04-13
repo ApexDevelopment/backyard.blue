@@ -24,7 +24,7 @@ const NEGATIVE_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour for failures
  * Block SSRF: reject URLs that resolve to private/internal IP ranges.
  * Checks the hostname against known private, loopback, and link-local ranges.
  */
-function isPrivateUrl(url: string): boolean {
+export function isPrivateUrl(url: string): boolean {
 	try {
 		const parsed = new URL(url);
 		const hostname = parsed.hostname.toLowerCase();
@@ -243,7 +243,7 @@ async function tryOEmbed(url: string): Promise<OGData | null> {
  * Parse OpenGraph and Twitter Card meta tags from raw HTML.
  * Uses regex matching — no DOM parser dependency needed server-side.
  */
-function parseOGTags(html: string, url: string): OGData {
+export function parseOGTags(html: string, url: string): OGData {
 	const data: OGData = { url };
 
 	const metaPattern = /<meta\s+([^>]*?)\/?>/gi;
@@ -309,13 +309,13 @@ function parseOGTags(html: string, url: string): OGData {
 	return data;
 }
 
-function getAttr(attrs: string, name: string): string | undefined {
+export function getAttr(attrs: string, name: string): string | undefined {
 	const pattern = new RegExp(`${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i');
 	const m = pattern.exec(attrs);
 	return m ? m[1] ?? m[2] ?? m[3] : undefined;
 }
 
-function resolveUrl(src: string, base: string): string {
+export function resolveUrl(src: string, base: string): string {
 	try {
 		return new URL(src, base).href;
 	} catch {
@@ -332,7 +332,7 @@ const ENTITY_MAP: Record<string, string> = {
 	'&apos;': "'"
 };
 
-function decodeEntities(s: string): string {
+export function decodeEntities(s: string): string {
 	return s
 		.replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
 		.replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))

@@ -29,7 +29,7 @@ const MAX_PROFILE_BATCH = 500;
 const PROFILE_RESOLVE_CONCURRENCY = 5;
 const PROFILE_RESOLVE_TIMEOUT_MS = 5_000;
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 	return new Promise<T>((resolve, reject) => {
 		const timer = setTimeout(() => reject(new Error('timeout')), ms);
 		promise.then(
@@ -89,7 +89,7 @@ async function resolveProfiles(dids: string[]): Promise<Map<string, BackyardProf
 /**
  * Build ContentBlock[] from the DB content JSONB column.
  */
-function resolveContentBlocks(row: any, authorDid: string): ContentBlock[] {
+export function resolveContentBlocks(row: any, authorDid: string): ContentBlock[] {
 	if (!row.content || !Array.isArray(row.content) || row.content.length === 0) return [];
 
 	const blocks: ContentBlock[] = [];
@@ -119,7 +119,7 @@ function resolveContentBlocks(row: any, authorDid: string): ContentBlock[] {
 }
 
 /** Enrich a raw post row with counts and viewer state. */
-function enrichPost(
+export function enrichPost(
 	row: any,
 	profiles: Map<string, BackyardProfile>
 ): BackyardPost {
@@ -139,7 +139,7 @@ function enrichPost(
 	};
 }
 
-function toIso(val: any): string {
+export function toIso(val: any): string {
 	return val instanceof Date ? val.toISOString() : val;
 }
 
@@ -190,7 +190,7 @@ export async function getOutgoingBlock(authorDid: string, subjectDid: string): P
 	return result.rows[0]?.uri || null;
 }
 
-function hasBlockedTag(tags: string[] | null | undefined, blockedTags: Set<string>): boolean {
+export function hasBlockedTag(tags: string[] | null | undefined, blockedTags: Set<string>): boolean {
 	if (!tags || tags.length === 0 || blockedTags.size === 0) return false;
 	return tags.some((t) => blockedTags.has(t.toLowerCase()));
 }

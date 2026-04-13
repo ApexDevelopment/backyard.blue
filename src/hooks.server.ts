@@ -10,6 +10,7 @@ import { isAdmin } from '$lib/server/signup.js';
 import { NSID } from '$lib/lexicon.js';
 import { resolveHandleToDid } from '$lib/server/identity.js';
 import pool from '$lib/server/db.js';
+import { evictBuckets, isRateLimited, RATE_WINDOW_MS, type RateBucket } from '$lib/server/rate-limit.js';
 
 /**
  * Promise-based singleton so concurrent requests during startup await the
@@ -31,60 +32,11 @@ function doInit(): Promise<void> {
 	})();
 }
 
-/**
- * Simple in-memory rate limiter per IP.
- * Tracks request counts in a sliding window.
- *
- * LIMITATION: This is per-process only and does not work across multiple
- * instances. For horizontal scaling, use a shared store (e.g. Redis) or
- * enforce rate limiting at the reverse proxy / edge layer (e.g. Nginx,
- * Cloudflare, Caddy rate_limit).
- */
-const RATE_WINDOW_MS = 60_000;
-const RATE_MAX_WRITE = 60;   // write endpoints per window
-const RATE_MAX_READ = 300;   // general requests per window
-const RATE_MAX_BUCKETS = 50_000; // max tracked IPs per map to prevent memory exhaustion
-
-interface RateBucket {
-	count: number;
-	resetAt: number;
-}
+const RATE_MAX_WRITE = 60;
+const RATE_MAX_READ = 300;
 
 const writeBuckets = new Map<string, RateBucket>();
 const readBuckets = new Map<string, RateBucket>();
-
-/**
- * Evict the oldest expired buckets when a map exceeds the size limit.
- * If no expired entries exist, evict the oldest entries by resetAt.
- */
-function evictBuckets(buckets: Map<string, RateBucket>): void {
-	const now = Date.now();
-	for (const [key, b] of buckets) {
-		if (now >= b.resetAt) buckets.delete(key);
-	}
-	if (buckets.size > RATE_MAX_BUCKETS) {
-		const sorted = [...buckets.entries()].sort((a, b) => a[1].resetAt - b[1].resetAt);
-		const toRemove = sorted.slice(0, buckets.size - RATE_MAX_BUCKETS);
-		for (const [key] of toRemove) buckets.delete(key);
-	}
-}
-
-function isRateLimited(
-	buckets: Map<string, RateBucket>,
-	key: string,
-	max: number
-): boolean {
-	if (buckets.size >= RATE_MAX_BUCKETS) evictBuckets(buckets);
-
-	const now = Date.now();
-	let bucket = buckets.get(key);
-	if (!bucket || now >= bucket.resetAt) {
-		bucket = { count: 0, resetAt: now + RATE_WINDOW_MS };
-		buckets.set(key, bucket);
-	}
-	bucket.count++;
-	return bucket.count > max;
-}
 
 // Periodically prune expired buckets to prevent memory leaks
 setInterval(() => {
