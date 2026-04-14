@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Newspaper } from 'lucide-svelte';
 	import type { NewsDocument } from '$lib/types.js';
 
 	interface Props {
@@ -14,9 +15,10 @@
 </script>
 
 <aside class="news-panel" aria-label="News">
-	<h2 class="news-heading">news</h2>
-	{#if news.length > 0}
-		<ul class="news-list">
+	<div class="card news-card">
+		<h2 class="news-heading"><Newspaper size={13} />news</h2>
+		{#if news.length > 0}
+			<ul class="news-list">
 			{#each news as doc (doc.uri)}
 				<li class="news-item">
 					{#if doc.url}
@@ -36,11 +38,12 @@
 				</li>
 			{/each}
 		</ul>
-	{:else}
-		<div class="card news-empty">
-			<p>no news yet — check back later.</p>
-		</div>
-	{/if}
+		{:else}
+			<div class="news-empty">
+				<p>no news yet — check back later.</p>
+			</div>
+		{/if}
+	</div>
 </aside>
 
 <style>
@@ -54,12 +57,20 @@
 		justify-self: start;
 	}
 
+	.news-card {
+		padding: 0.75rem 0 0.5rem;
+	}
+
 	.news-heading {
 		font-size: 0.8125rem;
 		font-weight: 600;
 		color: var(--text-tertiary);
 		letter-spacing: 0.02em;
-		margin-bottom: 0.5rem;
+		margin-bottom: 0.25rem;
+		padding: 0 0.75rem;
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
 	}
 
 	.news-list {
@@ -119,7 +130,7 @@
 	}
 
 	.news-empty {
-		padding: 1rem;
+		padding: 0.5rem 0.75rem;
 		font-size: 0.875rem;
 		color: var(--text-secondary);
 	}
