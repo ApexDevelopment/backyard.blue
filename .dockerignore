@@ -8,3 +8,5 @@ build
 notes
 .svelte-kit
 .vscode
+tests
+lexicons
