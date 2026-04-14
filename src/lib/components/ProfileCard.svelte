@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { BackyardProfile } from '$lib/types.js';
+	import { linkifyBio } from '$lib/index.js';
 	import { Ban, ShieldX } from 'lucide-svelte';
 	import ContextMenu from './ContextMenu.svelte';
 
@@ -199,7 +200,7 @@
 		</div>
 
 		{#if profile.description}
-			<p class="profile-description">{profile.description}</p>
+			<p class="profile-description">{@html linkifyBio(profile.description)}</p>
 		{/if}
 
 		<div class="profile-stats">
