@@ -147,8 +147,8 @@
 					for most people, handles look like <strong>name.bsky.social</strong>.
 				</p>
 				<p>
-					handles are part of the <strong>AT Protocol (atproto)</strong>, the same network that powers Bluesky.
-					when you sign in, you're using your existing atproto account - you don't need to create a new one.
+					handles are part of the <strong>AT Protocol</strong>, the same protocol that powers Bluesky. we call this network the "atmosphere."
+					when you sign in, you're using your existing atmosphere account - you don't need to create a new one.
 				</p>
 				<p>
 					your posts, profile, and data are stored on your <strong>personal data server (PDS)</strong>,

@@ -169,7 +169,7 @@
 			<span class="create-logo"><House size={40} color="var(--accent)" strokeWidth={2} /></span>
 			<h1>create an account</h1>
 			<p class="create-subtitle">
-				you'll need an atproto account to use backyard.
+				you'll need an atmosphere account to use backyard.
 			</p>
 		</div>
 
@@ -177,6 +177,10 @@
 			<div class="create-choices">
 				<a href="https://bsky.app" target="_blank" rel="noopener noreferrer" class="btn btn-primary create-bsky-btn">
 					create account on Bluesky
+					<ExternalLink size={16} />
+				</a>
+				<a href="https://blacksky.community" target="_blank" rel="noopener noreferrer" class="btn btn-secondary create-blksky-btn">
+					create account on Blacksky
 					<ExternalLink size={16} />
 				</a>
 				<button type="button" class="btn btn-secondary create-advanced-btn" onclick={() => showAdvancedForm = true}>
@@ -416,6 +420,16 @@
 		justify-content: center;
 		gap: 0.5rem;
 		width: 100%;
+	}
+
+	.create-blksky-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		width: 100%;
+		background-color: #000000;
+		color: #ffffff;
 	}
 
 	.create-advanced-btn {
