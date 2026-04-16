@@ -3,7 +3,7 @@ import { redirect, json } from '@sveltejs/kit';
 import { getSessionData, clearSession } from '$lib/server/session.js';
 import { getSignupMode, isOnAllowlist } from '$lib/server/signup.js';
 import { initializeDatabase, startOAuthStateCleanup } from '$lib/server/db.js';
-import { startFirehose } from '$lib/server/firehose.js';
+import { startJetstream } from '$lib/server/jetstream.js';
 import { discoverAndBackfill } from '$lib/server/backfill.js';
 import { connectRedis } from '$lib/server/redis.js';
 import { isAdmin } from '$lib/server/signup.js';
@@ -23,8 +23,8 @@ function doInit(): Promise<void> {
 		await initializeDatabase();
 		await connectRedis();
 		startOAuthStateCleanup();
-		startFirehose().catch((err) => {
-			console.error('Failed to start firehose:', err);
+		startJetstream().catch((err) => {
+			console.error('Failed to start Jetstream:', err);
 		});
 		discoverAndBackfill().catch((err) => {
 			console.error('Failed to run discovery backfill:', err);

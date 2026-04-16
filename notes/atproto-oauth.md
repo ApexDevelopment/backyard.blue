@@ -115,5 +115,5 @@ NSID constants and the computed OAuth scope are in `src/lib/lexicon.ts`.
 ### Architecture: Self-hosted AppView
 See [architecture.md](architecture.md) for details on the dual-write pattern, server modules, and database schema.
 
-## Firehose
+## Jetstream
 Backyard uses [Jetstream](https://github.com/bluesky-social/jetstream) (not `@atproto/sync`) for server-side-filtered event streaming. Jetstream supports a `wantedCollections` query parameter so only `blue.backyard.*` events are delivered — avoiding the bandwidth cost of the full network firehose. See [firehose.md](firehose.md) for details.

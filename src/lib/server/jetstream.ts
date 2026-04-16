@@ -1,5 +1,5 @@
 /**
- * Jetstream firehose consumer.
+ * Jetstream consumer.
  *
  * Connects to a Jetstream instance and listens for commits to any
  * `blue.backyard.*` collection across the entire AT Protocol network.
@@ -85,14 +85,14 @@ function attemptShedRecovery(): void {
 	const now = Date.now();
 	if (now - lastRecoveryAt < RECOVERY_COOLDOWN_MS) {
 		console.warn(
-			`🔥 Firehose shed recovery skipped — last recovery was ${((now - lastRecoveryAt) / 1000).toFixed(0)}s ago (cooldown: ${RECOVERY_COOLDOWN_MS / 1000}s)`
+			`🔥 Jetstream shed recovery skipped — last recovery was ${((now - lastRecoveryAt) / 1000).toFixed(0)}s ago (cooldown: ${RECOVERY_COOLDOWN_MS / 1000}s)`
 		);
 		shedStartUs = null;
 		return;
 	}
 
 	const rewindUs = shedStartUs - 5_000_000;
-	console.info(`🔥 Firehose recovering shed events — reconnecting at cursor ${rewindUs}`);
+	console.info(`🔥 Jetstream recovering shed events — reconnecting at cursor ${rewindUs}`);
 	lastCursorUs = rewindUs;
 	shedStartUs = null;
 	lastRecoveryAt = now;
@@ -109,7 +109,7 @@ function drainQueue(): void {
 		const event = eventQueue.shift()!;
 		activeWorkers++;
 		processEvent(event)
-			.catch((err) => console.error('Firehose event processing error:', err))
+			.catch((err) => console.error('Jetstream event processing error:', err))
 			.finally(() => {
 				activeWorkers--;
 				if (eventQueue.length === 0 && activeWorkers === 0) {
@@ -126,7 +126,7 @@ function enqueueEvent(event: JetstreamEvent): void {
 		const shed = eventQueue.shift()!;
 		if (!shedStartUs) {
 			shedStartUs = shed.time_us;
-			console.warn(`🔥 Firehose queue full (${EVENT_QUEUE_MAX}) — shedding events (gap starts at ${shed.time_us})`);
+			console.warn(`🔥 Jetstream queue full (${EVENT_QUEUE_MAX}) — shedding events (gap starts at ${shed.time_us})`);
 		}
 	}
 	eventQueue.push(event);
@@ -155,7 +155,7 @@ function buildAtUri(did: string, collection: string, rkey: string): string {
 }
 
 /**
- * Index a create or update operation from the firehose.
+ * Index a create or update operation from Jetstream.
  * Uses upsert semantics so that records already indexed via the
  * dual-write path are harmlessly deduplicated.
  */
@@ -377,12 +377,12 @@ function connect(): void {
 		url.searchParams.set('cursor', rewindUs.toString());
 	}
 
-	console.info(`🔥 Firehose connecting to ${url.origin}${url.pathname} (cursor: ${lastCursorUs || 'live'})`);
+	console.info(`🔥 Jetstream connecting to ${url.origin}${url.pathname} (cursor: ${lastCursorUs || 'live'})`);
 
 	ws = new WebSocket(url.toString());
 
 	ws.addEventListener('open', () => {
-		console.info('🔥 Firehose connected');
+		console.info('🔥 Jetstream connected');
 		reconnectAttempt = 0; // reset backoff on successful connection
 	});
 
@@ -392,7 +392,7 @@ function connect(): void {
 			const data = JSON.parse(raw) as JetstreamEvent;
 			enqueueEvent(data);
 		} catch (err) {
-			console.error('Firehose message parse error:', err);
+			console.error('Jetstream message parse error:', err);
 		}
 	});
 
@@ -406,22 +406,22 @@ function connect(): void {
 				RECONNECT_MAX_MS
 			);
 			console.warn(
-				`🔥 Firehose disconnected (code: ${event.code}). Reconnecting in ${(delay / 1000).toFixed(1)}s (attempt ${reconnectAttempt})…`
+				`🔥 Jetstream disconnected (code: ${event.code}). Reconnecting in ${(delay / 1000).toFixed(1)}s (attempt ${reconnectAttempt})…`
 			);
 			setTimeout(connect, delay);
 		}
 	});
 
 	ws.addEventListener('error', (err) => {
-		console.error('Firehose WebSocket error:', err);
+		console.error('Jetstream WebSocket error:', err);
 	});
 }
 
-export async function startFirehose(): Promise<void> {
+export async function startJetstream(): Promise<void> {
 	if (running) return;
 
-	if (env.FIREHOSE_DISABLED === 'true') {
-		console.info('🔥 Firehose disabled via FIREHOSE_DISABLED=true');
+	if (env.JETSTREAM_DISABLED === 'true') {
+		console.info('🔥 Jetstream disabled via JETSTREAM_DISABLED=true');
 		return;
 	}
 
@@ -433,7 +433,7 @@ export async function startFirehose(): Promise<void> {
 			try {
 				await saveCursor(lastCursorUs);
 			} catch (err) {
-				console.error('Firehose cursor save error:', err);
+				console.error('Jetstream cursor save error:', err);
 			}
 		}
 	}, CURSOR_PERSIST_INTERVAL_MS);
@@ -441,7 +441,7 @@ export async function startFirehose(): Promise<void> {
 	connect();
 }
 
-export async function stopFirehose(): Promise<void> {
+export async function stopJetstream(): Promise<void> {
 	running = false;
 
 	if (cursorTimer) {
@@ -462,5 +462,5 @@ export async function stopFirehose(): Promise<void> {
 		ws = null;
 	}
 
-	console.info('🔥 Firehose stopped');
+	console.info('🔥 Jetstream stopped');
 }

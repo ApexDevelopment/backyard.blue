@@ -3,7 +3,7 @@
 ## Problem
 
 Backyard's local PostgreSQL database is a **cache** of records that live
-authoritatively on each user's PDS. The Jetstream firehose keeps this cache
+authoritatively on each user's PDS. Jetstream keeps this cache
 up to date in real time, but it only streams *new* events — it does not
 replay the full history of every user.
 
@@ -11,7 +11,7 @@ This means the local cache can become empty or incomplete when:
 
 - The PostgreSQL database is wiped (e.g. `docker compose down -v` and rebuild).
 - A new Backyard instance is deployed against an existing user base.
-- A user created records before Backyard's firehose consumer was running.
+- A user created records before Backyard's Jetstream consumer was running.
 - Jetstream experienced downtime and the cursor gap is too large to replay.
 
 ## Solution
@@ -42,7 +42,7 @@ Steps:
 3. For each collection (in dependency order — see below), paginate through
    `com.atproto.repo.listRecords` with `limit=100`.
 4. Upsert each record into the appropriate local table, using the same
-   validation and sanitization as the firehose consumer.
+validation and sanitization as the Jetstream consumer.
 
 #### `backfillIfNeeded(did: string): Promise<void>`
 
@@ -91,11 +91,11 @@ current rev. If the stored rev is already `>=` the PDS rev, the backfill
 is skipped entirely — the repo hasn't changed since we last synced.
 
 **After a successful backfill**, the PDS rev is stored with a conditional
-`WHERE repo_revs.rev < EXCLUDED.rev` guard. This ensures the firehose
-(which also advances the rev on every commit event) can never be rolled
+`WHERE repo_revs.rev < EXCLUDED.rev` guard. This ensures Jetstream
+(which also advances `repo_revs` on every commit event) can never be rolled
 back by a stale backfill write.
 
-**The firehose** advances `repo_revs` on every commit event using the
+**Jetstream** advances `repo_revs` on every commit event using the
 same conditional guard. This keeps the stored rev up-to-date in real time
 and allows future backfills to skip repos that are already current.
 
@@ -104,7 +104,7 @@ and allows future backfills to skip repos that are already current.
 Backfill is **not** add-only. After fetching all records for a collection
 from the user's PDS, the set of URIs returned is compared against local
 records. Any local records whose URIs are absent from the PDS response are
-deleted — this syncs deletions that happened while the firehose was offline
+deleted — this syncs deletions that happened while Jetstream was offline
 or before the instance existed.
 
 Content updates are handled by the upsert semantics: posts, comments, and
@@ -148,9 +148,9 @@ logged in to this Backyard instance. Because the backfill is asynchronous,
 the first profile view may show an empty feed, but subsequent page loads
 (or a refresh) will include the backfilled data.
 
-## Relationship to the Firehose
+## Relationship to Jetstream
 
-Backfill and the firehose are complementary:
+Backfill and Jetstream are complementary:
 
 | Mechanism          | Scope            | Timing       | Data Source                    |
 | ------------------ | ---------------- | ------------ | ------------------------------ |
@@ -160,7 +160,7 @@ Backfill and the firehose are complementary:
 
 At startup, the relay discovery queries `com.atproto.sync.listReposByCollection`
 to find every DID that has records in any `blue.backyard.*` collection, then
-backfills each one via their PDS. After startup, the firehose picks up new
+backfills each one via their PDS. After startup, Jetstream picks up new
 activity in real time, and per-user backfill handles on-demand cases (login,
 profile views).
 

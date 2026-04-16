@@ -168,7 +168,7 @@ export async function initializeDatabase(): Promise<void> {
 
 			CREATE UNIQUE INDEX IF NOT EXISTS idx_blocked_tags_unique ON blocked_tags(author_did, tag);
 
-			-- Firehose cursor persistence (Jetstream consumer position)
+			-- Jetstream cursor persistence (consumer position in microseconds)
 			CREATE TABLE IF NOT EXISTS firehose_cursor (
 				id TEXT PRIMARY KEY,
 				cursor_us BIGINT NOT NULL,

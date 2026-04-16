@@ -1,9 +1,9 @@
-# Firehose Consumption (Jetstream)
+# Jetstream Consumption
 
-Backyard listens to the AT Protocol network firehose to index records created
-outside of Backyard (e.g. via a third-party client writing directly to a user's
-PDS). This ensures that `blue.backyard.*` records are treated as first-class
-regardless of origin — a core tenet of the AT Protocol.
+Backyard uses Jetstream to index records created outside of Backyard (e.g. via
+a third-party client writing directly to a user's PDS). This ensures that
+`blue.backyard.*` records are treated as first-class regardless of origin — a
+core tenet of the AT Protocol.
 
 ## Why Jetstream (not @atproto/sync)
 
@@ -36,7 +36,7 @@ network.
 ```
   Jetstream (public)          Backyard Server
   ┌──────────────┐      WS    ┌──────────────┐
-  │  wantedColl  ├───────────►│ firehose.ts  │
+  │  wantedColl  ├──────────►│ jetstream.ts │
   │  =blue.back  │   JSON     │              │
   │   yard.*     │   events   │ processEvent │
   └──────────────┘            │      │       │
@@ -60,11 +60,11 @@ Jetstream sends three event `kind` values:
 ## Deduplication
 
 Records created through Backyard's dual-write path (PDS + local DB) will
-also appear on the firehose shortly after. This is handled with upsert
+also appear via Jetstream shortly after. This is handled with upsert
 semantics:
 
 - **Posts, comments, reblogs** — `ON CONFLICT (uri) DO UPDATE SET ...` so
-  the firehose version harmlessly overwrites with identical data.
+  the Jetstream event harmlessly overwrites with identical data.
 - **Likes, follows** — `ON CONFLICT (uri) DO NOTHING` since these records
   are immutable once created.
 - **Profiles** — Cache is invalidated and `ensureProfile()` re-resolves
@@ -75,7 +75,7 @@ semantics:
 | Variable            | Default                                                | Description                              |
 | ------------------- | ------------------------------------------------------ | ---------------------------------------- |
 | `JETSTREAM_URL`     | `wss://jetstream2.us-east.bsky.network/subscribe`      | Jetstream WebSocket endpoint             |
-| `FIREHOSE_DISABLED` | *(empty — firehose enabled)*                           | Set to `"true"` to disable firehose      |
+| `JETSTREAM_DISABLED` | *(empty — Jetstream enabled)*                          | Set to `"true"` to disable Jetstream  |
 
 ## Cursor Persistence
 
@@ -87,7 +87,7 @@ gapless playback; idempotent indexing ensures replayed events cause no harm.
 
 ## Lifecycle
 
-`startFirehose()` is called from `hooks.server.ts` immediately after the
+`startJetstream()` is called from `hooks.server.ts` immediately after the
 database is initialized. It is fire-and-forget (errors are caught and
-logged). `stopFirehose()` is available for graceful shutdown but is not
+logged). `stopJetstream()` is available for graceful shutdown but is not
 currently wired to a signal handler.

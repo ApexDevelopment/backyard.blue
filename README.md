@@ -47,7 +47,7 @@ Copy `.env.example` to `.env` and set the required values:
 | `REDIS_URL` | No | Redis connection URL (e.g. `redis://redis:6379`). When set, blobs are cached in Redis first; LRU entries evict to disk when `BLOB_REDIS_MAX_BYTES` is exceeded. When unset, blobs are cached on disk only. |
 | `BLOB_REDIS_MAX_BYTES` | No | Maximum total size of the Redis blob cache in bytes. Defaults to `536870912` (512 MiB). |
 | `JETSTREAM_URL` | No | Custom Jetstream WebSocket URL. Defaults to `wss://jetstream2.us-east.bsky.network/subscribe`. |
-| `FIREHOSE_DISABLED` | No | Set to `true` to disable the Jetstream firehose consumer. |
+| `JETSTREAM_DISABLED` | No | Set to `true` to disable the Jetstream consumer. |
 | `SIGNUP_MODE` | No | `open` (default) or `allowlist`. Controls who can sign in to the instance. |
 | `ADMIN_DIDS` | No | Comma-separated DIDs of instance admins. Required for `/api/admin/*` endpoints. |
 | `HANDLE_RESOLVER_URL` | No | XRPC-compatible endpoint for resolving handles to DIDs. Falls back to `https://public.api.bsky.app`. A good choice is `https://slingshot.microcosm.blue/`. |
