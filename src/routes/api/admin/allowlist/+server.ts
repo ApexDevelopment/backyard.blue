@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types.js';
 import { isAdmin, getAllowlist, addToAllowlist, removeFromAllowlist } from '$lib/server/signup.js';
+import pool from '$lib/server/db.js';
 
 /**
  * GET /api/admin/allowlist — list all allowlisted identifiers.
@@ -11,7 +12,25 @@ export const GET: RequestHandler = async ({ locals }) => {
 	}
 
 	const entries = await getAllowlist();
-	return json({ entries });
+
+	const dids = entries.map((e) => e.identifier);
+	const handleMap = new Map<string, string>();
+	if (dids.length > 0) {
+		const result = await pool.query(
+			'SELECT did, handle FROM profiles WHERE did = ANY($1)',
+			[dids]
+		);
+		for (const row of result.rows) {
+			if (row.handle) handleMap.set(row.did, row.handle);
+		}
+	}
+
+	return json({
+		entries: entries.map((e) => ({
+			...e,
+			handle: handleMap.get(e.identifier) ?? null
+		}))
+	});
 };
 
 /**

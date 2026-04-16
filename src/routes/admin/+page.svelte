@@ -192,7 +192,7 @@
 	let allowIdentifier = $state('');
 	let allowNote = $state('');
 	let allowLoading = $state(false);
-	let allowEntries: { identifier: string; note: string | null; addedAt: string }[] = $state([]);
+	let allowEntries: { identifier: string; handle: string | null; note: string | null; addedAt: string }[] = $state([]);
 
 	async function loadAllowlist() {
 		allowLoading = true;
@@ -377,7 +377,7 @@
 
 	<!-- Allowlist -->
 	<section class="admin-section card">
-		<h2><ListPlus size={14} /> allowlist <span class="section-badge">{data.signupMode}</span></h2>
+		<h2><ListPlus size={14} /> allowlist <span class="section-badge">{data.signupMode === 'allowlist' ? 'enabled' : 'disabled'}</span></h2>
 
 		<div class="admin-form">
 			<h3>add to allowlist</h3>
@@ -404,7 +404,8 @@
 				{#each allowEntries as entry (entry.identifier)}
 					<li class="admin-list-item">
 						<div class="list-item-info">
-							<span class="list-item-primary">{entry.identifier}</span>
+							<span class="list-item-primary">{entry.handle ?? entry.identifier}</span>
+							{#if entry.handle}<span class="list-item-secondary">{entry.identifier}</span>{/if}
 							{#if entry.note}<span class="list-item-secondary">{entry.note}</span>{/if}
 							<span class="list-item-secondary">{new Date(entry.addedAt).toLocaleString()}</span>
 						</div>
