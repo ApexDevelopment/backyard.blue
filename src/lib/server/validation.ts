@@ -111,7 +111,7 @@ export async function resolveRootPostUri(subjectUri: string): Promise<string> {
 }
 
 /** Maximum reblog chain depth. Prevents unbounded recursive chains. */
-export const MAX_REBLOG_DEPTH = 20;
+export const MAX_REBLOG_DEPTH = 50;
 
 /**
  * Check the current reblog depth for a given subject URI.
