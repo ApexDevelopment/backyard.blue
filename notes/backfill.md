@@ -168,7 +168,7 @@ profile views).
 
 | Variable     | Default                                | Purpose                                                      |
 | ------------ | -------------------------------------- | ------------------------------------------------------------ |
-| `RELAY_URL`  | `https://relay1.us-east.bsky.network`  | Relay host for `com.atproto.sync.listReposByCollection`      |
+| `RAINBOW_URL` | `https://bsky.network`               | URL of any service implementing `com.atproto.sync.listReposByCollection` (e.g. Rainbow, `indigo/collectiondir`) |
 
 The backfill module also relies on:
 

@@ -3,7 +3,7 @@
  *
  * Two modes:
  *
- * 1. **Network discovery** — queries a relay (e.g. relay1.us-east.bsky.network)
+ * 1. **Network discovery** — queries a Rainbow-compatible service (e.g. bsky.network)
  *    via `com.atproto.sync.listReposByCollection` to find every DID that has
  *    records in our collections, then backfills each one. Called at startup.
  *
@@ -27,7 +27,7 @@ import {
 	MAX_TEXT_LENGTH
 } from './validation.js';
 
-const RELAY_URL = process.env.RELAY_URL || 'https://relay1.us-east.bsky.network';
+const RAINBOW_URL = process.env.RAINBOW_URL || 'https://bsky.network';
 const RELAY_RETRY_BASE_MS = 5_000;
 const RELAY_RETRY_MAX_MS = 5 * 60_000;
 const RELAY_MAX_ATTEMPTS = 10;
@@ -420,7 +420,7 @@ async function listReposByCollection(collection: string): Promise<string[]> {
 	const limit = 2000;
 
 	do {
-		const url = new URL(`${RELAY_URL}/xrpc/com.atproto.sync.listReposByCollection`);
+		const url = new URL(`${RAINBOW_URL}/xrpc/com.atproto.sync.listReposByCollection`);
 		url.searchParams.set('collection', collection);
 		url.searchParams.set('limit', limit.toString());
 		if (cursor) url.searchParams.set('cursor', cursor);
@@ -454,7 +454,7 @@ export async function discoverAndBackfill(): Promise<void> {
 	discoveryRunning = true;
 
 	try {
-		console.info(`Discovering repos from relay ${RELAY_URL}…`);
+		console.info(`Discovering repos from ${RAINBOW_URL}…`);
 
 		// Collect unique DIDs across all collections, retrying on relay failure
 		const allDids = new Set<string>();
