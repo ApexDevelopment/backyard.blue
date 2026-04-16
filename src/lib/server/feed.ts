@@ -5,7 +5,7 @@
 
 import pool from './db.js';
 import { mapRowToProfile, ensureProfile, blobUrl } from './identity.js';
-import { escapeLike } from './validation.js';
+import { escapeLike, MAX_REBLOG_DEPTH } from './validation.js';
 import type {
 	BackyardPost,
 	BackyardFeedItem,
@@ -227,7 +227,7 @@ export async function buildReblogChains(
 				c.depth + 1
 			FROM chain c
 			JOIN reblogs r ON r.uri = c.subject_uri
-			WHERE c.depth < 15
+			WHERE c.depth < ${MAX_REBLOG_DEPTH}
 		)
 		SELECT * FROM chain ORDER BY leaf_uri, depth DESC`,
 		[reblogUris]
