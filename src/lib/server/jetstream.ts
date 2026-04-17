@@ -1,15 +1,18 @@
 /**
- * Jetstream consumer.
+ * Jetstream consumer — redundant dual-connection architecture.
  *
- * Connects to a Jetstream instance and listens for commits to any
- * `blue.backyard.*` collection across the entire AT Protocol network.
- * Records created by users outside of Backyard (e.g. via a third-party
- * client writing directly to the user's PDS) are indexed locally just
- * as if they originated from Backyard itself.
+ * Maintains connections to the two highest-priority Jetstream instances.
+ * The higher-priority connection is the "active" consumer whose events
+ * are processed. The lower-priority one is a "standby" that tracks its
+ * cursor position so failover is near-instantaneous.
  *
- * Jetstream provides server-side collection filtering via the
- * `wantedCollections` parameter, so we only receive events matching
- * our lexicon namespace — not the entire network firehose.
+ * On active failure: promote standby to active, open a new standby to
+ * the next available instance.
+ *
+ * On standby failure: open a new standby to the next available instance.
+ *
+ * A periodic promotion timer checks whether a higher-priority instance
+ * has come back online and promotes it if so.
  */
 
 import { env } from '$env/dynamic/private';
@@ -28,14 +31,25 @@ import {
 	MAX_TEXT_LENGTH
 } from './validation.js';
 
-const DEFAULT_JETSTREAM_URL = 'wss://jetstream2.us-east.bsky.network/subscribe';
+const DEFAULT_JETSTREAM_URLS = [
+	'wss://jetstream1.us-east.bsky.network/subscribe',
+	'wss://jetstream2.us-east.bsky.network/subscribe',
+	'wss://jetstream1.us-west.bsky.network/subscribe',
+	'wss://jetstream2.us-west.bsky.network/subscribe'
+];
 const RECONNECT_BASE_MS = 1_000;
 const RECONNECT_MAX_MS = 60_000;
 const CURSOR_PERSIST_INTERVAL_MS = 10_000;
 const EVENT_CONCURRENCY = 5;
 const EVENT_QUEUE_MAX = 5_000;
+const PROMOTION_CHECK_INTERVAL_MS = 5 * 60_000;
 
-let reconnectAttempt = 0;
+export function parseJetstreamUrls(): string[] {
+	const raw = env.JETSTREAM_URLS;
+	if (!raw) return DEFAULT_JETSTREAM_URLS;
+	const urls = raw.split(',').map((s) => s.trim()).filter(Boolean);
+	return urls.length > 0 ? urls : DEFAULT_JETSTREAM_URLS;
+}
 
 interface JetstreamCommit {
 	rev: string;
@@ -61,19 +75,30 @@ interface JetstreamEvent {
 	identity?: JetstreamIdentity;
 }
 
-let ws: WebSocket | null = null;
+type ConnectionRole = 'active' | 'standby';
+
+interface JetstreamConnection {
+	url: string;
+	priorityIndex: number;
+	role: ConnectionRole;
+	ws: WebSocket | null;
+	cursorUs: number | null;
+	reconnectAttempt: number;
+	reconnectTimer: ReturnType<typeof setTimeout> | null;
+}
+
 let running = false;
 let lastCursorUs: number | null = null;
 let cursorTimer: ReturnType<typeof setInterval> | null = null;
+let promotionTimer: ReturnType<typeof setInterval> | null = null;
 
-// Bounded event processing queue. Events are pushed by the WebSocket
-// message handler and drained by up to EVENT_CONCURRENCY workers.
+let activeConn: JetstreamConnection | null = null;
+let standbyConn: JetstreamConnection | null = null;
+
+// Bounded event processing queue (only fed by the active connection).
 const eventQueue: JetstreamEvent[] = [];
 let activeWorkers = 0;
 
-// Shed recovery: when events are dropped, we track the gap and reconnect
-// with a rewound cursor once the queue drains. A cooldown prevents loops
-// if the overload condition persists across reconnections.
 let shedStartUs: number | null = null;
 let lastRecoveryAt = 0;
 const RECOVERY_COOLDOWN_MS = 5 * 60_000;
@@ -92,15 +117,13 @@ function attemptShedRecovery(): void {
 	}
 
 	const rewindUs = shedStartUs - 5_000_000;
-	console.info(`🔥 Jetstream recovering shed events — reconnecting at cursor ${rewindUs}`);
+	console.info(`🔥 Jetstream recovering shed events — reconnecting active at cursor ${rewindUs}`);
 	lastCursorUs = rewindUs;
 	shedStartUs = null;
 	lastRecoveryAt = now;
 
-	// Force reconnect: close the current socket and let the close handler
-	// re-establish with the rewound cursor.
-	if (ws) {
-		ws.close();
+	if (activeConn?.ws) {
+		activeConn.ws.close();
 	}
 }
 
@@ -154,26 +177,13 @@ function buildAtUri(did: string, collection: string, rkey: string): string {
 	return `at://${did}/${collection}/${rkey}`;
 }
 
-/**
- * Index a create or update operation from Jetstream.
- * Uses upsert semantics so that records already indexed via the
- * dual-write path are harmlessly deduplicated.
- */
 async function indexRecord(did: string, commit: JetstreamCommit): Promise<void> {
 	const uri = buildAtUri(did, commit.collection, commit.rkey);
 	const cid = commit.cid || '';
 	const r = commit.record || {};
 
-	// Profile resolution is always best-effort. All we can do is attempt to
-	// keep profiles in cache; if a profile record is malformed or missing,
-	// the frontend will fall back to the Bluesky profile.
-	// ensureProfile() should not throw; it returns null on failure, but
-	// we catch() as a matter of principle.
 	switch (commit.collection) {
 		case NSID.PROFILE: {
-			// Profile changed — invalidate cache and re-resolve from network
-			// (ensureProfile fetches the DID document and profile record,
-			// correctly constructing blob URLs for avatar/banner)
 			await pool.query('DELETE FROM profiles WHERE did = $1', [did]);
 			await ensureProfile(did).catch(() => {});
 			break;
@@ -342,8 +352,6 @@ async function processEvent(event: JetstreamEvent): Promise<void> {
 			await deleteRecord(event.did, event.commit);
 		}
 
-		// Advance the stored repo revision (only forward, never backwards).
-		// This lets the backfill module skip repos already up-to-date.
 		if (event.commit.rev) {
 			await pool.query(
 				`INSERT INTO repo_revs (did, rev, updated_at)
@@ -358,63 +366,253 @@ async function processEvent(event: JetstreamEvent): Promise<void> {
 		await handleIdentity(event);
 	}
 
-	// Only advance forward — concurrent workers may finish out of order.
 	if (event.time_us > (lastCursorUs || 0)) {
 		lastCursorUs = event.time_us;
 	}
 }
 
-function connect(): void {
+/* ── Connection management ────────────────────────────── */
+
+function makeConnection(url: string, priorityIndex: number, role: ConnectionRole): JetstreamConnection {
+	return { url, priorityIndex, role, ws: null, cursorUs: null, reconnectAttempt: 0, reconnectTimer: null };
+}
+
+function closeConnection(conn: JetstreamConnection): void {
+	if (conn.reconnectTimer) {
+		clearTimeout(conn.reconnectTimer);
+		conn.reconnectTimer = null;
+	}
+	if (conn.ws) {
+		conn.ws.close();
+		conn.ws = null;
+	}
+}
+
+function connectedUrls(): Set<string> {
+	const urls = new Set<string>();
+	if (activeConn) urls.add(activeConn.url);
+	if (standbyConn) urls.add(standbyConn.url);
+	return urls;
+}
+
+function nextAvailableUrl(urls: string[], exclude: Set<string>): { url: string; index: number } | null {
+	for (let i = 0; i < urls.length; i++) {
+		if (!exclude.has(urls[i])) return { url: urls[i], index: i };
+	}
+	return null;
+}
+
+function openConnection(conn: JetstreamConnection): void {
 	if (!running) return;
 
-	const baseUrl = env.JETSTREAM_URL || DEFAULT_JETSTREAM_URL;
-	const url = new URL(baseUrl);
+	const url = new URL(conn.url);
 	url.searchParams.set('wantedCollections', 'blue.backyard.*');
 
-	if (lastCursorUs) {
-		// Rewind 5 seconds for gapless playback on reconnection
-		const rewindUs = lastCursorUs - 5_000_000;
+	const cursorUs = conn.role === 'active' ? lastCursorUs : (conn.cursorUs ?? lastCursorUs);
+	if (cursorUs) {
+		const rewindUs = cursorUs - 5_000_000;
 		url.searchParams.set('cursor', rewindUs.toString());
 	}
 
-	console.info(`🔥 Jetstream connecting to ${url.origin}${url.pathname} (cursor: ${lastCursorUs || 'live'})`);
+	const tag = conn.role === 'active' ? '🔥' : '🔁';
+	console.info(`${tag} Jetstream ${conn.role} connecting to ${new URL(conn.url).hostname} (cursor: ${cursorUs || 'live'})`);
 
-	ws = new WebSocket(url.toString());
+	const socket = new WebSocket(url.toString());
+	conn.ws = socket;
 
-	ws.addEventListener('open', () => {
-		console.info('🔥 Jetstream connected');
-		reconnectAttempt = 0; // reset backoff on successful connection
+	socket.addEventListener('open', () => {
+		console.info(`${tag} Jetstream ${conn.role} connected to ${new URL(conn.url).hostname}`);
+		conn.reconnectAttempt = 0;
 	});
 
-	ws.addEventListener('message', (msgEvent) => {
+	socket.addEventListener('message', (msgEvent) => {
 		try {
 			const raw = typeof msgEvent.data === 'string' ? msgEvent.data : String(msgEvent.data);
 			const data = JSON.parse(raw) as JetstreamEvent;
-			enqueueEvent(data);
+
+			if (conn.role === 'active') {
+				enqueueEvent(data);
+			} else {
+				// Standby: track cursor position only, don't process events
+				if (data.time_us > (conn.cursorUs || 0)) {
+					conn.cursorUs = data.time_us;
+				}
+			}
 		} catch (err) {
-			console.error('Jetstream message parse error:', err);
+			console.error(`Jetstream ${conn.role} message parse error:`, err);
 		}
 	});
 
-	ws.addEventListener('close', (event) => {
-		ws = null;
-		if (running) {
-			reconnectAttempt++;
-			// Exponential backoff with jitter: base * 2^attempt + random jitter, capped at max
-			const delay = Math.min(
-				RECONNECT_BASE_MS * Math.pow(2, reconnectAttempt - 1) + Math.random() * 1000,
-				RECONNECT_MAX_MS
-			);
-			console.warn(
-				`🔥 Jetstream disconnected (code: ${event.code}). Reconnecting in ${(delay / 1000).toFixed(1)}s (attempt ${reconnectAttempt})…`
-			);
-			setTimeout(connect, delay);
+	socket.addEventListener('close', (event) => {
+		conn.ws = null;
+		if (!running) return;
+
+		if (conn.role === 'active') {
+			handleActiveDisconnect(conn, event.code);
+		} else {
+			handleStandbyDisconnect(conn, event.code);
 		}
 	});
 
-	ws.addEventListener('error', (err) => {
-		console.error('Jetstream WebSocket error:', err);
+	socket.addEventListener('error', (err) => {
+		console.error(`Jetstream ${conn.role} (${new URL(conn.url).hostname}) error:`, err);
 	});
+}
+
+function handleActiveDisconnect(conn: JetstreamConnection, code: number): void {
+	console.warn(`🔥 Jetstream active disconnected from ${new URL(conn.url).hostname} (code: ${code})`);
+
+	if (standbyConn?.ws) {
+		// Promote standby: it has a current cursor position
+		console.info(`🔥 Promoting standby (${new URL(standbyConn.url).hostname}) to active`);
+		standbyConn.role = 'active';
+
+		// Sync cursor: the standby has been tracking its own position.
+		// Use whichever cursor is further ahead to avoid re-processing
+		// already-handled events while still not skipping any.
+		if (standbyConn.cursorUs && standbyConn.cursorUs > (lastCursorUs || 0)) {
+			lastCursorUs = standbyConn.cursorUs;
+		}
+
+		// Close and reconnect the promoted connection at the authoritative
+		// cursor so its events now flow through processEvent.
+		const promotedUrl = standbyConn.url;
+		const promotedIndex = standbyConn.priorityIndex;
+		closeConnection(standbyConn);
+		activeConn = makeConnection(promotedUrl, promotedIndex, 'active');
+		openConnection(activeConn);
+
+		// Open a new standby
+		standbyConn = null;
+		openNextStandby();
+	} else {
+		// No standby available — reconnect active with backoff
+		scheduleReconnect(conn);
+	}
+}
+
+function handleStandbyDisconnect(conn: JetstreamConnection, code: number): void {
+	console.warn(`🔁 Jetstream standby disconnected from ${new URL(conn.url).hostname} (code: ${code})`);
+
+	// Try the next available URL for standby
+	const urls = parseJetstreamUrls();
+	const exclude = connectedUrls();
+	exclude.add(conn.url); // don't retry the one that just failed immediately
+	const next = nextAvailableUrl(urls, exclude);
+
+	if (next) {
+		standbyConn = makeConnection(next.url, next.index, 'standby');
+		openConnection(standbyConn);
+	} else {
+		// All alternatives exhausted — retry the same one with backoff
+		scheduleReconnect(conn);
+	}
+}
+
+function scheduleReconnect(conn: JetstreamConnection): void {
+	conn.reconnectAttempt++;
+	const delay = Math.min(
+		RECONNECT_BASE_MS * Math.pow(2, conn.reconnectAttempt - 1) + Math.random() * 1000,
+		RECONNECT_MAX_MS
+	);
+	const tag = conn.role === 'active' ? '🔥' : '🔁';
+	console.warn(
+		`${tag} Jetstream ${conn.role} reconnecting to ${new URL(conn.url).hostname} in ${(delay / 1000).toFixed(1)}s (attempt ${conn.reconnectAttempt})`
+	);
+	conn.reconnectTimer = setTimeout(() => {
+		conn.reconnectTimer = null;
+		openConnection(conn);
+	}, delay);
+}
+
+function openNextStandby(): void {
+	if (standbyConn?.ws) return;
+
+	const urls = parseJetstreamUrls();
+	if (urls.length < 2) return; // only one URL configured, no standby possible
+
+	const exclude = connectedUrls();
+	const next = nextAvailableUrl(urls, exclude);
+	if (!next) return;
+
+	standbyConn = makeConnection(next.url, next.index, 'standby');
+	openConnection(standbyConn);
+}
+
+function checkForPromotion(): void {
+	if (!running) return;
+
+	const urls = parseJetstreamUrls();
+	if (!activeConn) return;
+
+	// Find the highest-priority URL we're not already connected to that
+	// outranks the current active connection.
+	for (let i = 0; i < activeConn.priorityIndex; i++) {
+		const candidateUrl = urls[i];
+		if (activeConn.url === candidateUrl) continue;
+		if (standbyConn?.url === candidateUrl) {
+			// We have a standby on a higher-priority instance — promote it
+			console.info(`🔥 Higher-priority instance ${new URL(candidateUrl).hostname} is our standby — promoting`);
+			const oldActive = activeConn;
+
+			// Swap: standby becomes active, old active becomes standby
+			standbyConn.role = 'active';
+			if (standbyConn.cursorUs && standbyConn.cursorUs > (lastCursorUs || 0)) {
+				lastCursorUs = standbyConn.cursorUs;
+			}
+			const promotedUrl = standbyConn.url;
+			const promotedIndex = standbyConn.priorityIndex;
+			closeConnection(standbyConn);
+
+			activeConn = makeConnection(promotedUrl, promotedIndex, 'active');
+			openConnection(activeConn);
+
+			oldActive.role = 'standby';
+			standbyConn = oldActive;
+			// Reconnect old active as standby (it may still be connected but
+			// its message handler checks conn.role)
+			closeConnection(standbyConn);
+			standbyConn = makeConnection(oldActive.url, oldActive.priorityIndex, 'standby');
+			openConnection(standbyConn);
+			return;
+		}
+
+		// Try to connect to the higher-priority instance as a probe.
+		// If it succeeds, the standby open handler will trigger another
+		// promotion check on the next interval.
+		if (!standbyConn?.ws) {
+			console.info(`🔁 Probing higher-priority instance ${new URL(candidateUrl).hostname} as standby`);
+			standbyConn = makeConnection(candidateUrl, i, 'standby');
+			openConnection(standbyConn);
+		}
+		return;
+	}
+
+	// If standby is higher priority than active, promote it
+	if (standbyConn?.ws && standbyConn.priorityIndex < activeConn.priorityIndex) {
+		console.info(`🔥 Standby ${new URL(standbyConn.url).hostname} outranks active — promoting`);
+		const oldActive = activeConn;
+
+		standbyConn.role = 'active';
+		if (standbyConn.cursorUs && standbyConn.cursorUs > (lastCursorUs || 0)) {
+			lastCursorUs = standbyConn.cursorUs;
+		}
+		const promotedUrl = standbyConn.url;
+		const promotedIndex = standbyConn.priorityIndex;
+		closeConnection(standbyConn);
+		activeConn = makeConnection(promotedUrl, promotedIndex, 'active');
+		openConnection(activeConn);
+
+		closeConnection(oldActive);
+		standbyConn = makeConnection(oldActive.url, oldActive.priorityIndex, 'standby');
+		openConnection(standbyConn);
+		return;
+	}
+
+	// Ensure we have a standby if we don't already
+	if (!standbyConn?.ws) {
+		openNextStandby();
+	}
 }
 
 export async function startJetstream(): Promise<void> {
@@ -438,7 +636,21 @@ export async function startJetstream(): Promise<void> {
 		}
 	}, CURSOR_PERSIST_INTERVAL_MS);
 
-	connect();
+	const urls = parseJetstreamUrls();
+	console.info(`🔥 Jetstream starting with ${urls.length} instance(s): ${urls.map((u) => new URL(u).hostname).join(', ')}`);
+
+	// Open active on the highest-priority URL
+	activeConn = makeConnection(urls[0], 0, 'active');
+	openConnection(activeConn);
+
+	// Open standby on the second-highest-priority URL (if available)
+	if (urls.length > 1) {
+		standbyConn = makeConnection(urls[1], 1, 'standby');
+		openConnection(standbyConn);
+	}
+
+	// Periodically check if we should promote a higher-priority instance
+	promotionTimer = setInterval(checkForPromotion, PROMOTION_CHECK_INTERVAL_MS);
 }
 
 export async function stopJetstream(): Promise<void> {
@@ -449,6 +661,11 @@ export async function stopJetstream(): Promise<void> {
 		cursorTimer = null;
 	}
 
+	if (promotionTimer) {
+		clearInterval(promotionTimer);
+		promotionTimer = null;
+	}
+
 	if (lastCursorUs) {
 		try {
 			await saveCursor(lastCursorUs);
@@ -457,10 +674,18 @@ export async function stopJetstream(): Promise<void> {
 		}
 	}
 
-	if (ws) {
-		ws.close();
-		ws = null;
+	if (activeConn) {
+		closeConnection(activeConn);
+		activeConn = null;
 	}
+
+	if (standbyConn) {
+		closeConnection(standbyConn);
+		standbyConn = null;
+	}
+
+	eventQueue.length = 0;
+	activeWorkers = 0;
 
 	console.info('🔥 Jetstream stopped');
 }

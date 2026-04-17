@@ -168,7 +168,7 @@ profile views).
 
 | Variable     | Default                                | Purpose                                                      |
 | ------------ | -------------------------------------- | ------------------------------------------------------------ |
-| `RAINBOW_URL` | `https://bsky.network`               | URL of any service implementing `com.atproto.sync.listReposByCollection` (e.g. Rainbow, `indigo/collectiondir`) |
+| `RAINBOW_URLS` | `https://bsky.network`               | Comma-separated list of URLs for services implementing `com.atproto.sync.listReposByCollection`. Falls back to the next URL on error. |
 
 The backfill module also relies on:
 

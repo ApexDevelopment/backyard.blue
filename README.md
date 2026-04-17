@@ -46,14 +46,14 @@ Copy `.env.example` to `.env` and set the required values:
 | `BLOB_CACHE_MAX_BYTES` | No | Maximum total size of the on-disk blob cache in bytes. Defaults to `2147483648` (2 GiB). |
 | `REDIS_URL` | No | Redis connection URL (e.g. `redis://redis:6379`). When set, blobs are cached in Redis first; LRU entries evict to disk when `BLOB_REDIS_MAX_BYTES` is exceeded. When unset, blobs are cached on disk only. |
 | `BLOB_REDIS_MAX_BYTES` | No | Maximum total size of the Redis blob cache in bytes. Defaults to `536870912` (512 MiB). |
-| `JETSTREAM_URL` | No | Custom Jetstream WebSocket URL. Defaults to `wss://jetstream2.us-east.bsky.network/subscribe`. |
+| `JETSTREAM_URLS` | No | Comma-separated list of Jetstream WebSocket URLs in priority order. Backyard maintains connections to the top two available instances for redundancy. Defaults to `wss://jetstream1.us-east.bsky.network/subscribe,wss://jetstream2.us-east.bsky.network/subscribe,wss://jetstream1.us-west.bsky.network/subscribe,wss://jetstream2.us-west.bsky.network/subscribe`. |
 | `JETSTREAM_DISABLED` | No | Set to `true` to disable the Jetstream consumer. |
 | `SIGNUP_MODE` | No | `open` (default) or `allowlist`. Controls who can sign in to the instance. |
 | `ADMIN_DIDS` | No | Comma-separated DIDs of instance admins. Required for `/api/admin/*` endpoints. |
 | `HANDLE_RESOLVER_URL` | No | XRPC-compatible endpoint for resolving handles to DIDs. Falls back to `https://public.api.bsky.app`. A good choice is `https://slingshot.microcosm.blue/`. |
 | `NEWS_DID` | No | DID of the account whose posts populate the news panel. If unset, resolves `NEWS_HANDLE` via the handle resolver. |
 | `NEWS_HANDLE` | No | Handle of the news account. Defaults to `backyard.blue`. |
-| `RAINBOW_URL` | No | URL of a service implementing `com.atproto.sync.listReposByCollection` (e.g. Rainbow, a collection directory) used for backfill discovery at startup. Defaults to `https://bsky.network`. |
+| `RAINBOW_URLS` | No | Comma-separated list of URLs for services implementing `com.atproto.sync.listReposByCollection` (e.g. Rainbow, a collection directory) used for backfill discovery at startup. Falls back to the next URL on error. Defaults to `https://bsky.network`. |
 | `TOS_PATH` | No | Path to a plaintext or markdown file rendered at `/terms_of_service`. If set, users must agree before signing in. |
 | `COMMUNITY_GUIDELINES_PATH` | No | Path to a plaintext or markdown file rendered at `/community_guidelines`. If set, users must agree before signing in. |
 | `CAPTCHA_PDS_ALLOWLIST` | No | [PDS Gatekeeper](https://tangled.org/baileytownsend.dev/pds-gatekeeper) does not allow arbitrary captcha redirects by default. Put PDS hosts here that allow your instance to complete captchas. Comma-separated. |

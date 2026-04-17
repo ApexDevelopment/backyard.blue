@@ -27,10 +27,17 @@ import {
 	MAX_TEXT_LENGTH
 } from './validation.js';
 
-const RAINBOW_URL = process.env.RAINBOW_URL || 'https://bsky.network';
+const DEFAULT_RAINBOW_URL = 'https://bsky.network';
 const RELAY_RETRY_BASE_MS = 5_000;
 const RELAY_RETRY_MAX_MS = 5 * 60_000;
 const RELAY_MAX_ATTEMPTS = 10;
+
+export function parseRainbowUrls(): string[] {
+	const raw = process.env.RAINBOW_URLS;
+	if (!raw) return [DEFAULT_RAINBOW_URL];
+	const urls = raw.split(',').map((s) => s.trim()).filter(Boolean);
+	return urls.length > 0 ? urls : [DEFAULT_RAINBOW_URL];
+}
 
 /**
  * Collections to backfill, in dependency order.
@@ -414,13 +421,13 @@ interface ListReposByCollectionResponse {
  * Query a relay for all DIDs that have records in the given collection
  * via `com.atproto.sync.listReposByCollection`. Paginates through all pages.
  */
-async function listReposByCollection(collection: string): Promise<string[]> {
+async function listReposByCollection(rainbowUrl: string, collection: string): Promise<string[]> {
 	const dids: string[] = [];
 	let cursor: string | undefined;
 	const limit = 2000;
 
 	do {
-		const url = new URL(`${RAINBOW_URL}/xrpc/com.atproto.sync.listReposByCollection`);
+		const url = new URL(`${rainbowUrl}/xrpc/com.atproto.sync.listReposByCollection`);
 		url.searchParams.set('collection', collection);
 		url.searchParams.set('limit', limit.toString());
 		if (cursor) url.searchParams.set('cursor', cursor);
@@ -454,32 +461,36 @@ export async function discoverAndBackfill(): Promise<void> {
 	discoveryRunning = true;
 
 	try {
-		console.info(`Discovering repos from ${RAINBOW_URL}…`);
+		const rainbowUrls = parseRainbowUrls();
+		console.info(`Discovering repos from ${rainbowUrls.length} Rainbow instance(s)…`);
 
-		// Collect unique DIDs across all collections, retrying on relay failure
 		const allDids = new Set<string>();
 		let attempt = 0;
+		let urlIndex = 0;
 
 		while (attempt < RELAY_MAX_ATTEMPTS) {
+			const rainbowUrl = rainbowUrls[urlIndex % rainbowUrls.length];
 			try {
 				for (const collection of Object.values(NSID)) {
 					if (collection === NSID.PROFILE) continue;
-					const dids = await listReposByCollection(collection);
+					const dids = await listReposByCollection(rainbowUrl, collection);
 					for (const did of dids) allDids.add(did);
 				}
 				break; // success
 			} catch (err) {
 				attempt++;
+				urlIndex++;
 				if (attempt >= RELAY_MAX_ATTEMPTS) {
-					console.error(`Relay discovery failed after ${attempt} attempts, giving up:`, err);
+					console.error(`Rainbow discovery failed after ${attempt} attempts across ${rainbowUrls.length} instance(s), giving up:`, err);
 					return;
 				}
+				const nextUrl = rainbowUrls[urlIndex % rainbowUrls.length];
 				const delay = Math.min(
 					RELAY_RETRY_BASE_MS * Math.pow(2, attempt - 1) + Math.random() * 1000,
 					RELAY_RETRY_MAX_MS
 				);
 				const message = err instanceof Error ? err.message : String(err);
-				console.warn(`Relay discovery attempt ${attempt} failed (retrying in ${(delay / 1000).toFixed(1)}s): ${message}`);
+				console.warn(`Rainbow discovery attempt ${attempt} failed on ${new URL(rainbowUrl).hostname}, falling back to ${new URL(nextUrl).hostname} in ${(delay / 1000).toFixed(1)}s: ${message}`);
 				await new Promise((r) => setTimeout(r, delay));
 			}
 		}

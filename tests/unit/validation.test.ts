@@ -303,7 +303,7 @@ describe('constants', () => {
 		expect(MAX_JSON_SIZE).toBe(256 * 1024);
 	});
 
-	it('MAX_REBLOG_DEPTH is 20', () => {
-		expect(MAX_REBLOG_DEPTH).toBe(20);
+	it('MAX_REBLOG_DEPTH is 50', () => {
+		expect(MAX_REBLOG_DEPTH).toBe(50);
 	});
 });

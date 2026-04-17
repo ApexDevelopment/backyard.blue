@@ -24,27 +24,41 @@ network.
 | Property            | Value                                                     |
 | ------------------- | --------------------------------------------------------- |
 | Protocol            | WebSocket (JSON frames)                                   |
-| Default URL         | `wss://jetstream2.us-east.bsky.network/subscribe`         |
+| Instances           | Comma-separated in `JETSTREAM_URLS` (priority order)      |
 | Collection filter   | `?wantedCollections=blue.backyard.*` (prefix matching)    |
 | Cursor format       | Unix microseconds (`time_us` field on every event)        |
 | Cursor persistence  | Stored in PostgreSQL `firehose_cursor` table              |
-| Reconnection        | Automatic after 5 s; cursor rewound 5 s for gapless play |
+| Reconnection        | Automatic with exponential backoff + URL failover         |
 | Node dependency     | None — uses Node 22 native `WebSocket`                    |
 
 ## Architecture
 
+Backyard maintains two Jetstream connections at all times:
+
+- **Active** — highest-priority available instance. Events are processed
+  (indexed into PostgreSQL) and advance the authoritative cursor.
+- **Standby** — next-highest-priority instance. Tracks its own cursor
+  position but does not process events. Provides near-instant failover.
+
+On active failure the standby is promoted to active and a new standby
+opens to the next available instance. On standby failure a replacement
+connects to the next available URL. A periodic timer (every 5 min) checks
+whether a higher-priority instance has recovered and promotes it.
+
 ```
-  Jetstream (public)          Backyard Server
-  ┌──────────────┐      WS    ┌──────────────┐
-  │  wantedColl  ├──────────►│ jetstream.ts │
-  │  =blue.back  │   JSON     │              │
-  │   yard.*     │   events   │ processEvent │
-  └──────────────┘            │      │       │
-                              │      ▼       │
-                              │ indexRecord  │──► PostgreSQL
-                              │ deleteRecord │
-                              │ handleIdent. │──► profiles cache
-                              └──────────────┘
+  Jetstream 1 (priority 0)   Backyard Server
+  ┌──────────────┐  active   ┌──────────────┐
+  │  wantedColl  ├─────────►│ jetstream.ts │
+  │  =blue.back  │  events   │              │
+  │   yard.*     │           │ processEvent │
+  └──────────────┘           │      │       │
+                             │      ▼       │
+  Jetstream 2 (priority 1)  │ indexRecord  │──► PostgreSQL
+  ┌──────────────┐  standby  │ deleteRecord │
+  │  wantedColl  ├─────────►│ handleIdent. │──► profiles cache
+  │  =blue.back  │  cursor   └──────────────┘
+  │   yard.*     │  only
+  └──────────────┘
 ```
 
 ## Event Types
@@ -74,7 +88,7 @@ semantics:
 
 | Variable            | Default                                                | Description                              |
 | ------------------- | ------------------------------------------------------ | ---------------------------------------- |
-| `JETSTREAM_URL`     | `wss://jetstream2.us-east.bsky.network/subscribe`      | Jetstream WebSocket endpoint             |
+| `JETSTREAM_URLS`     | `wss://jetstream1.us-east.bsky.network/subscribe,…`   | Comma-separated Jetstream WebSocket endpoints (priority order) |
 | `JETSTREAM_DISABLED` | *(empty — Jetstream enabled)*                          | Set to `"true"` to disable Jetstream  |
 
 ## Cursor Persistence
