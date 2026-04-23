@@ -48,8 +48,8 @@
 	<title>set up your profile — backyard</title>
 </svelte:head>
 
-<div class="onboarding-page">
-	<div class="onboarding-card card">
+<div class="onboarding-page mobile-full-bleed">
+	<div class="onboarding-card card mobile-unclamp">
 		<div class="onboarding-header">
 			<span class="logo"><House size={36} color="var(--accent)" strokeWidth={2} /></span>
 			<h1>set up your profile</h1>

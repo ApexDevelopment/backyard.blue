@@ -49,8 +49,8 @@
 	<title>sign in — backyard</title>
 </svelte:head>
 
-<div class="auth-page">
-	<div class="auth-card card">
+<div class="auth-page mobile-full-bleed">
+	<div class="auth-card card mobile-unclamp">
 		<div class="login-header">
 			<span class="login-logo"><House size={40} color="var(--accent)" strokeWidth={2} /></span>
 			<h1>welcome to the backyard</h1>

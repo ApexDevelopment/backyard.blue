@@ -27,3 +27,7 @@ vite.config.ts.timestamp-*
 
 # Docker Composefiles
 compose.*.yml
+
+# Playwright
+/playwright-report
+/test-results

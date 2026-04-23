@@ -421,6 +421,18 @@ textarea.input {
 	padding: 2rem;
 }
 
+@media (max-width: 640px) {
+	.mobile-full-bleed {
+		width: calc(100% + 1.5rem);
+		margin-left: -0.75rem;
+		margin-right: -0.75rem;
+	}
+
+	.mobile-unclamp {
+		max-width: none;
+	}
+}
+
 /* Avatar */
 .avatar {
 	width: 40px;

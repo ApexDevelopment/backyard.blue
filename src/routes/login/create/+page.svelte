@@ -163,8 +163,8 @@
 	<title>create account — backyard</title>
 </svelte:head>
 
-<div class="auth-page">
-	<div class="auth-card card">
+<div class="auth-page mobile-full-bleed">
+	<div class="auth-card card mobile-unclamp">
 		<div class="create-header">
 			<span class="create-logo"><House size={40} color="var(--accent)" strokeWidth={2} /></span>
 			<h1>create an account</h1>
