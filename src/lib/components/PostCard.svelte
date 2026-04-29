@@ -293,6 +293,7 @@
 
 	let lightboxSrc = $state('');
 	let lightboxAlt = $state('');
+	let lightboxDialog: HTMLDialogElement | undefined = $state();
 
 	function openLightbox(src: string, alt: string) {
 		lightboxSrc = src;
@@ -300,9 +301,40 @@
 	}
 
 	function closeLightbox() {
+		if (lightboxDialog?.open) {
+			lightboxDialog.close();
+		}
 		lightboxSrc = '';
 		lightboxAlt = '';
 	}
+
+	function handleLightboxCancel(event: Event) {
+		event.preventDefault();
+		closeLightbox();
+	}
+
+	function handleLightboxClick(event: MouseEvent) {
+		if (event.target === event.currentTarget) {
+			closeLightbox();
+		}
+	}
+
+	function handleLightboxClosed() {
+		lightboxSrc = '';
+		lightboxAlt = '';
+	}
+
+	$effect(() => {
+		if (!lightboxDialog) return;
+
+		if (lightboxSrc) {
+			if (!lightboxDialog.open) {
+				lightboxDialog.showModal();
+			}
+		} else if (lightboxDialog.open) {
+			lightboxDialog.close();
+		}
+	});
 
 	async function handleAdminBan() {
 		if (adminBanLoading) return;
@@ -590,12 +622,18 @@
 	</div>
 {/if}
 
-{#if lightboxSrc}
-	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<div class="lightbox-backdrop" role="dialog" aria-modal="true" aria-label="image preview" tabindex="-1" onclick={closeLightbox} onkeydown={(e) => e.key === 'Escape' && closeLightbox()}>
+<dialog
+	class="lightbox-dialog"
+	bind:this={lightboxDialog}
+	aria-label="image preview"
+	onclick={handleLightboxClick}
+	oncancel={handleLightboxCancel}
+	onclose={handleLightboxClosed}
+>
+	{#if lightboxSrc}
 		<img src={lightboxSrc} alt={lightboxAlt} class="lightbox-image" />
-	</div>
-{/if}
+	{/if}
+</dialog>
 
 <style>
 	.post-card {
@@ -1042,17 +1080,31 @@
 		cursor: pointer;
 	}
 
-	.lightbox-backdrop {
+	.lightbox-dialog {
+		padding: 0;
+		border: none;
+		background: transparent;
+	}
+
+	.lightbox-dialog[open] {
 		position: fixed;
 		inset: 0;
-		z-index: 300;
-		background-color: rgba(0, 0, 0, 0.85);
+		width: 100dvw;
+		height: 100dvh;
+		max-width: none;
+		max-height: none;
+		margin: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		padding: 2rem;
+		padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+		overflow: auto;
 		cursor: pointer;
 		animation: lightboxFadeIn 0.2s ease;
+	}
+
+	.lightbox-dialog::backdrop {
+		background-color: rgba(0, 0, 0, 0.85);
 	}
 
 	@keyframes lightboxFadeIn {
@@ -1065,8 +1117,9 @@
 	}
 
 	.lightbox-image {
-		max-width: 100%;
-		max-height: 100%;
+		max-width: calc(100dvw - 2rem - env(safe-area-inset-left) - env(safe-area-inset-right));
+		max-height: calc(100dvh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+		margin: auto;
 		object-fit: contain;
 		border-radius: var(--radius-sm);
 		animation: lightboxScaleIn 0.2s ease;
