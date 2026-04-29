@@ -21,7 +21,7 @@ Set on `:root` in `src/app.css`:
 | `--radius-sm/md/lg/full` | `8px` / `12px` / `16px` / `9999px` | Border radii |
 | `--max-width` | `640px` | Content column |
 | `--header-height` | `60px` | Top nav bar |
-| `--font-sans` | Inter, system fallbacks | Body text |
+| `--font-sans` | Outfit, system fallbacks | Body text |
 | `--font-mono` | JetBrains Mono, Fira Code | Code text |
 
 ## Heading Scale
